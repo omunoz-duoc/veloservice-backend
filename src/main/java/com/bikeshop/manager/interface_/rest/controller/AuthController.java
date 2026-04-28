@@ -3,8 +3,10 @@ package com.bikeshop.manager.interface_.rest.controller;
 import com.bikeshop.manager.application.dto.AuthRequest;
 import com.bikeshop.manager.application.dto.AuthResponse;
 import com.bikeshop.manager.domain.platform.Rol;
+import com.bikeshop.manager.domain.platform.Taller;
 import com.bikeshop.manager.domain.tenant.Usuario;
 import com.bikeshop.manager.infrastructure.persistence.repository.RolRepository;
+import com.bikeshop.manager.infrastructure.persistence.repository.TallerRepository;
 import com.bikeshop.manager.infrastructure.persistence.repository.UsuarioRepository;
 import com.bikeshop.manager.infrastructure.security.JwtTokenProvider;
 import jakarta.validation.Valid;
@@ -34,6 +36,7 @@ public class AuthController {
     private final AuthenticationManager authManager;
     private final UsuarioRepository usuarioRepository;
     private final RolRepository rolRepository;
+    private final TallerRepository tallerRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtProvider;
 
@@ -82,17 +85,54 @@ public class AuthController {
                 Rol.builder().nombre("MECANICO").ambito("tenant").descripcion("Mecánico").build()
             ));
         }
-        if (usuarioRepository.existsByEmail(adminEmail)) {
-            return ResponseEntity.badRequest().body("Usuario ya existe");
+        Rol rolAdminSaas = rolRepository.findByNombre("ADMIN_SAAS")
+                .orElseThrow(() -> new RuntimeException("Rol ADMIN_SAAS no encontrado"));
+        Rol rolDueno = rolRepository.findByNombre("DUENO")
+                .orElseThrow(() -> new RuntimeException("Rol DUENO no encontrado"));
+
+        if (!usuarioRepository.existsByEmail(adminEmail)) {
+            Usuario admin = Usuario.builder()
+                    .rol(rolAdminSaas)
+                    .nombre("Admin")
+                    .apellido("SaaS")
+                    .rut("1-9")
+                    .email(adminEmail)
+                    .telefono("+56900000000")
+                    .passwordHash(passwordEncoder.encode(adminPassword))
+                    .activo(true)
+                    .build();
+            usuarioRepository.save(admin);
         }
-        Rol rolAdmin = rolRepository.findByNombre("ADMIN_SAAS")
-                .orElseThrow(() -> new RuntimeException("Rol no encontrado"));
-        Usuario admin = Usuario.builder()
-                .rol(rolAdmin).nombre("Admin").apellido("SaaS").rut("1-9")
-                .email(adminEmail).telefono("+56900000000")
-                .passwordHash(passwordEncoder.encode(adminPassword))
-                .activo(true).build();
-        usuarioRepository.save(admin);
-        return ResponseEntity.ok("Setup completado");
+
+        Taller tallerPiloto = tallerRepository.findByRut("76.123.456-7")
+                .orElseGet(() -> tallerRepository.save(
+                    Taller.builder()
+                        .nombre("VeloService")
+                        .rut("76.123.456-7")
+                        .activo(true)
+                        .build()
+                ));
+
+        String duenoEmail = "dueno@veloservice.cl";
+        if (!usuarioRepository.existsByEmail(duenoEmail)) {
+            Usuario dueno = Usuario.builder()
+                    .taller(tallerPiloto)
+                    .rol(rolDueno)
+                    .nombre("Carlos")
+                    .apellido("Veloso")
+                    .rut("15.234.567-8")
+                    .email(duenoEmail)
+                    .telefono("+56998765432")
+                    .passwordHash(passwordEncoder.encode("Dueno1234"))
+                    .activo(true)
+                    .build();
+            usuarioRepository.save(dueno);
+        }
+
+        return ResponseEntity.ok(
+            "Setup completado. " +
+            "Admin SaaS: " + adminEmail + " | " +
+            "Dueño VeloService: " + duenoEmail + " / Dueno1234"
+        );
     }
 }
