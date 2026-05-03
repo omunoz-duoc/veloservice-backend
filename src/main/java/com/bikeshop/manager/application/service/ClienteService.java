@@ -65,7 +65,7 @@ public class ClienteService {
             sucursalClienteRepository.save(vinculo);
         }
 
-        return toResponse(cliente);
+        return toResponse(cliente, SucursalContext.getCurrentSucursal());
     }
 
     /**
