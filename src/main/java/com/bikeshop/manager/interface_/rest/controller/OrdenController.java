@@ -73,4 +73,24 @@ public class OrdenController {
             @Valid @RequestBody EstadoChangeRequest request) {
         return ResponseEntity.ok(ordenService.cambiarEstado(id, request));
     }
+
+    /**
+     * Agrega un servicio a la orden.
+     */
+    @PostMapping("/{id}/servicios")
+    public ResponseEntity<OrdenResponse> agregarServicio(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.bikeshop.manager.application.dto.OrdenServicioRequest request) {
+        return ResponseEntity.ok(ordenService.agregarServicio(id, request));
+    }
+
+    /**
+     * Agrega un producto a la orden.
+     */
+    @PostMapping("/{id}/productos")
+    public ResponseEntity<OrdenResponse> agregarProducto(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.bikeshop.manager.application.dto.OrdenProductoRequest request) {
+        return ResponseEntity.ok(ordenService.agregarProducto(id, request));
+    }
 }

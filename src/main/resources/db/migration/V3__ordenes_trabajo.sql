@@ -42,13 +42,4 @@ CREATE TABLE multimedia (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE secuencias_taller (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    taller_id UUID NOT NULL REFERENCES talleres(id),
-    tipo VARCHAR(10) NOT NULL,
-    anio INT NOT NULL,
-    ultimo_numero INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE(taller_id, tipo, anio)
-);
+

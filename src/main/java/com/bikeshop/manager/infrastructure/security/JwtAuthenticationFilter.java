@@ -54,9 +54,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(auth);
-                TenantContext.setCurrentTenant(tallerId);
                 SucursalContext.setCurrentSucursal(tallerId);
-                TenantContext.setCurrentUser(userId);
+                UsuarioContext.setCurrentUser(userId);
             }
         } catch (Exception e) {
             log.error("Error procesando JWT", e);

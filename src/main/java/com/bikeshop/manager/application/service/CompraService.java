@@ -15,6 +15,7 @@ import com.bikeshop.manager.infrastructure.persistence.repository.ProveedorRepos
 import com.bikeshop.manager.infrastructure.persistence.repository.SucursalProveedorRepository;
 import com.bikeshop.manager.infrastructure.rls.TenantOperation;
 import com.bikeshop.manager.infrastructure.security.SucursalContext;
+import com.bikeshop.manager.infrastructure.security.UsuarioContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,7 +50,7 @@ public class CompraService {
     @Transactional
     public CompraResponse crear(CompraRequest request) {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
-        UUID usuarioId = com.bikeshop.manager.infrastructure.security.TenantContext.getCurrentUser();
+        UUID usuarioId = UsuarioContext.getCurrentUser();
         if (sucursalId == null || usuarioId == null) {
             throw new IllegalStateException("Contexto de sucursal/usuario requerido");
         }
@@ -107,7 +108,7 @@ public class CompraService {
     @Transactional
     public CompraResponse confirmarRecepcion(UUID compraId) {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
-        UUID usuarioId = com.bikeshop.manager.infrastructure.security.TenantContext.getCurrentUser();
+        UUID usuarioId = UsuarioContext.getCurrentUser();
         if (sucursalId == null || usuarioId == null) {
             throw new IllegalStateException("Contexto de sucursal/usuario requerido");
         }

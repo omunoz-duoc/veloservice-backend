@@ -30,7 +30,7 @@ public class TenantOperationAspect {
      * @throws Throwable if the join point fails
      */
     @Around("@annotation(com.bikeshop.manager.infrastructure.rls.TenantOperation)")
-    public Object applyTenantContext(ProceedingJoinPoint joinPoint) throws Throwable {
+    public Object applySucursalContext(ProceedingJoinPoint joinPoint) throws Throwable {
         UUID tenantId = SucursalContext.getCurrentSucursal();
         if (tenantId != null) {
             entityManager.createNativeQuery("SELECT set_config('request.jwt.claim.sucursal_id', ?, true)")
