@@ -22,5 +22,4 @@ public class BicicletaResponse {
     private String color;
     private String numeroSerie;
     private Integer anio;
-    private String notas;
 }

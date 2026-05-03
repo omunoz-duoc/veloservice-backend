@@ -30,15 +30,20 @@ import java.util.stream.Collectors;
 public class OrdenService {
 
     private static final List<String> ESTADOS_VALIDOS = List.of(
-            "Recibido", "En_Proceso", "Listo", "Entregado", "Cancelado"
+            "recibida", "en_diagnostico", "esperando_repuestos", "en_reparacion",
+            "control_calidad", "lista_para_entrega", "entregada", "cancelada"
     );
 
     private static final List<String> TRANSICIONES_VALIDAS = List.of(
-            "Recibido->En_Proceso",
-            "En_Proceso->Listo",
-            "Listo->Entregado",
-            "En_Proceso->Cancelado",
-            "Recibido->Cancelado"
+            "recibida->en_diagnostico",
+            "en_diagnostico->esperando_repuestos",
+            "en_diagnostico->en_reparacion",
+            "esperando_repuestos->en_reparacion",
+            "en_reparacion->control_calidad",
+            "control_calidad->lista_para_entrega",
+            "lista_para_entrega->entregada",
+            "recibida->cancelada",
+            "en_diagnostico->cancelada"
     );
 
     private final OrdenRepository ordenRepository;
@@ -55,24 +60,24 @@ public class OrdenService {
     @TenantOperation
     @Transactional
     public OrdenResponse crear(OrdenRequest request) {
-        UUID tallerId = TenantContext.getCurrentTenant();
+        UUID sucursalId = TenantContext.getCurrentTenant();
         UUID usuarioId = TenantContext.getCurrentUser();
-        if (tallerId == null || usuarioId == null) {
-            throw new IllegalStateException("Contexto de taller/usuario requerido");
+        if (sucursalId == null || usuarioId == null) {
+            throw new IllegalStateException("Contexto de sucursal/usuario requerido");
         }
 
         if (request.getMultimedia() == null || request.getMultimedia().isEmpty()) {
             throw new IllegalArgumentException("Evidencia multimedia obligatoria (RN01)");
         }
 
-        String numeroOrden = secuenciaService.generarNumeroOrden(tallerId);
+        String numeroOrden = secuenciaService.generarNumeroOrden(sucursalId);
 
         Orden orden = Orden.builder()
-                .tallerId(tallerId)
+            .sucursalId(sucursalId)
                 .bicicletaId(request.getBicicletaId())
                 .mecanicoId(usuarioId)
                 .numeroOrden(numeroOrden)
-                .estado("Recibido")
+            .estado("recibida")
                 .tipo(request.getTipo())
                 .diagnosticoInicial(request.getDiagnosticoInicial())
                 .observacionesCliente(request.getObservacionesCliente())
@@ -85,18 +90,17 @@ public class OrdenService {
 
         for (MultimediaRequest m : request.getMultimedia()) {
             Multimedia multimedia = Multimedia.builder()
-                    .tallerId(tallerId)
                     .ordenId(orden.getId())
                     .usuarioId(usuarioId)
                     .url(m.getUrl())
                     .tipoArchivo(m.getTipoArchivo())
-                    .etapa("recepcion")
+                    .etapa("ingreso")
                     .descripcion(m.getDescripcion())
                     .build();
             multimediaRepository.save(multimedia);
         }
 
-        registrarEstado(orden.getId(), tallerId, usuarioId, "N/A", "Recibido", "Creacion de orden de trabajo");
+        registrarEstado(orden.getId(), sucursalId, usuarioId, "N/A", "recibida", "Creacion de orden de trabajo");
 
         return toResponse(orden);
     }
@@ -111,10 +115,10 @@ public class OrdenService {
     @TenantOperation
     @Transactional
     public OrdenResponse cambiarEstado(UUID ordenId, EstadoChangeRequest request) {
-        UUID tallerId = TenantContext.getCurrentTenant();
+        UUID sucursalId = TenantContext.getCurrentTenant();
         UUID usuarioId = TenantContext.getCurrentUser();
 
-        Orden orden = ordenRepository.findByIdAndTallerId(ordenId, tallerId)
+        Orden orden = ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)
                 .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
 
         String estadoActual = orden.getEstado();
@@ -129,25 +133,25 @@ public class OrdenService {
             throw new IllegalArgumentException("Transicion no permitida: " + transicion);
         }
 
-        if ("Listo".equals(estadoNuevo)) {
+        if ("lista_para_entrega".equals(estadoNuevo)) {
             boolean tieneEvidenciaTecnica = multimediaRepository.existsByOrdenIdAndEtapa(ordenId, "reparacion");
             if (!tieneEvidenciaTecnica) {
                 throw new IllegalArgumentException(
-                        "No se puede cambiar a Listo sin evidencia tecnica final (RN02)");
+                        "No se puede cambiar a lista_para_entrega sin evidencia tecnica final (RN02)");
             }
         }
 
-        if ("Cancelado".equals(estadoNuevo) && List.of("Listo", "Entregado").contains(estadoActual)) {
+        if ("cancelada".equals(estadoNuevo) && List.of("lista_para_entrega", "entregada").contains(estadoActual)) {
             throw new IllegalArgumentException("No se puede cancelar una orden en estado " + estadoActual);
         }
 
         orden.setEstado(estadoNuevo);
-        if ("Entregado".equals(estadoNuevo)) {
+        if ("entregada".equals(estadoNuevo)) {
             orden.setFechaEntrega(LocalDateTime.now());
         }
         orden = ordenRepository.save(orden);
 
-        registrarEstado(ordenId, tallerId, usuarioId, estadoActual, estadoNuevo, request.getObservacion());
+        registrarEstado(ordenId, sucursalId, usuarioId, estadoActual, estadoNuevo, request.getObservacion());
 
         return toResponse(orden);
     }
@@ -160,8 +164,8 @@ public class OrdenService {
     @TenantOperation
     @Transactional(readOnly = true)
     public List<OrdenResponse> listar() {
-        UUID tallerId = TenantContext.getCurrentTenant();
-        return ordenRepository.findAllByTallerIdOrderByFechaIngresoDesc(tallerId).stream()
+        UUID sucursalId = TenantContext.getCurrentTenant();
+        return ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -175,17 +179,16 @@ public class OrdenService {
     @TenantOperation
     @Transactional(readOnly = true)
     public OrdenResponse obtener(UUID id) {
-        UUID tallerId = TenantContext.getCurrentTenant();
-        Orden orden = ordenRepository.findByIdAndTallerId(id, tallerId)
+        UUID sucursalId = TenantContext.getCurrentTenant();
+        Orden orden = ordenRepository.findByIdAndSucursalId(id, sucursalId)
                 .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
         return toResponse(orden);
     }
 
-    private void registrarEstado(UUID ordenId, UUID tallerId, UUID usuarioId,
+        private void registrarEstado(UUID ordenId, UUID sucursalId, UUID usuarioId,
                                  String anterior, String nuevo, String observacion) {
         OrdenEstado auditoria = OrdenEstado.builder()
                 .ordenId(ordenId)
-                .tallerId(tallerId)
                 .usuarioId(usuarioId)
                 .estadoAnterior(anterior)
                 .estadoNuevo(nuevo)

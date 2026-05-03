@@ -3,9 +3,11 @@ package com.bikeshop.manager.interface_.rest.controller;
 import com.bikeshop.manager.application.dto.AuthRequest;
 import com.bikeshop.manager.application.dto.AuthResponse;
 import com.bikeshop.manager.domain.platform.Rol;
+import com.bikeshop.manager.domain.platform.Sucursal;
 import com.bikeshop.manager.domain.platform.Taller;
 import com.bikeshop.manager.domain.tenant.Usuario;
 import com.bikeshop.manager.infrastructure.persistence.repository.RolRepository;
+import com.bikeshop.manager.infrastructure.persistence.repository.SucursalRepository;
 import com.bikeshop.manager.infrastructure.persistence.repository.TallerRepository;
 import com.bikeshop.manager.infrastructure.persistence.repository.UsuarioRepository;
 import com.bikeshop.manager.infrastructure.security.JwtTokenProvider;
@@ -37,6 +39,7 @@ public class AuthController {
     private final UsuarioRepository usuarioRepository;
     private final RolRepository rolRepository;
     private final TallerRepository tallerRepository;
+    private final SucursalRepository sucursalRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtProvider;
 
@@ -55,7 +58,9 @@ public class AuthController {
         usuario.setLastLogin(LocalDateTime.now());
         usuarioRepository.save(usuario);
 
-        UUID tallerId = usuario.getTaller() != null ? usuario.getTaller().getId() : null;
+        UUID tallerId = usuario.getSucursal() != null && usuario.getSucursal().getTaller() != null
+            ? usuario.getSucursal().getTaller().getId()
+            : null;
         String token = jwtProvider.generateToken(
                 usuario.getId(), usuario.getEmail(), usuario.getRol().getNombre(), tallerId
         );
@@ -63,11 +68,11 @@ public class AuthController {
     }
 
     /**
-     * Bootstraps roles and creates the SaaS admin user.
+    * Bootstraps roles and creates the default workshop owner.
      *
      * @param secret setup secret
-     * @param adminEmail admin email
-     * @param adminPassword admin password
+    * @param adminEmail owner email
+    * @param adminPassword owner password
      * @return setup status
      */
     @PostMapping("/setup")
@@ -79,51 +84,49 @@ public class AuthController {
         }
         if (rolRepository.count() == 0) {
             rolRepository.saveAll(List.of(
-                Rol.builder().nombre("ADMIN_SAAS").ambito("plataforma").descripcion("Superadmin").build(),
-                Rol.builder().nombre("DUENO").ambito("tenant").descripcion("Dueño taller").build(),
-                Rol.builder().nombre("ADMIN").ambito("tenant").descripcion("Administrador").build(),
-                Rol.builder().nombre("MECANICO").ambito("tenant").descripcion("Mecánico").build()
+            Rol.builder().nombre("DUENO").descripcion("Dueño taller").build(),
+            Rol.builder().nombre("ADMIN").descripcion("Administrador").build(),
+            Rol.builder().nombre("MECANICO").descripcion("Mecanico").build()
             ));
         }
-        Rol rolAdminSaas = rolRepository.findByNombre("ADMIN_SAAS")
-                .orElseThrow(() -> new RuntimeException("Rol ADMIN_SAAS no encontrado"));
         Rol rolDueno = rolRepository.findByNombre("DUENO")
                 .orElseThrow(() -> new RuntimeException("Rol DUENO no encontrado"));
-
-        if (!usuarioRepository.existsByEmail(adminEmail)) {
-            Usuario admin = Usuario.builder()
-                    .rol(rolAdminSaas)
-                    .nombre("Admin")
-                    .apellido("SaaS")
-                    .rut("1-9")
-                    .email(adminEmail)
-                    .telefono("+56900000000")
-                    .passwordHash(passwordEncoder.encode(adminPassword))
-                    .activo(true)
-                    .build();
-            usuarioRepository.save(admin);
-        }
 
         Taller tallerPiloto = tallerRepository.findByRut("76.123.456-7")
                 .orElseGet(() -> tallerRepository.save(
                     Taller.builder()
                         .nombre("VeloService")
                         .rut("76.123.456-7")
+                .telefono("+56900000000")
+                .email("contacto@veloservice.cl")
+                .planSaas("base")
+                .logoUrl(null)
                         .activo(true)
                         .build()
                 ));
 
-        String duenoEmail = "dueno@veloservice.cl";
-        if (!usuarioRepository.existsByEmail(duenoEmail)) {
-            Usuario dueno = Usuario.builder()
+        Sucursal sucursalPrincipal = sucursalRepository.findFirstByTaller_Id(tallerPiloto.getId())
+            .orElseGet(() -> sucursalRepository.save(
+                Sucursal.builder()
                     .taller(tallerPiloto)
+                    .nombre("Sede Principal")
+                    .direccion("Casa matriz")
+                    .telefono("+56900000000")
+                    .email("sede@veloservice.cl")
+                    .activo(true)
+                    .build()
+            ));
+
+        if (!usuarioRepository.existsByEmail(adminEmail)) {
+            Usuario dueno = Usuario.builder()
+                .sucursal(sucursalPrincipal)
                     .rol(rolDueno)
                     .nombre("Carlos")
                     .apellido("Veloso")
                     .rut("15.234.567-8")
-                    .email(duenoEmail)
+                .email(adminEmail)
                     .telefono("+56998765432")
-                    .passwordHash(passwordEncoder.encode("Dueno1234"))
+                .passwordHash(passwordEncoder.encode(adminPassword))
                     .activo(true)
                     .build();
             usuarioRepository.save(dueno);
@@ -131,8 +134,9 @@ public class AuthController {
 
         return ResponseEntity.ok(
             "Setup completado. " +
-            "Admin SaaS: " + adminEmail + " | " +
-            "Dueño VeloService: " + duenoEmail + " / Dueno1234"
+            "Taller: VeloService | " +
+            "Sucursal: Sede Principal | " +
+            "Dueno: " + adminEmail
         );
     }
 }

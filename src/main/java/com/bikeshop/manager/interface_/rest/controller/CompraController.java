@@ -2,7 +2,7 @@ package com.bikeshop.manager.interface_.rest.controller;
 
 import com.bikeshop.manager.application.dto.CompraRequest;
 import com.bikeshop.manager.application.service.CompraService;
-import com.bikeshop.manager.domain.tenant.Compra;
+import com.bikeshop.manager.application.service.CompraService.CompraResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +34,7 @@ public class CompraController {
      * @return created purchase
      */
     @PostMapping
-    public ResponseEntity<Compra> crear(@Valid @RequestBody CompraRequest request) {
+    public ResponseEntity<CompraResponse> crear(@Valid @RequestBody CompraRequest request) {
         return ResponseEntity.ok(compraService.crear(request));
     }
 
@@ -44,7 +44,7 @@ public class CompraController {
      * @return purchases
      */
     @GetMapping
-    public ResponseEntity<List<Compra>> listar() {
+    public ResponseEntity<List<CompraResponse>> listar() {
         return ResponseEntity.ok(compraService.listar());
     }
 
@@ -55,7 +55,7 @@ public class CompraController {
      * @return updated purchase
      */
     @PutMapping("/{id}/recepcionar")
-    public ResponseEntity<Compra> recepcionar(@PathVariable UUID id) {
+    public ResponseEntity<CompraResponse> recepcionar(@PathVariable UUID id) {
         return ResponseEntity.ok(compraService.confirmarRecepcion(id));
     }
 }

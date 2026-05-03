@@ -18,13 +18,14 @@ public interface MovimientoStockRepository extends JpaRepository<MovimientoStock
      * @param productoId product identifier
      * @return movements ordered by creation date
      */
-    List<MovimientoStock> findByProductoIdOrderByCreatedAtDesc(UUID productoId);
+    List<MovimientoStock> findByProductoId(UUID productoId);
 
     /**
-     * Lists stock movements for a tenant.
+     * Lists stock movements for a product ordered by creation date.
      *
-     * @param tallerId tenant identifier
-     * @return movements ordered by creation date
+     * @param productoId product identifier
+     * @return ordered movements
      */
-    List<MovimientoStock> findByTallerIdOrderByCreatedAtDesc(UUID tallerId);
+    List<MovimientoStock> findByProductoIdOrderByCreatedAtDesc(UUID productoId);
+
 }

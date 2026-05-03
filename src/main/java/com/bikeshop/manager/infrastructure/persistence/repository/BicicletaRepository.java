@@ -20,21 +20,4 @@ public interface BicicletaRepository extends JpaRepository<Bicicleta, UUID> {
      * @return customer bikes
      */
     List<Bicicleta> findByClienteId(UUID clienteId);
-
-    /**
-     * Finds a bike by identifier and tenant.
-     *
-     * @param id bike identifier
-     * @param tallerId tenant identifier
-     * @return matching bike, if present
-     */
-    Optional<Bicicleta> findByIdAndTallerId(UUID id, UUID tallerId);
-
-    /**
-     * Lists all bikes for a tenant.
-     *
-     * @param tallerId tenant identifier
-     * @return tenant bikes
-     */
-    List<Bicicleta> findAllByTallerId(UUID tallerId);
 }

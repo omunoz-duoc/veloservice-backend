@@ -1,15 +1,20 @@
 package com.bikeshop.manager.application.service;
 
 import com.bikeshop.manager.application.dto.CompraRequest;
+import com.bikeshop.manager.application.dto.CompraLineaResponse;
 import com.bikeshop.manager.domain.tenant.Compra;
 import com.bikeshop.manager.domain.tenant.CompraProducto;
 import com.bikeshop.manager.domain.tenant.MovimientoStock;
 import com.bikeshop.manager.domain.tenant.Producto;
+import com.bikeshop.manager.domain.tenant.Proveedor;
+import com.bikeshop.manager.domain.tenant.SucursalProveedor;
 import com.bikeshop.manager.infrastructure.persistence.repository.CompraRepository;
 import com.bikeshop.manager.infrastructure.persistence.repository.MovimientoStockRepository;
 import com.bikeshop.manager.infrastructure.persistence.repository.ProductoRepository;
+import com.bikeshop.manager.infrastructure.persistence.repository.ProveedorRepository;
+import com.bikeshop.manager.infrastructure.persistence.repository.SucursalProveedorRepository;
 import com.bikeshop.manager.infrastructure.rls.TenantOperation;
-import com.bikeshop.manager.infrastructure.security.TenantContext;
+import com.bikeshop.manager.infrastructure.security.SucursalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +35,8 @@ public class CompraService {
 
     private final CompraRepository compraRepository;
     private final ProductoRepository productoRepository;
+    private final ProveedorRepository proveedorRepository;
+    private final SucursalProveedorRepository sucursalProveedorRepository;
     private final MovimientoStockRepository movimientoRepository;
 
     /**
@@ -40,11 +47,18 @@ public class CompraService {
      */
     @TenantOperation
     @Transactional
-    public Compra crear(CompraRequest request) {
-        UUID tallerId = TenantContext.getCurrentTenant();
-        UUID usuarioId = TenantContext.getCurrentUser();
-        if (tallerId == null || usuarioId == null) {
-            throw new IllegalStateException("Contexto de taller/usuario requerido");
+    public CompraResponse crear(CompraRequest request) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        UUID usuarioId = com.bikeshop.manager.infrastructure.security.TenantContext.getCurrentUser();
+        if (sucursalId == null || usuarioId == null) {
+            throw new IllegalStateException("Contexto de sucursal/usuario requerido");
+        }
+
+        SucursalProveedor sucursalProveedor = sucursalProveedorRepository
+                .findById(request.getSucursalProveedorId())
+                .orElseThrow(() -> new IllegalArgumentException("SucursalProveedor no encontrado"));
+        if (!sucursalId.equals(sucursalProveedor.getSucursalId())) {
+            throw new IllegalArgumentException("El proveedor no pertenece a la sucursal actual");
         }
 
         BigDecimal neto = BigDecimal.ZERO;
@@ -56,14 +70,13 @@ public class CompraService {
         BigDecimal total = neto.add(iva);
 
         Compra compra = Compra.builder()
-                .tallerId(tallerId)
-                .proveedorId(request.getProveedorId())
+            .sucursalProveedorId(request.getSucursalProveedorId())
                 .usuarioId(usuarioId)
                 .numeroFactura(request.getNumeroFactura())
                 .neto(neto)
                 .iva(iva)
                 .total(total)
-                .estado("Pendiente")
+                .estado("borrador")
                 .fechaCompra(request.getFechaCompra())
                 .notas(request.getNotas())
                 .build();
@@ -80,7 +93,8 @@ public class CompraService {
             compra.getLineas().add(linea);
         }
 
-        return compraRepository.save(compra);
+        compra = compraRepository.save(compra);
+        return toResponse(compra);
     }
 
     /**
@@ -91,42 +105,50 @@ public class CompraService {
      */
     @TenantOperation
     @Transactional
-    public Compra confirmarRecepcion(UUID compraId) {
-        UUID tallerId = TenantContext.getCurrentTenant();
-        UUID usuarioId = TenantContext.getCurrentUser();
-        if (tallerId == null || usuarioId == null) {
-            throw new IllegalStateException("Contexto de taller/usuario requerido");
+    public CompraResponse confirmarRecepcion(UUID compraId) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        UUID usuarioId = com.bikeshop.manager.infrastructure.security.TenantContext.getCurrentUser();
+        if (sucursalId == null || usuarioId == null) {
+            throw new IllegalStateException("Contexto de sucursal/usuario requerido");
         }
 
-        Compra compra = compraRepository.findByIdAndTallerId(compraId, tallerId)
+        Compra compra = compraRepository.findById(compraId)
                 .orElseThrow(() -> new IllegalArgumentException("Compra no encontrada"));
 
-        if (!"Pendiente".equals(compra.getEstado())) {
-            throw new IllegalArgumentException("Solo se pueden recibir compras en estado Pendiente");
+        SucursalProveedor sucursalProveedor = sucursalProveedorRepository.findById(compra.getSucursalProveedorId())
+                .orElseThrow(() -> new IllegalArgumentException("Proveedor de sucursal no encontrado"));
+        if (!sucursalId.equals(sucursalProveedor.getSucursalId())) {
+            throw new IllegalArgumentException("La compra no pertenece a la sucursal actual");
         }
 
-        compra.setEstado("Recibida");
+        if (!"borrador".equals(compra.getEstado())) {
+            throw new IllegalArgumentException("Solo se pueden recepcionar compras en estado borrador");
+        }
+
+        compra.setEstado("recibida");
         compra.setFechaRecepcion(LocalDate.now());
 
         for (CompraProducto linea : compra.getLineas()) {
-            Producto producto = productoRepository.findByIdAndTallerId(linea.getProductoId(), tallerId)
+            Producto producto = productoRepository.findById(linea.getProductoId())
                     .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + linea.getProductoId()));
+            if (!sucursalId.equals(producto.getSucursalId())) {
+                throw new IllegalArgumentException("El producto no pertenece a la sucursal actual");
+            }
 
-            int stockAnterior = producto.getStockActual();
+            int stockAnterior = producto.getStock();
             int stockNuevo = stockAnterior + linea.getCantidad();
             if (stockNuevo < 0) {
                 throw new IllegalStateException("Stock negativo no permitido (RN17)");
             }
 
-            producto.setStockActual(stockNuevo);
+            producto.setStock(stockNuevo);
             productoRepository.save(producto);
 
             MovimientoStock movimiento = MovimientoStock.builder()
-                    .tallerId(tallerId)
                     .productoId(producto.getId())
                     .compraId(compra.getId())
                     .usuarioId(usuarioId)
-                    .tipo("ingreso")
+                    .tipo("entrada")
                     .cantidad(linea.getCantidad())
                     .stockAnterior(stockAnterior)
                     .stockPosterior(stockNuevo)
@@ -135,7 +157,8 @@ public class CompraService {
             movimientoRepository.save(movimiento);
         }
 
-        return compraRepository.save(compra);
+        compra = compraRepository.save(compra);
+        return toResponse(compra);
     }
 
     /**
@@ -145,11 +168,54 @@ public class CompraService {
      */
     @TenantOperation
     @Transactional(readOnly = true)
-    public List<Compra> listar() {
-        UUID tallerId = TenantContext.getCurrentTenant();
-        if (tallerId == null) {
+    public List<CompraResponse> listar() {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
             return List.of();
         }
-        return compraRepository.findAllByTallerIdOrderByFechaCompraDesc(tallerId);
+        return compraRepository.findBySucursalIdOrderByFechaCompraDesc(sucursalId).stream()
+                .map(this::toResponse)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private CompraResponse toResponse(Compra compra) {
+        String proveedorNombre = sucursalProveedorRepository.findById(compra.getSucursalProveedorId())
+            .flatMap(sp -> proveedorRepository.findById(sp.getProveedorId()))
+            .map(Proveedor::getNombre)
+            .orElse(null);
+
+        return CompraResponse.builder()
+                .id(compra.getId())
+                .proveedorNombre(proveedorNombre)
+                .numeroFactura(compra.getNumeroFactura())
+                .neto(compra.getNeto())
+                .iva(compra.getIva())
+                .total(compra.getTotal())
+                .estado(compra.getEstado())
+                .fechaCompra(compra.getFechaCompra())
+                .lineas(compra.getLineas().stream()
+                        .map(linea -> CompraLineaResponse.builder()
+                                .productoId(linea.getProductoId())
+                                .cantidad(linea.getCantidad())
+                                .precioUnitario(linea.getPrecioUnitario())
+                                .subtotal(linea.getSubtotal())
+                                .build())
+                        .collect(java.util.stream.Collectors.toList()))
+                .build();
+    }
+
+    @lombok.Data
+    @lombok.Builder
+    @lombok.AllArgsConstructor
+    public static class CompraResponse {
+        private UUID id;
+        private String proveedorNombre;
+        private String numeroFactura;
+        private BigDecimal neto;
+        private BigDecimal iva;
+        private BigDecimal total;
+        private String estado;
+        private LocalDate fechaCompra;
+        private List<CompraLineaResponse> lineas;
     }
 }

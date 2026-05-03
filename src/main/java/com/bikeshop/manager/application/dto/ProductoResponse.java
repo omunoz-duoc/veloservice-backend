@@ -20,7 +20,7 @@ public class ProductoResponse {
     private String marca;
     private BigDecimal precioCosto;
     private BigDecimal precioVenta;
-    private Integer stockActual;
+    private Integer stock;
     private Integer stockMinimo;
     private Boolean alertaStockBajo;
 }

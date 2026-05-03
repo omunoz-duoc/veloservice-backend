@@ -15,10 +15,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -28,7 +25,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "clientes", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"taller_id", "rut"})
+    @UniqueConstraint(columnNames = {"rut"})
 })
 @Getter
 @Setter
@@ -40,9 +37,6 @@ public class Cliente {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @Column(name = "taller_id", nullable = false)
-    private UUID tallerId;
 
     @Column(nullable = false, length = 100)
     private String nombre;
@@ -65,12 +59,4 @@ public class Cliente {
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<Bicicleta> bicicletas = new ArrayList<>();
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 }

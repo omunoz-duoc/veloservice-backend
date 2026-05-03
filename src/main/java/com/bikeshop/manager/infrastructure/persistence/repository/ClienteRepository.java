@@ -4,38 +4,27 @@ import com.bikeshop.manager.domain.tenant.Cliente;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Repository for tenant customers.
+ * Repository for customers.
  */
 @Repository
 public interface ClienteRepository extends JpaRepository<Cliente, UUID> {
     /**
-     * Finds a customer by identifier and tenant.
+     * Finds a customer by RUT.
      *
-     * @param id customer identifier
-     * @param tallerId tenant identifier
+     * @param rut customer RUT
      * @return matching customer, if present
      */
-    Optional<Cliente> findByIdAndTallerId(UUID id, UUID tallerId);
+    Optional<Cliente> findByRut(String rut);
 
     /**
-     * Lists all customers for a tenant.
+     * Checks if a RUT already exists.
      *
-     * @param tallerId tenant identifier
-     * @return tenant customers
-     */
-    List<Cliente> findAllByTallerId(UUID tallerId);
-
-    /**
-     * Checks if a RUT exists within a tenant.
-     *
-     * @param tallerId tenant identifier
      * @param rut customer RUT
      * @return true if a customer already uses the RUT
      */
-    boolean existsByTallerIdAndRut(UUID tallerId, String rut);
+    boolean existsByRut(String rut);
 }

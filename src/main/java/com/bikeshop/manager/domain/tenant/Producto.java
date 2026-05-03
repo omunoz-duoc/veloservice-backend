@@ -12,11 +12,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -24,7 +21,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "productos", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"taller_id", "sku"})
+    @UniqueConstraint(columnNames = {"sucursal_id", "sku"})
 })
 @Getter
 @Setter
@@ -37,8 +34,8 @@ public class Producto {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "taller_id", nullable = false)
-    private UUID tallerId;
+    @Column(name = "sucursal_id", nullable = false)
+    private UUID sucursalId;
 
     @Column(name = "categoria_id")
     private UUID categoriaId;
@@ -61,9 +58,9 @@ public class Producto {
     @Column(name = "precio_venta", nullable = false, precision = 10, scale = 2)
     private BigDecimal precioVenta;
 
-    @Column(name = "stock_actual", nullable = false)
+    @Column(name = "stock", nullable = false)
     @Builder.Default
-    private Integer stockActual = 0;
+    private Integer stock = 0;
 
     @Column(name = "stock_minimo", nullable = false)
     @Builder.Default
@@ -72,12 +69,4 @@ public class Producto {
     @Column(nullable = false)
     @Builder.Default
     private Boolean activo = true;
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 }

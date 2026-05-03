@@ -11,9 +11,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -32,9 +30,6 @@ public class Proveedor {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "taller_id", nullable = false)
-    private UUID tallerId;
-
     @Column(nullable = false, length = 150)
     private String nombre;
 
@@ -50,17 +45,7 @@ public class Proveedor {
     @Column(length = 255)
     private String direccion;
 
-    @Column(name = "condicion_pago", length = 50)
-    private String condicionPago;
-
-    @Column(name = "contacto_asignado", length = 100)
-    private String contactoAsignado;
-
     @Column(nullable = false)
     @Builder.Default
     private Boolean activo = true;
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
 }

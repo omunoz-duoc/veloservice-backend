@@ -2,12 +2,15 @@ package com.bikeshop.manager.application.service;
 
 import com.bikeshop.manager.application.dto.ClienteRequest;
 import com.bikeshop.manager.application.dto.ClienteResponse;
+import com.bikeshop.manager.application.dto.MembresiaActualResponse;
 import com.bikeshop.manager.domain.tenant.Cliente;
-import com.bikeshop.manager.domain.tenant.TallerCliente;
+import com.bikeshop.manager.domain.tenant.SucursalCliente;
+import com.bikeshop.manager.domain.tenant.Membresia;
 import com.bikeshop.manager.infrastructure.persistence.repository.ClienteRepository;
-import com.bikeshop.manager.infrastructure.persistence.repository.TallerClienteRepository;
+import com.bikeshop.manager.infrastructure.persistence.repository.MembresiaRepository;
+import com.bikeshop.manager.infrastructure.persistence.repository.SucursalClienteRepository;
 import com.bikeshop.manager.infrastructure.rls.TenantOperation;
-import com.bikeshop.manager.infrastructure.security.TenantContext;
+import com.bikeshop.manager.infrastructure.security.SucursalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +27,8 @@ import java.util.stream.Collectors;
 public class ClienteService {
 
     private final ClienteRepository clienteRepository;
-    private final TallerClienteRepository tallerClienteRepository;
+    private final SucursalClienteRepository sucursalClienteRepository;
+    private final MembresiaRepository membresiaRepository;
 
     /**
      * Creates a customer in the current tenant.
@@ -35,32 +39,31 @@ public class ClienteService {
     @TenantOperation
     @Transactional
     public ClienteResponse crear(ClienteRequest request) {
-        UUID tallerId = TenantContext.getCurrentTenant();
-        if (tallerId == null) {
-            throw new IllegalStateException("Operacion requiere contexto de taller");
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
+            throw new IllegalStateException("Operacion requiere contexto de sucursal");
         }
 
-        if (clienteRepository.existsByTallerIdAndRut(tallerId, request.getRut())) {
-            throw new IllegalArgumentException("Ya existe un cliente con RUT " + request.getRut() + " en este taller");
-        }
-
-        Cliente cliente = Cliente.builder()
-                .tallerId(tallerId)
+        Cliente cliente = clienteRepository.findByRut(request.getRut()).orElseGet(() -> Cliente.builder()
                 .nombre(request.getNombre())
                 .apellido(request.getApellido())
                 .rut(request.getRut())
                 .telefono(request.getTelefono())
                 .email(request.getEmail())
                 .direccion(request.getDireccion())
-                .build();
+                .build());
 
-        cliente = clienteRepository.save(cliente);
+        if (cliente.getId() == null) {
+            cliente = clienteRepository.save(cliente);
+        }
 
-        TallerCliente vinculo = TallerCliente.builder()
-                .tallerId(tallerId)
-                .clienteId(cliente.getId())
-                .build();
-        tallerClienteRepository.save(vinculo);
+        if (!sucursalClienteRepository.existsBySucursalIdAndClienteId(sucursalId, cliente.getId())) {
+            SucursalCliente vinculo = SucursalCliente.builder()
+                    .sucursalId(sucursalId)
+                    .clienteId(cliente.getId())
+                    .build();
+            sucursalClienteRepository.save(vinculo);
+        }
 
         return toResponse(cliente);
     }
@@ -73,12 +76,14 @@ public class ClienteService {
     @TenantOperation
     @Transactional(readOnly = true)
     public List<ClienteResponse> listar() {
-        UUID tallerId = TenantContext.getCurrentTenant();
-        if (tallerId == null) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
             return List.of();
         }
-        return clienteRepository.findAllByTallerId(tallerId).stream()
-                .map(this::toResponse)
+        return sucursalClienteRepository.findAllBySucursalId(sucursalId).stream()
+                .map(vinculo -> clienteRepository.findById(vinculo.getClienteId())
+                        .orElseThrow(() -> new IllegalStateException("Cliente vinculado no encontrado")))
+            .map(cliente -> toResponse(cliente, sucursalId))
                 .collect(Collectors.toList());
     }
 
@@ -91,13 +96,19 @@ public class ClienteService {
     @TenantOperation
     @Transactional(readOnly = true)
     public ClienteResponse obtener(UUID id) {
-        UUID tallerId = TenantContext.getCurrentTenant();
-        Cliente cliente = clienteRepository.findByIdAndTallerId(id, tallerId)
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
+            throw new IllegalStateException("Operacion requiere contexto de sucursal");
+        }
+        sucursalClienteRepository.findBySucursalIdAndClienteId(sucursalId, id)
+            .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+        Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
-        return toResponse(cliente);
+        return toResponse(cliente, sucursalId);
     }
 
-    private ClienteResponse toResponse(Cliente cliente) {
+        private ClienteResponse toResponse(Cliente cliente, UUID sucursalId) {
+        MembresiaActualResponse membresiaActual = getMembresiaActual(cliente.getId(), sucursalId);
         return ClienteResponse.builder()
                 .id(cliente.getId())
                 .nombre(cliente.getNombre())
@@ -106,6 +117,22 @@ public class ClienteService {
                 .telefono(cliente.getTelefono())
                 .email(cliente.getEmail())
                 .direccion(cliente.getDireccion())
+            .membresiaActual(membresiaActual)
                 .build();
     }
+
+            private MembresiaActualResponse getMembresiaActual(UUID clienteId, UUID sucursalId) {
+            return sucursalClienteRepository.findBySucursalIdAndClienteId(sucursalId, clienteId)
+                .filter(vinculo -> vinculo.getMembresiaId() != null)
+                .flatMap(vinculo -> membresiaRepository.findById(vinculo.getMembresiaId())
+                .map(this::toMembresiaActual))
+            .orElse(null);
+        }
+
+        private MembresiaActualResponse toMembresiaActual(Membresia membresia) {
+        return MembresiaActualResponse.builder()
+            .nombre(membresia.getNombre())
+            .descuento(membresia.getPorcentajeDescuento())
+            .build();
+        }
 }

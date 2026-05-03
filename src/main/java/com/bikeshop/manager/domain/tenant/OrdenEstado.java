@@ -32,9 +32,6 @@ public class OrdenEstado {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "taller_id", nullable = false)
-    private UUID tallerId;
-
     @Column(name = "orden_id", nullable = false)
     private UUID ordenId;
 

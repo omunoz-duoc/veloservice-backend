@@ -15,7 +15,7 @@ import lombok.Setter;
 import java.util.UUID;
 
 /**
- * Represents a role available in the platform or tenant scope.
+ * Represents a role assigned to users.
  */
 @Entity
 @Table(name = "roles")
@@ -32,8 +32,6 @@ public class Rol {
     private String nombre;
     @Column(length = 255)
     private String descripcion;
-    @Column(nullable = false, length = 20)
-    private String ambito;
     @Column(nullable = false)
     @Builder.Default
     private Boolean activo = true;

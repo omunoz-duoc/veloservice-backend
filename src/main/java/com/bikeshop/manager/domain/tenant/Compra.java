@@ -14,11 +14,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -39,11 +37,8 @@ public class Compra {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "taller_id", nullable = false)
-    private UUID tallerId;
-
-    @Column(name = "proveedor_id", nullable = false)
-    private UUID proveedorId;
+    @Column(name = "sucursal_proveedor_id", nullable = false)
+    private UUID sucursalProveedorId;
 
     @Column(name = "usuario_id", nullable = false)
     private UUID usuarioId;
@@ -75,8 +70,4 @@ public class Compra {
     @OneToMany(mappedBy = "compra", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<CompraProducto> lineas = new ArrayList<>();
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
 }

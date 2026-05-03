@@ -12,8 +12,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -24,7 +22,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "ordenes", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"taller_id", "numero_orden"})
+    @UniqueConstraint(columnNames = {"sucursal_id", "numero_orden"})
 })
 @Getter
 @Setter
@@ -37,8 +35,8 @@ public class Orden {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "taller_id", nullable = false)
-    private UUID tallerId;
+    @Column(name = "sucursal_id", nullable = false)
+    private UUID sucursalId;
 
     @Column(name = "bicicleta_id", nullable = false)
     private UUID bicicletaId;
@@ -80,12 +78,4 @@ public class Orden {
 
     @Column(name = "fecha_entrega")
     private LocalDateTime fechaEntrega;
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 }

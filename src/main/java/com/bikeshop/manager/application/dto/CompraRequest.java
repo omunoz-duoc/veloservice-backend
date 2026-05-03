@@ -17,7 +17,7 @@ import java.util.UUID;
 @Data
 public class CompraRequest {
     @NotNull
-    private UUID proveedorId;
+    private UUID sucursalProveedorId;
     private String numeroFactura;
     @NotNull
     private LocalDate fechaCompra;

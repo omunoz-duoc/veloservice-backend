@@ -26,7 +26,7 @@ public class ProductoRequest {
     @Min(0)
     private BigDecimal precioVenta;
     @Min(0)
-    private Integer stockActual = 0;
+    private Integer stock = 0;
     @Min(0)
     private Integer stockMinimo = 0;
     private UUID categoriaId;

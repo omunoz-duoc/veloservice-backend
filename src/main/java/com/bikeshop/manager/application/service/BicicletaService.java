@@ -6,14 +6,16 @@ import com.bikeshop.manager.domain.tenant.Bicicleta;
 import com.bikeshop.manager.domain.tenant.Cliente;
 import com.bikeshop.manager.infrastructure.persistence.repository.BicicletaRepository;
 import com.bikeshop.manager.infrastructure.persistence.repository.ClienteRepository;
+import com.bikeshop.manager.infrastructure.persistence.repository.SucursalClienteRepository;
 import com.bikeshop.manager.infrastructure.rls.TenantOperation;
-import com.bikeshop.manager.infrastructure.security.TenantContext;
+import com.bikeshop.manager.infrastructure.security.SucursalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
 /**
@@ -25,6 +27,7 @@ public class BicicletaService {
 
     private final BicicletaRepository bicicletaRepository;
     private final ClienteRepository clienteRepository;
+    private final SucursalClienteRepository sucursalClienteRepository;
 
     /**
      * Creates a bike for a customer in the current tenant.
@@ -36,16 +39,18 @@ public class BicicletaService {
     @TenantOperation
     @Transactional
     public BicicletaResponse crear(UUID clienteId, BicicletaRequest request) {
-        UUID tallerId = TenantContext.getCurrentTenant();
-        if (tallerId == null) {
-            throw new IllegalStateException("Operacion requiere contexto de taller");
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
+            throw new IllegalStateException("Operacion requiere contexto de sucursal");
         }
 
-        Cliente cliente = clienteRepository.findByIdAndTallerId(clienteId, tallerId)
-                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado en este taller"));
+        sucursalClienteRepository.findBySucursalIdAndClienteId(sucursalId, clienteId)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no pertenece a la sucursal actual"));
+
+        Cliente cliente = clienteRepository.findById(clienteId)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
 
         Bicicleta bicicleta = Bicicleta.builder()
-                .tallerId(tallerId)
                 .cliente(cliente)
                 .marca(request.getMarca())
                 .modelo(request.getModelo())
@@ -70,6 +75,12 @@ public class BicicletaService {
     @TenantOperation
     @Transactional(readOnly = true)
     public List<BicicletaResponse> listarPorCliente(UUID clienteId) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
+            return List.of();
+        }
+        sucursalClienteRepository.findBySucursalIdAndClienteId(sucursalId, clienteId)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no pertenece a la sucursal actual"));
         return bicicletaRepository.findByClienteId(clienteId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -83,11 +94,12 @@ public class BicicletaService {
     @TenantOperation
     @Transactional(readOnly = true)
     public List<BicicletaResponse> listarTodas() {
-        UUID tallerId = TenantContext.getCurrentTenant();
-        if (tallerId == null) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
             return List.of();
         }
-        return bicicletaRepository.findAllByTallerId(tallerId).stream()
+        return sucursalClienteRepository.findAllBySucursalId(sucursalId).stream()
+                .flatMap(vinculo -> bicicletaRepository.findByClienteId(vinculo.getClienteId()).stream())
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -103,7 +115,6 @@ public class BicicletaService {
                 .color(bicicleta.getColor())
                 .numeroSerie(bicicleta.getNumeroSerie())
                 .anio(bicicleta.getAnio())
-                .notas(bicicleta.getNotas())
                 .build();
     }
 }

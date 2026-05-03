@@ -1,8 +1,10 @@
 package com.bikeshop.manager.interface_.rest.controller;
 
 import com.bikeshop.manager.application.dto.ProveedorRequest;
+import com.bikeshop.manager.application.dto.ProveedorSucursalRequest;
 import com.bikeshop.manager.application.service.ProveedorService;
 import com.bikeshop.manager.domain.tenant.Proveedor;
+import com.bikeshop.manager.domain.tenant.SucursalProveedor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -43,5 +45,16 @@ public class ProveedorController {
     @GetMapping
     public ResponseEntity<List<Proveedor>> listar() {
         return ResponseEntity.ok(proveedorService.listar());
+    }
+
+    /**
+     * Assigns a supplier to the current branch.
+     *
+     * @param request assignment payload
+     * @return created branch-supplier link
+     */
+    @PostMapping("/asignar")
+    public ResponseEntity<SucursalProveedor> asignar(@Valid @RequestBody ProveedorSucursalRequest request) {
+        return ResponseEntity.ok(proveedorService.asignarASucursal(request));
     }
 }

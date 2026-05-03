@@ -2,9 +2,9 @@ spring:
   application:
     name: bikeshop-manager
   datasource:
-    url: jdbc:postgresql://localhost:5432/bikeshop_db
-    username: ${DB_USER:bikeshop_user}
-    password: ${DB_PASS:bikeshop_pass}
+    url: jdbc:postgresql://localhost:5433/veloservice_db
+    username: velo_user
+    password: velo_pass
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -12,14 +12,14 @@ spring:
       connection-timeout: 20000
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
     show-sql: true
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration
     baseline-on-migrate: true
 server:

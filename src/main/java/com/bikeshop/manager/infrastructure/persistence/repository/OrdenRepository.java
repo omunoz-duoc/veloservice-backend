@@ -20,7 +20,7 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
      * @param tallerId tenant identifier
      * @return matching work order, if present
      */
-    Optional<Orden> findByIdAndTallerId(UUID id, UUID tallerId);
+    Optional<Orden> findByIdAndSucursalId(UUID id, UUID sucursalId);
 
     /**
      * Lists work orders for a tenant in descending creation order.
@@ -28,7 +28,7 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
      * @param tallerId tenant identifier
      * @return tenant work orders
      */
-    List<Orden> findAllByTallerIdOrderByFechaIngresoDesc(UUID tallerId);
+    List<Orden> findAllBySucursalIdOrderByFechaIngresoDesc(UUID sucursalId);
 
     /**
      * Checks if a sequence is already used for a tenant.
@@ -37,5 +37,5 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
      * @param tallerId tenant identifier
      * @return true if the sequence exists
      */
-    boolean existsByNumeroOrdenAndTallerId(String numeroOrden, UUID tallerId);
+    boolean existsByNumeroOrdenAndSucursalId(String numeroOrden, UUID sucursalId);
 }

@@ -1,6 +1,6 @@
 package com.bikeshop.manager.infrastructure.rls;
 
-import com.bikeshop.manager.infrastructure.security.TenantContext;
+import com.bikeshop.manager.infrastructure.security.SucursalContext;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -31,9 +31,9 @@ public class TenantOperationAspect {
      */
     @Around("@annotation(com.bikeshop.manager.infrastructure.rls.TenantOperation)")
     public Object applyTenantContext(ProceedingJoinPoint joinPoint) throws Throwable {
-        UUID tenantId = TenantContext.getCurrentTenant();
+        UUID tenantId = SucursalContext.getCurrentSucursal();
         if (tenantId != null) {
-            entityManager.createNativeQuery("SELECT set_config('request.jwt.claim.taller_id', ?, true)")
+            entityManager.createNativeQuery("SELECT set_config('request.jwt.claim.sucursal_id', ?, true)")
                 .setParameter(1, tenantId.toString())
                     .getSingleResult();
         }

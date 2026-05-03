@@ -11,14 +11,10 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Represents a bike workshop tenant.
+ * Represents a bike workshop.
  */
 @Entity
 @Table(name = "talleres")
@@ -35,13 +31,15 @@ public class Taller {
     private String nombre;
     @Column(nullable = false, length = 20, unique = true)
     private String rut;
+    @Column(length = 20)
+    private String telefono;
+    @Column(length = 150)
+    private String email;
+    @Column(name = "plan_saas", length = 100)
+    private String planSaas;
+    @Column(name = "logo_url", length = 255)
+    private String logoUrl;
     @Column(nullable = false)
     @Builder.Default
     private Boolean activo = true;
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 }

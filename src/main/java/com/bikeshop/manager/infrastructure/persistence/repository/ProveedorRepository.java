@@ -13,20 +13,4 @@ import java.util.UUID;
  */
 @Repository
 public interface ProveedorRepository extends JpaRepository<Proveedor, UUID> {
-    /**
-     * Lists suppliers for a tenant.
-     *
-     * @param tallerId tenant identifier
-     * @return tenant suppliers
-     */
-    List<Proveedor> findAllByTallerId(UUID tallerId);
-
-    /**
-     * Finds a supplier by identifier and tenant.
-     *
-     * @param id supplier identifier
-     * @param tallerId tenant identifier
-     * @return matching supplier, if present
-     */
-    Optional<Proveedor> findByIdAndTallerId(UUID id, UUID tallerId);
 }

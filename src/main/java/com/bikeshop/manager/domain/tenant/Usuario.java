@@ -1,7 +1,7 @@
 package com.bikeshop.manager.domain.tenant;
 
 import com.bikeshop.manager.domain.platform.Rol;
-import com.bikeshop.manager.domain.platform.Taller;
+import com.bikeshop.manager.domain.platform.Sucursal;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -16,13 +16,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Represents a user belonging to a tenant or platform.
+ * Represents a user belonging to a workshop branch.
  */
 @Entity
 @Table(name = "usuarios")
@@ -36,8 +35,8 @@ public class Usuario {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "taller_id")
-    private Taller taller;
+    @JoinColumn(name = "sucursal_id", nullable = false)
+    private Sucursal sucursal;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "rol_id", nullable = false)
     private Rol rol;
@@ -58,7 +57,4 @@ public class Usuario {
     private Boolean activo = true;
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
 }
