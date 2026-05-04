@@ -78,7 +78,7 @@ echo "TOKEN OK"
 AUTH_HEADER=("-H" "Authorization: Bearer $TOKEN")
 JSON_HEADER=("-H" "Content-Type: application/json")
 
-echo "[4/6] Creating cliente..."
+echo "[4/8] Creating cliente..."
 CLIENTE_JSON=$(curl -s -X POST "$BASE_URL/clientes" "${AUTH_HEADER[@]}" "${JSON_HEADER[@]}" \
   -d '{
     "nombre": "Ana",
@@ -106,7 +106,7 @@ fi
 
 echo "CLIENTE_ID=$CLIENTE_ID"
 
-echo "[5/6] Creating bicicleta..."
+echo "[5/8] Creating bicicleta..."
 BICI_JSON=$(curl -s -X POST "$BASE_URL/bicicletas/cliente/$CLIENTE_ID" "${AUTH_HEADER[@]}" "${JSON_HEADER[@]}" \
   -d '{
     "marca": "Trek",
@@ -133,7 +133,61 @@ fi
 
 echo "BICI_ID=$BICI_ID"
 
-echo "[6/6] Creating orden..."
+echo "[6/8] Creating producto y servicio..."
+PRODUCTO_JSON=$(curl -s -X POST "$BASE_URL/productos" "${AUTH_HEADER[@]}" "${JSON_HEADER[@]}" \
+  -d '{
+    "nombre": "Cadena 11v",
+    "sku": "CAD-11V-001",
+    "marca": "Shimano",
+    "unidadMedida": "unidad",
+    "precioCosto": 12000,
+    "precioVenta": 19990,
+    "stock": 10,
+    "stockMinimo": 2
+  }')
+
+PRODUCTO_ID=$(python3 - <<'PY'
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    print(data.get("id", ""))
+except Exception:
+    print("")
+PY
+<<< "$PRODUCTO_JSON")
+
+if [[ -z "$PRODUCTO_ID" ]]; then
+  echo "Producto creation failed. Response: $PRODUCTO_JSON"
+  exit 1
+fi
+
+SERVICIO_JSON=$(curl -s -X POST "$BASE_URL/servicios" "${AUTH_HEADER[@]}" "${JSON_HEADER[@]}" \
+  -d '{
+    "nombre": "Ajuste frenos",
+    "descripcion": "Ajuste completo",
+    "precioBase": 15000,
+    "activo": true
+  }')
+
+SERVICIO_ID=$(python3 - <<'PY'
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    print(data.get("id", ""))
+except Exception:
+    print("")
+PY
+<<< "$SERVICIO_JSON")
+
+if [[ -z "$SERVICIO_ID" ]]; then
+  echo "Servicio creation failed. Response: $SERVICIO_JSON"
+  exit 1
+fi
+
+curl -s -X POST "$BASE_URL/servicios/sucursal" "${AUTH_HEADER[@]}" "${JSON_HEADER[@]}" \
+  -d "{\n    \"servicioId\": \"$SERVICIO_ID\",\n    \"precioPersonalizado\": 14000\n  }" >/dev/null
+
+echo "[7/8] Creating orden..."
 ORDEN_JSON=$(curl -s -X POST "$BASE_URL/ordenes" "${AUTH_HEADER[@]}" "${JSON_HEADER[@]}" \
   -d "{\n    \"bicicletaId\": \"$BICI_ID\",\n    \"tipo\": \"reparacion\",\n    \"diagnosticoInicial\": \"ruido en transmision\",\n    \"observacionesCliente\": \"urgente\",\n    \"multimedia\": [\n      { \"url\": \"https://img.com/foto1.jpg\", \"tipoArchivo\": \"imagen\", \"descripcion\": \"ruido en cambio\" }\n    ]\n  }")
 
@@ -154,10 +208,23 @@ fi
 
 echo "ORDEN_ID=$ORDEN_ID"
 
+echo "[8/8] Adding items to orden..."
+curl -s -X POST "$BASE_URL/ordenes/$ORDEN_ID/servicios" "${AUTH_HEADER[@]}" "${JSON_HEADER[@]}" \
+  -d "{\n    \"servicioId\": \"$SERVICIO_ID\",\n    \"notas\": \"incluye limpieza\"\n  }" >/dev/null
+
+curl -s -X POST "$BASE_URL/ordenes/$ORDEN_ID/productos" "${AUTH_HEADER[@]}" "${JSON_HEADER[@]}" \
+  -d "{\n    \"productoId\": \"$PRODUCTO_ID\",\n    \"cantidad\": 1,\n    \"proporcionadoPorCliente\": false,\n    \"notas\": \"instalacion incluida\"\n  }" >/dev/null
+
 echo "\nDemo OK. Listados:"
 curl -s "$BASE_URL/clientes" "${AUTH_HEADER[@]}"
 echo ""
 curl -s "$BASE_URL/bicicletas" "${AUTH_HEADER[@]}"
 echo ""
 curl -s "$BASE_URL/ordenes" "${AUTH_HEADER[@]}"
+echo ""
+curl -s "$BASE_URL/productos" "${AUTH_HEADER[@]}"
+echo ""
+curl -s "$BASE_URL/servicios" "${AUTH_HEADER[@]}"
+echo ""
+curl -s "$BASE_URL/dashboard/hoy" "${AUTH_HEADER[@]}"
 echo ""
