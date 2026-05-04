@@ -1,80 +1,90 @@
-CREATE TABLE categorias_producto (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    taller_id UUID NOT NULL REFERENCES talleres(id),
-    nombre VARCHAR(150) NOT NULL,
-    activo BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE(taller_id, nombre)
+CREATE TABLE proveedores (
+    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    nombre      TEXT        NOT NULL,
+    rut         TEXT,
+    telefono    TEXT,
+    email       TEXT,
+    direccion   TEXT,
+    activo      BOOLEAN     NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE proveedores (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    taller_id UUID NOT NULL REFERENCES talleres(id),
-    nombre VARCHAR(150) NOT NULL,
-    rut VARCHAR(20),
-    telefono VARCHAR(20),
-    email VARCHAR(100),
-    direccion VARCHAR(255),
-    condicion_pago VARCHAR(50),
-    contacto_asignado VARCHAR(100),
-    activo BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+CREATE TABLE sucursal_proveedores (
+    id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    sucursal_id       UUID        NOT NULL REFERENCES sucursales(id)   ON DELETE RESTRICT,
+    proveedor_id      UUID        NOT NULL REFERENCES proveedores(id)  ON DELETE RESTRICT,
+    codigo_cliente    TEXT,
+    condicion_pago    TEXT,
+    contacto_asignado TEXT,
+    activo            BOOLEAN     NOT NULL DEFAULT TRUE,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (sucursal_id, proveedor_id)
 );
+CREATE INDEX idx_sucursal_proveedores_sucursal  ON sucursal_proveedores(sucursal_id);
+CREATE INDEX idx_sucursal_proveedores_proveedor ON sucursal_proveedores(proveedor_id);
 
 CREATE TABLE productos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    taller_id UUID NOT NULL REFERENCES talleres(id),
-    categoria_id UUID REFERENCES categorias_producto(id),
-    nombre VARCHAR(150) NOT NULL,
-    sku VARCHAR(100) NOT NULL,
-    marca VARCHAR(100),
-    unidad_medida VARCHAR(20),
-    precio_costo DECIMAL(10,2) NOT NULL,
-    precio_venta DECIMAL(10,2) NOT NULL,
-    stock_actual INT NOT NULL DEFAULT 0 CHECK (stock_actual >= 0),
-    stock_minimo INT NOT NULL DEFAULT 0,
-    activo BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE(taller_id, sku)
+    id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    sucursal_id   UUID        NOT NULL REFERENCES sucursales(id)          ON DELETE RESTRICT,
+    categoria_id  UUID        REFERENCES categorias_producto(id)          ON DELETE SET NULL,
+    nombre        TEXT        NOT NULL,
+    sku           TEXT,
+    marca         TEXT,
+    unidad_medida TEXT        NOT NULL DEFAULT 'unidad',
+    precio_costo  NUMERIC(12,2) NOT NULL DEFAULT 0,
+    precio_venta  NUMERIC(12,2) NOT NULL DEFAULT 0,
+    stock         INT         NOT NULL DEFAULT 0,
+    stock_minimo  INT         NOT NULL DEFAULT 0,
+    activo        BOOLEAN     NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE INDEX idx_productos_sucursal  ON productos(sucursal_id);
+CREATE INDEX idx_productos_categoria ON productos(categoria_id);
+CREATE INDEX idx_productos_sku       ON productos(sku);
 
 CREATE TABLE compras (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    taller_id UUID NOT NULL REFERENCES talleres(id),
-    proveedor_id UUID NOT NULL REFERENCES proveedores(id),
-    usuario_id UUID NOT NULL REFERENCES usuarios(id),
-    numero_factura VARCHAR(50),
-    neto DECIMAL(10,2) NOT NULL,
-    iva DECIMAL(10,2) NOT NULL,
-    total DECIMAL(10,2) NOT NULL,
-    estado VARCHAR(20) NOT NULL CHECK (estado IN ('Pendiente','Recibida','Anulada')),
-    fecha_compra DATE NOT NULL,
-    fecha_recepcion DATE,
-    notas TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    id                    UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    sucursal_proveedor_id UUID        NOT NULL REFERENCES sucursal_proveedores(id) ON DELETE RESTRICT,
+    usuario_id            UUID        NOT NULL REFERENCES usuarios(id)             ON DELETE RESTRICT,
+    numero_factura        TEXT,
+    neto                  NUMERIC(12,2) NOT NULL DEFAULT 0,
+    iva                   NUMERIC(12,2) NOT NULL DEFAULT 0,
+    total                 NUMERIC(12,2) NOT NULL DEFAULT 0,
+    estado                estado_compra_enum NOT NULL DEFAULT 'borrador',
+    fecha_compra          DATE,
+    fecha_recepcion       DATE,
+    notas                 TEXT,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE INDEX idx_compras_sucursal_proveedor ON compras(sucursal_proveedor_id);
 
 CREATE TABLE compra_productos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    compra_id UUID NOT NULL REFERENCES compras(id),
-    producto_id UUID NOT NULL REFERENCES productos(id),
-    cantidad INT NOT NULL CHECK (cantidad > 0),
-    precio_unitario DECIMAL(10,2) NOT NULL,
-    subtotal DECIMAL(10,2) NOT NULL
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    compra_id       UUID        NOT NULL REFERENCES compras(id)   ON DELETE CASCADE,
+    producto_id     UUID        NOT NULL REFERENCES productos(id) ON DELETE RESTRICT,
+    cantidad        INT         NOT NULL CHECK (cantidad > 0),
+    precio_unitario NUMERIC(12,2) NOT NULL DEFAULT 0,
+    subtotal        NUMERIC(12,2) NOT NULL DEFAULT 0
 );
+CREATE INDEX idx_compra_productos_compra   ON compra_productos(compra_id);
+CREATE INDEX idx_compra_productos_producto ON compra_productos(producto_id);
 
 CREATE TABLE movimientos_stock (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    taller_id UUID NOT NULL REFERENCES talleres(id),
-    producto_id UUID NOT NULL REFERENCES productos(id),
-    orden_id UUID REFERENCES ordenes(id),
-    compra_id UUID REFERENCES compras(id),
-    usuario_id UUID NOT NULL REFERENCES usuarios(id),
-    tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('egreso','reversion','ingreso','ajuste_inicial')),
-    cantidad INT NOT NULL CHECK (cantidad > 0),
-    stock_anterior INT NOT NULL,
-    stock_posterior INT NOT NULL CHECK (stock_posterior >= 0),
-    motivo TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    producto_id     UUID        NOT NULL REFERENCES productos(id)  ON DELETE RESTRICT,
+    orden_id        UUID        REFERENCES ordenes(id)             ON DELETE SET NULL,
+    compra_id       UUID        REFERENCES compras(id)             ON DELETE SET NULL,
+    usuario_id      UUID        NOT NULL REFERENCES usuarios(id)   ON DELETE RESTRICT,
+    tipo            tipo_movimiento_enum NOT NULL,
+    cantidad        INT         NOT NULL,
+    stock_anterior  INT         NOT NULL,
+    stock_posterior INT         NOT NULL,
+    motivo          TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE INDEX idx_mov_stock_producto ON movimientos_stock(producto_id);
+CREATE INDEX idx_mov_stock_orden    ON movimientos_stock(orden_id);
+CREATE INDEX idx_mov_stock_compra   ON movimientos_stock(compra_id);
+
+CREATE TRIGGER trg_productos_updated_at BEFORE UPDATE ON productos FOR EACH ROW EXECUTE FUNCTION set_updated_at();

@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db.pnlsodkhkfwqveivbuak.supabase.co:6543/postgres?sslmode=require
+    username: postgres
+    password: ${SUPABASE_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 600000
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://db.pnlsodkhkfwqveivbuak.supabase.co:6543/postgres?sslmode=require
+    user: postgres
+    password: ${SUPABASE_DB_PASSWORD}
+    schemas: public
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+    validate-on-migrate: true

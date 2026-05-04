@@ -1,0 +1,88 @@
+package com.veloservice.inventario.internal.service;
+
+import com.veloservice.inventario.api.ProveedorRequest;
+import com.veloservice.inventario.api.ProveedorSucursalRequest;
+import com.veloservice.inventario.internal.entity.Proveedor;
+import com.veloservice.inventario.internal.entity.SucursalProveedor;
+import com.veloservice.inventario.internal.repository.ProveedorRepository;
+import com.veloservice.inventario.internal.repository.SucursalProveedorRepository;
+import com.veloservice.config.tenant.TenantOperation;
+import com.veloservice.config.security.SucursalContext;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Handles supplier operations.
+ */
+@Service
+@RequiredArgsConstructor
+public class ProveedorService {
+
+    private final ProveedorRepository proveedorRepository;
+    private final SucursalProveedorRepository sucursalProveedorRepository;
+
+    /**
+     * Creates a supplier for the current tenant.
+     *
+     * @param request supplier request
+     * @return created supplier
+     */
+    @TenantOperation
+    @Transactional
+    public Proveedor crear(ProveedorRequest request) {
+        if (SucursalContext.getCurrentSucursal() == null) {
+            throw new IllegalStateException("Contexto de sucursal requerido");
+        }
+        Proveedor proveedor = Proveedor.builder()
+                .nombre(request.getNombre())
+                .rut(request.getRut())
+                .telefono(request.getTelefono())
+                .email(request.getEmail())
+                .direccion(request.getDireccion())
+                .build();
+        return proveedorRepository.save(proveedor);
+    }
+
+    /**
+     * Lists suppliers for the current tenant.
+     *
+     * @return suppliers
+     */
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<Proveedor> listar() {
+        return proveedorRepository.findAll();
+    }
+
+    /**
+     * Assigns a global supplier to the current branch.
+     *
+     * @param request branch-provider assignment payload
+     * @return created link
+     */
+    @TenantOperation
+    @Transactional
+    public SucursalProveedor asignarASucursal(ProveedorSucursalRequest request) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
+            throw new IllegalStateException("Contexto de sucursal requerido");
+        }
+
+        if (sucursalProveedorRepository.existsBySucursalIdAndProveedorId(sucursalId, request.getProveedorId())) {
+            throw new IllegalArgumentException("El proveedor ya está asignado a esta sucursal");
+        }
+
+        SucursalProveedor vinculo = SucursalProveedor.builder()
+                .sucursalId(sucursalId)
+                .proveedorId(request.getProveedorId())
+                .codigoCliente(request.getCodigoCliente())
+                .condicionPago(request.getCondicionPago())
+                .contactoAsignado(request.getContactoAsignado())
+                .build();
+        return sucursalProveedorRepository.save(vinculo);
+    }
+}
