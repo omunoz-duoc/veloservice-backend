@@ -15,6 +15,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -42,11 +44,13 @@ public class OrdenEstado {
     private UUID usuarioId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "estado_anterior")
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "estado_anterior", columnDefinition = "estado_orden_enum")
     private EstadoOrdenEnum estadoAnterior;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "estado_nuevo", nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "estado_nuevo", nullable = false, columnDefinition = "estado_orden_enum")
     private EstadoOrdenEnum estadoNuevo;
 
     @Column(columnDefinition = "TEXT")

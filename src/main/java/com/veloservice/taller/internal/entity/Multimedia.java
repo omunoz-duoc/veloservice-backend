@@ -16,6 +16,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -46,11 +48,13 @@ public class Multimedia {
     private String url;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "tipo_archivo", nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "tipo_archivo", nullable = false, columnDefinition = "tipo_archivo_enum")
     private TipoArchivoEnum tipoArchivo;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "etapa_multimedia_enum")
     private EtapaMultimediaEnum etapa;
 
     @Column(columnDefinition = "TEXT")

@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+PORT=8080
+
 echo "=========================================="
 echo "  VELOSERVICE - MODO DESARROLLO LOCAL"
 echo "=========================================="
@@ -62,9 +64,28 @@ cd /workspaces/veloservice-backend
 ./mvnw clean compile -q
 echo "      → Compilación OK"
 
-# 5. Levantar Spring Boot
-echo "[5/6] Levantando Spring Boot (dev)..."
-echo "[6/6] Backend disponible en http://localhost:8080/api/v1"
+# 5. Verificar puerto del backend
+echo "[5/7] Verificando puerto ${PORT}..."
+PORT_PID="$(lsof -ti tcp:${PORT} -sTCP:LISTEN 2>/dev/null || true)"
+if [ -n "$PORT_PID" ]; then
+    PORT_CMD="$(ps -p "$PORT_PID" -o args= 2>/dev/null || true)"
+    if echo "$PORT_CMD" | grep -Eq "veloservice-backend|spring-boot:run|BikeshopManagerApplication"; then
+        echo "      → Instancia previa detectada (PID ${PORT_PID}), deteniendo..."
+        kill "$PORT_PID" || true
+        sleep 2
+    else
+        echo "      ✗ Puerto ${PORT} en uso por otro proceso (PID ${PORT_PID})"
+        echo "        Comando: ${PORT_CMD}"
+        echo "        Libera el puerto y vuelve a ejecutar este script."
+        exit 1
+    fi
+else
+    echo "      → Puerto ${PORT} libre"
+fi
+
+# 6. Levantar Spring Boot
+echo "[6/7] Levantando Spring Boot (dev)..."
+echo "[7/7] Backend iniciando en http://localhost:${PORT}/api/v1"
 echo "=========================================="
 echo "  CREDENCIALES DEMO:"
 echo "  Email: admin@veloservice.cl"
