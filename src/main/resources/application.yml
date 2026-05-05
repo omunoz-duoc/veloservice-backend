@@ -2,7 +2,7 @@ spring:
   application:
     name: bikeshop-manager
   datasource:
-    url: jdbc:postgresql://localhost:5433/veloservice_db
+    url: jdbc:postgresql://localhost:5432/veloservice_db
     username: velo_user
     password: velo_pass
     driver-class-name: org.postgresql.Driver

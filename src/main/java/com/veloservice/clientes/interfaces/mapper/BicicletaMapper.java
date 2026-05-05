@@ -1,0 +1,47 @@
+package com.veloservice.clientes.interfaces.mapper;
+
+import com.veloservice.clientes.application.dto.BicicletaCreateCommand;
+import com.veloservice.clientes.application.dto.BicicletaResult;
+import com.veloservice.clientes.interfaces.rest.BicicletaRequest;
+import com.veloservice.clientes.interfaces.rest.BicicletaResponse;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+public final class BicicletaMapper {
+    private BicicletaMapper() {
+    }
+
+    public static BicicletaCreateCommand toCommand(BicicletaRequest request) {
+        return new BicicletaCreateCommand(
+                request.getMarca(),
+                request.getModelo(),
+                request.getTipo(),
+                request.getAro(),
+                request.getColor(),
+                request.getNumeroSerie(),
+                request.getAnio(),
+                request.getNotas()
+        );
+    }
+
+    public static BicicletaResponse toResponse(BicicletaResult result) {
+        return BicicletaResponse.builder()
+                .id(result.getId())
+                .clienteId(result.getClienteId())
+                .marca(result.getMarca())
+                .modelo(result.getModelo())
+                .tipo(result.getTipo())
+                .aro(result.getAro())
+                .color(result.getColor())
+                .numeroSerie(result.getNumeroSerie())
+                .anio(result.getAnio())
+                .build();
+    }
+
+    public static List<BicicletaResponse> toResponseList(List<BicicletaResult> results) {
+        return results.stream()
+                .map(BicicletaMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+}
