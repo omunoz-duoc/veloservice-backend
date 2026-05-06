@@ -6,7 +6,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 /**
  * Verifies that the Spring context loads successfully.
  */
-@SpringBootTest
+@SpringBootTest(classes = com.veloservice.BikeshopManagerApplication.class)
 class BikeshopManagerApplicationTests {
 
     @Test
