@@ -1,8 +1,10 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
   datasource:
-    url: jdbc:postgresql://db.pnlsodkhkfwqveivbuak.supabase.co:6543/postgres?sslmode=require
-    username: postgres
-    password: ${SUPABASE_DB_PASSWORD}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 3
@@ -19,9 +21,9 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   flyway:
     enabled: true
-    url: jdbc:postgresql://db.pnlsodkhkfwqveivbuak.supabase.co:6543/postgres?sslmode=require
-    user: postgres
-    password: ${SUPABASE_DB_PASSWORD}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require
+    user: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     schemas: public
     baseline-on-migrate: true
     baseline-version: 0

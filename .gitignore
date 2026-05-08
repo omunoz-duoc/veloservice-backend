@@ -34,3 +34,6 @@ build/
 
 ### Schema ###
 schema.sql
+
+### env ####
+.env
