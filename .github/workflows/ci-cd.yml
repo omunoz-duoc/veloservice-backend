@@ -50,9 +50,9 @@ jobs:
       - name: Build image name
         id: image-name
         env:
-          REGION: ${{ secrets.GCP_REGION }}
-          PROJECT: ${{ secrets.GCP_PROJECT_ID }}
-          REPO: ${{ secrets.GAR_REPOSITORY }}
+          REGION: ${{ vars.GCP_REGION }}
+          PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          REPO: ${{ vars.GAR_REPOSITORY }}
           SHA: ${{ github.sha }}
         run: |
           SHORT_SHA="${SHA::7}"
@@ -70,9 +70,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Configure Docker for GAR
-        env:
-          REGION: ${{ secrets.GCP_REGION }}
-        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
 
       - name: Build and push image
         uses: docker/build-push-action@v5
@@ -104,14 +102,14 @@ jobs:
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v2
         with:
-          service: ${{ secrets.CLOUD_RUN_SERVICE }}
-          region: ${{ secrets.GCP_REGION }}
+          service: ${{ vars.CLOUD_RUN_SERVICE }}
+          region: ${{ vars.GCP_REGION }}
           image: ${{ needs.build-and-push.outputs.full-image }}
           env_vars: |
             SPRING_PROFILES_ACTIVE=prod
-            DB_HOST=${{ secrets.DB_HOST }}
-            DB_PORT=${{ secrets.DB_PORT }}
-            DB_NAME=${{ secrets.DB_NAME }}
+            DB_HOST=${{ vars.DB_HOST }}
+            DB_PORT=${{ vars.DB_PORT }}
+            DB_NAME=${{ vars.DB_NAME }}
             DB_USERNAME=${{ secrets.DB_USERNAME }}
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
