@@ -1,5 +1,6 @@
 package com.veloservice.config.web;
 
+import com.veloservice.administracion.application.exception.AuthException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,17 @@ import java.util.Map;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+    /**
+     * Handles authentication errors with explicit status codes.
+     *
+     * @param ex auth exception
+     * @return error response
+     */
+    @ExceptionHandler(AuthException.class)
+    public ResponseEntity<Map<String, Object>> handleAuthException(AuthException ex) {
+        return buildResponse(ex.getStatus(), ex.getCode().name());
+    }
+
     /**
      * Handles invalid credential errors.
      *
