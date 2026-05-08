@@ -22,7 +22,6 @@ import java.util.UUID;
 public class JwtTokenProvider {
     private final SecretKey jwtSecret;
     private final long jwtExpirationMs;
-    private final UUID fixedTallerId;
 
     /**
      * Creates a provider using configuration properties.
@@ -31,11 +30,9 @@ public class JwtTokenProvider {
      * @param expiration token validity in milliseconds
      */
     public JwtTokenProvider(@Value("${jwt.secret}") String secret,
-                            @Value("${jwt.expiration}") long expiration,
-                            @Value("${jwt.taller-id:00000000-0000-0000-0000-000000000001}") String tallerId) {
+                            @Value("${jwt.expiration}") long expiration) {
         this.jwtSecret = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.jwtExpirationMs = expiration;
-        this.fixedTallerId = UUID.fromString(tallerId);
     }
 
     /**
@@ -55,7 +52,6 @@ public class JwtTokenProvider {
                 .claim("userId", userId.toString())
                 .claim("rol", rol)
                 .claim("sucursalId", sucursalId.toString())
-                .claim("tallerId", fixedTallerId.toString())
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(jwtSecret, Jwts.SIG.HS256);

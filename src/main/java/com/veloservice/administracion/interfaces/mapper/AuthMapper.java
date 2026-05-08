@@ -2,6 +2,8 @@ package com.veloservice.administracion.interfaces.mapper;
 
 import com.veloservice.administracion.application.dto.AuthLoginCommand;
 import com.veloservice.administracion.application.dto.AuthLoginResult;
+import com.veloservice.administracion.application.dto.AuthRegisterCommand;
+import com.veloservice.administracion.interfaces.rest.AuthRegisterRequest;
 import com.veloservice.administracion.interfaces.rest.AuthRequest;
 import com.veloservice.administracion.interfaces.rest.AuthResponse;
 
@@ -11,6 +13,19 @@ public final class AuthMapper {
 
     public static AuthLoginCommand toCommand(AuthRequest request) {
         return new AuthLoginCommand(request.getEmail(), request.getPassword());
+    }
+
+    public static AuthRegisterCommand toCommand(AuthRegisterRequest request) {
+        return new AuthRegisterCommand(
+                request.getNombre(),
+                request.getApellido(),
+                request.getRut(),
+                request.getTelefono(),
+                request.getEmail(),
+                request.getPassword(),
+                request.getSucursalId(),
+                request.getRol()
+        );
     }
 
     public static AuthResponse toResponse(AuthLoginResult result) {

@@ -31,4 +31,16 @@ public class AuthController {
         AuthLoginResult result = authService.login(AuthMapper.toCommand(request));
         return ResponseEntity.ok(AuthMapper.toResponse(result));
     }
+
+    /**
+     * Registers a user and returns a JWT token.
+     *
+     * @param request registration request payload
+     * @return authentication response
+     */
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthRegisterRequest request) {
+        AuthLoginResult result = authService.register(AuthMapper.toCommand(request));
+        return ResponseEntity.ok(AuthMapper.toResponse(result));
+    }
 }

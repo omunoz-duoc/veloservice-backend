@@ -56,7 +56,7 @@ public class Usuario {
     private String passwordHash;
     @Column(nullable = false)
     @Builder.Default
-    private Boolean activo = true;
+    private Boolean activo = false;
     @Column(name = "last_login")
     private OffsetDateTime lastLogin;
     @CreationTimestamp

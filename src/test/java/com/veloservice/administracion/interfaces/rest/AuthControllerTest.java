@@ -3,6 +3,7 @@ package com.veloservice.administracion.interfaces.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.veloservice.administracion.application.dto.AuthLoginCommand;
 import com.veloservice.administracion.application.dto.AuthLoginResult;
+import com.veloservice.administracion.application.dto.AuthRegisterCommand;
 import com.veloservice.administracion.application.usecase.AuthService;
 import com.veloservice.config.security.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.UUID;
 
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -52,5 +55,64 @@ class AuthControllerTest {
             .andExpect(jsonPath("$.rol").value("ADMIN"));
 
         verify(authService).login(ArgumentMatchers.any(AuthLoginCommand.class));
+    }
+
+    @Test
+    void registerReturnsTokenAndRole() throws Exception {
+        AuthRegisterRequest request = new AuthRegisterRequest();
+        request.setNombre("Ana");
+        request.setApellido("Gomez");
+        request.setRut("12.345.678-9");
+        request.setTelefono("+56912345678");
+        request.setEmail("ana@veloservice.com");
+        request.setPassword("secret");
+        request.setSucursalId(UUID.fromString("660e8400-e29b-41d4-a716-446655440001"));
+        request.setRol("ADMIN_SUCURSAL");
+
+        AuthLoginResult result = new AuthLoginResult("jwt-token", "ADMIN_SUCURSAL");
+        when(authService.register(ArgumentMatchers.any(AuthRegisterCommand.class))).thenReturn(result);
+
+        mockMvc.perform(post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.token").value("jwt-token"))
+            .andExpect(jsonPath("$.rol").value("ADMIN_SUCURSAL"));
+
+        verify(authService).register(ArgumentMatchers.any(AuthRegisterCommand.class));
+    }
+
+    @Test
+    void registerWithMalformedJsonReturnsBadRequest() throws Exception {
+        String malformedJson = "{\"nombre\":\"Oscar\",}";
+
+        mockMvc.perform(post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(malformedJson))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message")
+                    .value("JSON invalido. Verifica la sintaxis (comillas, comas y llaves)."));
+    }
+
+    @Test
+    void registerWithInvalidRolReturnsBadRequest() throws Exception {
+        AuthRegisterRequest request = new AuthRegisterRequest();
+        request.setNombre("Ana");
+        request.setApellido("Gomez");
+        request.setRut("12.345.678-9");
+        request.setTelefono("+56912345678");
+        request.setEmail("ana@veloservice.com");
+        request.setPassword("secret");
+        request.setSucursalId(UUID.fromString("660e8400-e29b-41d4-a716-446655440001"));
+        request.setRol("ROLE_NO_EXISTE");
+
+        when(authService.register(ArgumentMatchers.any(AuthRegisterCommand.class)))
+                .thenThrow(new IllegalArgumentException("Rol no encontrado"));
+
+        mockMvc.perform(post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Rol no encontrado"));
     }
 }
