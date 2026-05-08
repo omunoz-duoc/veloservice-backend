@@ -25,8 +25,8 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Run tests (H2 profile)
-        run: mvn test -B -Dspring.profiles.active=h2
+      - name: Run tests (dev/H2 profile)
+        run: mvn test -B -Dspring.profiles.active=dev
 
       - name: Upload test results
         if: always()
