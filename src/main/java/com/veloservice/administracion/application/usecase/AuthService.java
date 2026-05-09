@@ -119,16 +119,17 @@ public class AuthService {
      *
      * @param email the user's email
          * @param clientIp client IP address
+     * @return true when request is allowed
      */
         @Transactional
-        public void resetPassword(String email, String clientIp) {
+    public boolean resetPassword(String email, String clientIp) {
                 if (!passwordResetRateLimiter.allow(email, clientIp)) {
-                        return;
+            return false;
                 }
 
                 Usuario usuario = usuarioRepository.findByEmailAndActivoTrue(email).orElse(null);
                 if (usuario == null) {
-                        return;
+            return true;
                 }
 
                 passwordResetTokenRepository.deleteByUsuarioId(usuario.getId());
@@ -145,6 +146,7 @@ public class AuthService {
                 passwordResetTokenRepository.save(resetToken);
 
                 resendEmailService.sendPasswordResetEmail(usuario.getEmail(), usuario.getNombre(), rawToken);
+                return true;
     }
 
         /**

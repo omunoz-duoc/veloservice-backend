@@ -6,6 +6,7 @@ import com.veloservice.administracion.interfaces.mapper.AuthMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -56,7 +57,10 @@ public class AuthController {
     public ResponseEntity<AuthResponse> resetPassword(
             @Valid @RequestBody AuthResetPasswordRequest request,
             HttpServletRequest httpRequest) {
-        authService.resetPassword(request.getEmail(), resolveClientIp(httpRequest));
+        boolean allowed = authService.resetPassword(request.getEmail(), resolveClientIp(httpRequest));
+        if (!allowed) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build();
+        }
         return ResponseEntity.ok().build();        
     }
 
