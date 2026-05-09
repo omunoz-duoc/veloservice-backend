@@ -19,11 +19,10 @@ import com.veloservice.administracion.infraestructure.ratelimit.PasswordResetRat
 import com.veloservice.config.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -32,6 +31,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Base64;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -102,14 +102,16 @@ public class AuthService {
      */
     @Transactional
     public AuthLoginResult register(AuthRegisterCommand command) {
-        if (usuarioRepository.existsByEmail(command.getEmail())) {
-            throw new IllegalArgumentException("Email ya registrado");
-        }
+        Sucursal sucursal = validateSucursal(command.getSucursalId());
+        Rol rol = validateRol(command.getRol());
+        validatePassword(command.getPassword());
+        validateEmail(command.getEmail());
+        validateRut(command.getRut());
+        validateTelefono(command.getTelefono());
+        validateApellido(command.getApellido());
+        validateNombre(command.getNombre());
 
-        Rol rol = rolRepository.findByNombre(command.getRol())
-                .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado"));
-        Sucursal sucursal = sucursalRepository.findById(command.getSucursalId())
-                .orElseThrow(() -> new IllegalArgumentException("Sucursal no encontrada"));
+        validateEmailUnique(command.getEmail());
 
         Usuario usuario = Usuario.builder()
                 .nombre(command.getNombre())
@@ -203,5 +205,127 @@ public class AuthService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
         }
+    }
+
+    private Sucursal validateSucursal(UUID sucursalId) {
+        if (sucursalId == null) {
+            throw new IllegalArgumentException("INVALID_SUCURSAL");
+        }
+        return sucursalRepository.findById(sucursalId)
+                .orElseThrow(() -> new IllegalArgumentException("INVALID_SUCURSAL"));
+    }
+
+    private Rol validateRol(String rolNombre) {
+        if (!StringUtils.hasText(rolNombre)) {
+            throw new IllegalArgumentException("INVALID_ROL");
+        }
+        return rolRepository.findByNombre(rolNombre)
+                .orElseThrow(() -> new IllegalArgumentException("INVALID_ROL"));
+    }
+
+    private void validatePassword(String password) {
+        if (!StringUtils.hasText(password)) {
+            throw new IllegalArgumentException("INVALID_PASSWORD");
+        }
+        boolean hasUpper = false;
+        boolean hasDigit = false;
+        boolean hasSymbol = false;
+        for (char c : password.toCharArray()) {
+            if (Character.isUpperCase(c)) {
+                hasUpper = true;
+            } else if (Character.isDigit(c)) {
+                hasDigit = true;
+            } else if (!Character.isLetterOrDigit(c)) {
+                hasSymbol = true;
+            }
+        }
+        if (!(hasUpper && hasDigit && hasSymbol)) {
+            throw new IllegalArgumentException("INVALID_PASSWORD");
+        }
+    }
+
+    private void validateEmail(String email) {
+        if (!StringUtils.hasText(email)) {
+            throw new IllegalArgumentException("INVALID_EMAIL");
+        }
+        String trimmed = email.trim();
+        if (!trimmed.matches("^[^@]+@[^@]+\\.[^@]+$")) {
+            throw new IllegalArgumentException("INVALID_EMAIL");
+        }
+    }
+
+    private void validateEmailUnique(String email) {
+        if (usuarioRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("EMAIL_ALREADY_EXISTS");
+        }
+    }
+
+    private void validateRut(String rut) {
+        if (!isValidRut(rut)) {
+            throw new IllegalArgumentException("INVALID_RUT");
+        }
+    }
+
+    private void validateTelefono(String telefono) {
+        if (!StringUtils.hasText(telefono) || !telefono.matches("^\\d{9}$")) {
+            throw new IllegalArgumentException("INVALID_TELEFONO");
+        }
+    }
+
+    private void validateApellido(String apellido) {
+        if (!isValidNombre(apellido)) {
+            throw new IllegalArgumentException("INVALID_APELLIDO");
+        }
+    }
+
+    private void validateNombre(String nombre) {
+        if (!isValidNombre(nombre)) {
+            throw new IllegalArgumentException("INVALID_NOMBRE");
+        }
+    }
+
+    private boolean isValidNombre(String value) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() <= 50 && trimmed.matches("^\\p{L}+$");
+    }
+
+    private boolean isValidRut(String rut) {
+        if (!StringUtils.hasText(rut)) {
+            return false;
+        }
+        String cleaned = rut.replace(".", "")
+                .replace("-", "")
+                .replace(" ", "")
+                .toUpperCase(Locale.ROOT);
+        if (cleaned.length() < 2) {
+            return false;
+        }
+
+        String body = cleaned.substring(0, cleaned.length() - 1);
+        String dv = cleaned.substring(cleaned.length() - 1);
+        if (!body.matches("^\\d+$") || !dv.matches("^[0-9K]$")) {
+            return false;
+        }
+
+        int sum = 0;
+        int multiplier = 2;
+        for (int i = body.length() - 1; i >= 0; i--) {
+            int digit = Character.getNumericValue(body.charAt(i));
+            sum += digit * multiplier;
+            multiplier = (multiplier == 7) ? 2 : multiplier + 1;
+        }
+        int remainder = 11 - (sum % 11);
+        String expected;
+        if (remainder == 11) {
+            expected = "0";
+        } else if (remainder == 10) {
+            expected = "K";
+        } else {
+            expected = String.valueOf(remainder);
+        }
+        return expected.equals(dv);
     }
 }
