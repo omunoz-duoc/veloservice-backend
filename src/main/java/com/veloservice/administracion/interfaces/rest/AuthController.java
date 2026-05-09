@@ -3,9 +3,12 @@ package com.veloservice.administracion.interfaces.rest;
 import com.veloservice.administracion.application.dto.AuthLoginResult;
 import com.veloservice.administracion.application.usecase.AuthService;
 import com.veloservice.administracion.interfaces.mapper.AuthMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,4 +46,46 @@ public class AuthController {
         AuthLoginResult result = authService.register(AuthMapper.toCommand(request));
         return ResponseEntity.ok(AuthMapper.toResponse(result));
     }
+
+    /**
+     * Sends a password reset email to the user.
+     * 
+     * @param request password reset request payload
+     * @return success response
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<AuthResponse> resetPassword(
+            @Valid @RequestBody AuthResetPasswordRequest request,
+            HttpServletRequest httpRequest) {
+        boolean allowed = authService.resetPassword(request.getEmail(), resolveClientIp(httpRequest));
+        if (!allowed) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build();
+        }
+        return ResponseEntity.ok().build();        
+    }
+
+    /**
+     * Changes the user's password using a reset token.
+     *
+     * @param request change password request payload
+     * @return success response
+     */
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody AuthChangePasswordRequest request) {
+        authService.changePassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok().build();
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (StringUtils.hasText(forwarded)) {
+            return forwarded.split(",")[0].trim();
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (StringUtils.hasText(realIp)) {
+            return realIp.trim();
+        }
+        return request.getRemoteAddr();
+    }
+    
 }
