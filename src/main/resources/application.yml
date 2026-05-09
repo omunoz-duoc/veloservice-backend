@@ -29,6 +29,13 @@ server:
 jwt:
   secret: ${JWT_SECRET:cambiaEstaClaveEnProduccionPorUnaMuyLargaDe32CharsMin}
   expiration: 86400000
+  reset-expiration: 900000
+app:
+  reset-password-url: ${RESET_PASSWORD_URL:http://localhost:3000/reset-password}
+resend:
+  api-key: ${RESEND_API_KEY:}
+  from: ${RESEND_FROM:}
+  base-url: https://api.resend.com
 logging:
   level:
     org.springframework.security: DEBUG

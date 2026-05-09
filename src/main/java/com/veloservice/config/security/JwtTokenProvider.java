@@ -22,6 +22,7 @@ import java.util.UUID;
 public class JwtTokenProvider {
     private final SecretKey jwtSecret;
     private final long jwtExpirationMs;
+    private final long resetExpirationMs;
 
     /**
      * Creates a provider using configuration properties.
@@ -30,9 +31,11 @@ public class JwtTokenProvider {
      * @param expiration token validity in milliseconds
      */
     public JwtTokenProvider(@Value("${jwt.secret}") String secret,
-                            @Value("${jwt.expiration}") long expiration) {
+                            @Value("${jwt.expiration}") long expiration,
+                            @Value("${jwt.reset-expiration:900000}") long resetExpirationMs) {
         this.jwtSecret = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.jwtExpirationMs = expiration;
+        this.resetExpirationMs = resetExpirationMs;
     }
 
     /**
@@ -52,6 +55,27 @@ public class JwtTokenProvider {
                 .claim("userId", userId.toString())
                 .claim("rol", rol)
                 .claim("sucursalId", sucursalId.toString())
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(jwtSecret, Jwts.SIG.HS256);
+        return builder.compact();
+    }
+
+    /**
+     * Generates a signed JWT for password reset.
+     *
+     * @param userId user identifier
+     * @param email user email
+     * @return signed reset JWT
+     */
+    public String generatePasswordResetToken(UUID userId, String email) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + resetExpirationMs);
+        JwtBuilder builder = Jwts.builder()
+                .subject(email)
+                .claim("userId", userId.toString())
+                .claim("type", "password_reset")
+                .id(UUID.randomUUID().toString())
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(jwtSecret, Jwts.SIG.HS256);
