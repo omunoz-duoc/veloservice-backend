@@ -44,7 +44,7 @@ class AuthControllerTest {
         request.setEmail("user@veloservice.com");
         request.setPassword("secret");
 
-        AuthLoginResult result = new AuthLoginResult("jwt-token", "ADMIN");
+        AuthLoginResult result = new AuthLoginResult("Nombre", "Apellido","jwt-token", "ADMIN");
         when(authService.login(ArgumentMatchers.any(AuthLoginCommand.class))).thenReturn(result);
 
         mockMvc.perform(post("/auth/login")
@@ -69,7 +69,7 @@ class AuthControllerTest {
         request.setSucursalId(UUID.fromString("660e8400-e29b-41d4-a716-446655440001"));
         request.setRol("ADMIN_SUCURSAL");
 
-        AuthLoginResult result = new AuthLoginResult("jwt-token", "ADMIN_SUCURSAL");
+        AuthLoginResult result = new AuthLoginResult("Nombre", "Apellido", "jwt-token", "ADMIN_SUCURSAL");
         when(authService.register(ArgumentMatchers.any(AuthRegisterCommand.class))).thenReturn(result);
 
         mockMvc.perform(post("/auth/register")
