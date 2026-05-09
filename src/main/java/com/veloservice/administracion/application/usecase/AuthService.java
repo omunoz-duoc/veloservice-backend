@@ -267,20 +267,20 @@ public class AuthService {
     }
 
     private void validateTelefono(String telefono) {
-        if (!StringUtils.hasText(telefono) || !telefono.matches("^\\d{9}$")) {
-            throw new IllegalArgumentException("INVALID_TELEFONO");
+        if (!StringUtils.hasText(telefono) || !telefono.matches("^\\+569\\d{8,11}$")) {
+            throw new IllegalArgumentException("INVALID_PHONE");
         }
     }
 
     private void validateApellido(String apellido) {
         if (!isValidNombre(apellido)) {
-            throw new IllegalArgumentException("INVALID_APELLIDO");
+            throw new IllegalArgumentException("INVALID_SURNAME");
         }
     }
 
     private void validateNombre(String nombre) {
         if (!isValidNombre(nombre)) {
-            throw new IllegalArgumentException("INVALID_NOMBRE");
+            throw new IllegalArgumentException("INVALID_NAME");
         }
     }
 
