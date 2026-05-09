@@ -29,6 +29,6 @@ public final class AuthMapper {
     }
 
     public static AuthResponse toResponse(AuthLoginResult result) {
-        return new AuthResponse(result.getToken(), result.getRol());
+        return new AuthResponse(result.getNombre(), result.getApellido(), result.getToken(), result.getRol());
     }
 }

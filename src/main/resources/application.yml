@@ -38,6 +38,11 @@ server:
 jwt:
   secret: ${JWT_SECRET}
   expiration: 86400000
+security:
+  login:
+    max-attempts: 5
+    window-minutes: 10
+    lock-minutes: 15
 logging:
   level:
     org.springframework.security: DEBUG

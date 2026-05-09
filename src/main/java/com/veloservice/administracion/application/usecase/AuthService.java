@@ -3,6 +3,9 @@ package com.veloservice.administracion.application.usecase;
 import com.veloservice.administracion.application.dto.AuthLoginCommand;
 import com.veloservice.administracion.application.dto.AuthLoginResult;
 import com.veloservice.administracion.application.dto.AuthRegisterCommand;
+import com.veloservice.administracion.application.exception.AuthErrorCode;
+import com.veloservice.administracion.application.exception.AuthException;
+import com.veloservice.administracion.application.security.LoginAttemptService;
 import com.veloservice.administracion.domain.model.Rol;
 import com.veloservice.administracion.domain.model.Sucursal;
 import com.veloservice.administracion.domain.model.Usuario;
@@ -11,8 +14,6 @@ import com.veloservice.administracion.infraestructure.persistence.repository.Suc
 import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.config.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,12 +27,12 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-    private final AuthenticationManager authManager;
     private final UsuarioRepository usuarioRepository;
     private final RolRepository rolRepository;
     private final SucursalRepository sucursalRepository;
     private final JwtTokenProvider jwtProvider;
     private final PasswordEncoder passwordEncoder;
+    private final LoginAttemptService loginAttemptService;
 
     /**
      * Authenticates a user and returns a JWT token.
@@ -40,10 +41,22 @@ public class AuthService {
      * @return authentication response
      */
     public AuthLoginResult login(AuthLoginCommand command) {
-        authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(command.getEmail(), command.getPassword())
-        );
-        Usuario usuario = usuarioRepository.findByEmailAndActivoTrue(command.getEmail()).orElseThrow();
+        String email = command.getEmail();
+        if (loginAttemptService.isBlocked(email)) {
+            throw new AuthException(AuthErrorCode.TOO_MANY_ATTEMPTS);
+        }
+
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new AuthException(AuthErrorCode.USER_NOT_FOUND));
+        if (!Boolean.TRUE.equals(usuario.getActivo())) {
+            throw new AuthException(AuthErrorCode.ACCOUNT_NOT_VERIFIED);
+        }
+        if (!passwordEncoder.matches(command.getPassword(), usuario.getPasswordHash())) {
+            loginAttemptService.recordFailedAttempt(email);
+            throw new AuthException(AuthErrorCode.INVALID_PASSWORD);
+        }
+        loginAttemptService.resetAttempts(email);
+
         usuario.setLastLogin(OffsetDateTime.now());
         usuarioRepository.save(usuario);
 
@@ -56,7 +69,7 @@ public class AuthService {
         String token = jwtProvider.generateToken(
                 usuario.getId(), usuario.getEmail(), usuario.getRol().getNombre(), sucursalId
         );
-        return new AuthLoginResult(token, usuario.getRol().getNombre());
+        return new AuthLoginResult(usuario.getNombre(), usuario.getApellido(), token, usuario.getRol().getNombre());
     }
 
     /**
@@ -91,6 +104,6 @@ public class AuthService {
         String token = jwtProvider.generateToken(
                 saved.getId(), saved.getEmail(), rol.getNombre(), sucursal.getId()
         );
-        return new AuthLoginResult(token, rol.getNombre());
+        return new AuthLoginResult(usuario.getNombre(), usuario.getApellido(), token, rol.getNombre());
     }
 }

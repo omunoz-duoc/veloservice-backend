@@ -22,6 +22,14 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
     Optional<Usuario> findByEmailAndActivoTrue(String email);
 
     /**
+     * Finds a user by email.
+     *
+     * @param email user email
+     * @return matching user, if present
+     */
+    Optional<Usuario> findByEmail(String email);
+
+    /**
      * Checks if a user exists with the given email.
      *
      * @param email user email
