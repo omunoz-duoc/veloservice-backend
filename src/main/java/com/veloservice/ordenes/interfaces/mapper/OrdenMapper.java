@@ -2,18 +2,26 @@ package com.veloservice.ordenes.interfaces.mapper;
 
 import com.veloservice.ordenes.application.dto.MultimediaCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
+import com.veloservice.ordenes.application.dto.OrdenActividadRecienteResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
+import com.veloservice.ordenes.application.dto.OrdenListaEntregaResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
+import com.veloservice.ordenes.application.dto.OrdenUrgenteResult;
 import com.veloservice.ordenes.interfaces.rest.EstadoChangeRequest;
 import com.veloservice.ordenes.interfaces.rest.MultimediaRequest;
+import com.veloservice.ordenes.interfaces.rest.OrdenActividadRecienteResponse;
+import com.veloservice.ordenes.interfaces.rest.OrdenListaEntregaResponse;
 import com.veloservice.ordenes.interfaces.rest.OrdenProductoRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenResponse;
 import com.veloservice.ordenes.interfaces.rest.OrdenServicioRequest;
+import com.veloservice.ordenes.interfaces.rest.OrdenUrgenteResponse;
 
 import java.util.List;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.stream.Collectors;
 
 public final class OrdenMapper {
@@ -53,6 +61,61 @@ public final class OrdenMapper {
     public static List<OrdenResponse> toResponseList(List<OrdenResult> results) {
         return results.stream()
                 .map(OrdenMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    public static OrdenListaEntregaResponse toListaEntregaResponse(OrdenListaEntregaResult result) {
+        return new OrdenListaEntregaResponse(
+                result.getId(),
+                result.getNumeroOrden(),
+                result.getClienteNombre(),
+                result.getMecanicoAsignado(),
+                result.getFechaIngreso(),
+                result.getEstado(),
+                result.getTotalEstimado()
+        );
+    }
+
+    public static List<OrdenListaEntregaResponse> toListaEntregaResponseList(List<OrdenListaEntregaResult> results) {
+        return results.stream()
+                .map(OrdenMapper::toListaEntregaResponse)
+                .collect(Collectors.toList());
+    }
+
+    public static OrdenUrgenteResponse toUrgenteResponse(OrdenUrgenteResult result) {
+        long diasSinMovimiento = result.fechaIngreso() != null
+            ? ChronoUnit.DAYS.between(result.fechaIngreso().toLocalDate(), LocalDate.now())
+                : 0L;
+        return new OrdenUrgenteResponse(
+            result.id(),
+            result.numeroOrden(),
+            result.clienteNombre(),
+            result.estado(),
+            result.fechaIngreso(),
+                diasSinMovimiento,
+                null
+        );
+    }
+
+    public static List<OrdenUrgenteResponse> toUrgenteResponseList(List<OrdenUrgenteResult> results) {
+        return results.stream()
+                .map(OrdenMapper::toUrgenteResponse)
+                .collect(Collectors.toList());
+    }
+
+    public static OrdenActividadRecienteResponse toActividadRecienteResponse(OrdenActividadRecienteResult result) {
+        return new OrdenActividadRecienteResponse(
+                result.idOrden(),
+                result.tipoActividad(),
+                result.fechaHora(),
+                result.descripcion(),
+                result.usuarioResponsable()
+        );
+    }
+
+    public static List<OrdenActividadRecienteResponse> toActividadRecienteResponseList(List<OrdenActividadRecienteResult> results) {
+        return results.stream()
+                .map(OrdenMapper::toActividadRecienteResponse)
                 .collect(Collectors.toList());
     }
 

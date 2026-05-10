@@ -4,10 +4,12 @@ import com.veloservice.inventario.infraestructure.persistence.repository.Movimie
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import com.veloservice.ordenes.application.dto.MultimediaCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
+import com.veloservice.ordenes.application.dto.OrdenActividadRecienteResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
+import com.veloservice.ordenes.application.dto.OrdenUrgenteResult;
 import com.veloservice.ordenes.domain.model.Multimedia;
 import com.veloservice.ordenes.domain.model.Orden;
 import com.veloservice.ordenes.domain.model.OrdenEstado;
@@ -26,6 +28,7 @@ import com.veloservice.config.security.UsuarioContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -285,6 +288,38 @@ public class OrdenService {
         Orden orden = ordenRepository.findByIdAndSucursalId(id, sucursalId)
                 .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
         return toResult(orden);
+    }
+
+    /**
+     * Lists urgent orders for the current tenant.
+     *
+     * @return urgent orders
+     */
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<OrdenUrgenteResult> listarUrgentes() {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
+            return List.of();
+        }
+        OffsetDateTime cutoff = OffsetDateTime.now().minusDays(3);
+        return ordenRepository.findUrgentesBySucursalId(sucursalId, cutoff, PageRequest.of(0, 20));
+    }
+
+    /**
+     * Lists recent activity for the current tenant.
+     *
+     * @return recent activity entries
+     */
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<OrdenActividadRecienteResult> listarActividadReciente() {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
+            return List.of();
+        }
+        OffsetDateTime since = OffsetDateTime.now().minusHours(24);
+        return ordenEstadoRepository.findActividadRecienteBySucursalIdSince(sucursalId, since, PageRequest.of(0, 50));
     }
 
         private void registrarEstado(UUID ordenId, UUID sucursalId, UUID usuarioId,
