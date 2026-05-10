@@ -3,11 +3,13 @@ package com.veloservice.ordenes.interfaces.mapper;
 import com.veloservice.ordenes.application.dto.MultimediaCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
+import com.veloservice.ordenes.application.dto.OrdenListaEntregaResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.interfaces.rest.EstadoChangeRequest;
 import com.veloservice.ordenes.interfaces.rest.MultimediaRequest;
+import com.veloservice.ordenes.interfaces.rest.OrdenListaEntregaResponse;
 import com.veloservice.ordenes.interfaces.rest.OrdenProductoRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenResponse;
@@ -53,6 +55,24 @@ public final class OrdenMapper {
     public static List<OrdenResponse> toResponseList(List<OrdenResult> results) {
         return results.stream()
                 .map(OrdenMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    public static OrdenListaEntregaResponse toListaEntregaResponse(OrdenListaEntregaResult result) {
+        return new OrdenListaEntregaResponse(
+                result.getId(),
+                result.getNumeroOrden(),
+                result.getClienteNombre(),
+                result.getMecanicoAsignado(),
+                result.getFechaIngreso(),
+                result.getEstado(),
+                result.getTotalEstimado()
+        );
+    }
+
+    public static List<OrdenListaEntregaResponse> toListaEntregaResponseList(List<OrdenListaEntregaResult> results) {
+        return results.stream()
+                .map(OrdenMapper::toListaEntregaResponse)
                 .collect(Collectors.toList());
     }
 

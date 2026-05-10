@@ -51,6 +51,16 @@ public class OrdenController {
     }
 
     /**
+     * Lists orders ready for delivery.
+     *
+     * @return orders ready for delivery
+     */
+    @GetMapping("/lista-entrega")
+    public ResponseEntity<List<OrdenListaEntregaResponse>> listarListaEntrega() {
+        return ResponseEntity.ok(OrdenMapper.toListaEntregaResponseList(ordenService.listarListaEntrega()));
+    }
+
+    /**
      * Retrieves a work order by identifier.
      *
      * @param id work order identifier

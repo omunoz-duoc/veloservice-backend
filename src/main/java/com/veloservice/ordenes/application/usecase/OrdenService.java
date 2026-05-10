@@ -5,6 +5,7 @@ import com.veloservice.inventario.infraestructure.persistence.repository.Product
 import com.veloservice.ordenes.application.dto.MultimediaCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
+import com.veloservice.ordenes.application.dto.OrdenListaEntregaResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
@@ -285,6 +286,21 @@ public class OrdenService {
         Orden orden = ordenRepository.findByIdAndSucursalId(id, sucursalId)
                 .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
         return toResult(orden);
+    }
+
+    /**
+     * Lists orders ready for delivery for the current tenant.
+     *
+     * @return orders ready for delivery
+     */
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<OrdenListaEntregaResult> listarListaEntrega() {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
+            return List.of();
+        }
+        return ordenRepository.findListaEntregaBySucursalId(sucursalId);
     }
 
         private void registrarEstado(UUID ordenId, UUID sucursalId, UUID usuarioId,
