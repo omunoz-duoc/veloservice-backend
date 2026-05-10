@@ -1,6 +1,7 @@
 package com.veloservice.ordenes.application.usecase;
 
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
+import com.veloservice.finanzas.infraestructure.persistence.repository.CobroRepository;
 import com.veloservice.ordenes.application.dto.DashboardAlertasResult;
 import com.veloservice.ordenes.application.dto.DashboardHoyResult;
 import com.veloservice.ordenes.domain.model.Orden;
@@ -8,9 +9,11 @@ import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepos
 import com.veloservice.config.enums.EstadoOrdenEnum;
 import com.veloservice.config.security.SucursalContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -23,7 +26,15 @@ public class DashboardService {
 
     private final OrdenRepository ordenRepository;
     private final ProductoRepository productoRepository;
+    private final CobroRepository cobroRepository;
     // private final CobroService cobroService; // TODO: desacoplar dominios
+
+    public record DashboardFinanzasHoyResult(
+            BigDecimal totalIngresosHoy,
+            long totalCobrosHoy,
+            String metodoPagoMasUsado
+    ) {
+    }
 
     @Transactional(readOnly = true)
         public DashboardHoyResult resumenHoy() {
@@ -102,4 +113,23 @@ public class DashboardService {
                 .ordenesAtrasadas(ordenesAtrasadas)
                 .build();
     }
+
+        @Transactional(readOnly = true)
+        public DashboardFinanzasHoyResult finanzasHoy() {
+                OffsetDateTime ahora = OffsetDateTime.now();
+                OffsetDateTime inicioDia = ahora.toLocalDate().atStartOfDay().atOffset(ahora.getOffset());
+                OffsetDateTime finDia = inicioDia.plusDays(1);
+
+                BigDecimal totalIngresos = cobroRepository.sumTotalByCreatedAtBetween(inicioDia, finDia);
+                long totalCobros = cobroRepository.countByCreatedAtBetween(inicioDia, finDia);
+
+                String metodoMasUsado = cobroRepository
+                                .findMetodoPagoMasUsado(inicioDia, finDia, PageRequest.of(0, 1))
+                                .stream()
+                                .findFirst()
+                                .map(row -> row[0] != null ? row[0].toString() : null)
+                                .orElse(null);
+
+                return new DashboardFinanzasHoyResult(totalIngresos, totalCobros, metodoMasUsado);
+        }
 }

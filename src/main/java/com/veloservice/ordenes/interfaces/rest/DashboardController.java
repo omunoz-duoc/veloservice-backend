@@ -32,4 +32,9 @@ public class DashboardController {
     public ResponseEntity<DashboardAlertasResponse> alertas() {
         return ResponseEntity.ok(DashboardMapper.toResponse(dashboardService.alertas()));
     }
+
+    @GetMapping("/finanzas/hoy")
+    public ResponseEntity<DashboardFinanzasHoyResponse> finanzasHoy() {
+        return ResponseEntity.ok(DashboardMapper.toResponse(dashboardService.finanzasHoy()));
+    }
 }
