@@ -1,6 +1,7 @@
 package com.veloservice.administracion.interfaces.rest;
 
 import com.veloservice.administracion.application.dto.AuthLoginResult;
+import com.veloservice.administracion.application.usecase.GoogleAuthService;
 import com.veloservice.administracion.application.usecase.AuthService;
 import com.veloservice.administracion.interfaces.mapper.AuthMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
+    private final GoogleAuthService googleAuthService;
 
     /**
      * Authenticates a user and returns a JWT token.
@@ -45,6 +47,12 @@ public class AuthController {
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthRegisterRequest request) {
         AuthLoginResult result = authService.register(AuthMapper.toCommand(request));
         return ResponseEntity.ok(AuthMapper.toResponse(result));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> google(@Valid @RequestBody AuthGoogleRequest request) {
+        return ResponseEntity.ok(AuthMapper.toResponse(
+                googleAuthService.loginGoogle(AuthMapper.toCommand(request))));
     }
 
     /**

@@ -1,8 +1,10 @@
 package com.veloservice.administracion.interfaces.mapper;
 
 import com.veloservice.administracion.application.dto.AuthLoginCommand;
+import com.veloservice.administracion.application.dto.AuthGoogleCommand;
 import com.veloservice.administracion.application.dto.AuthLoginResult;
 import com.veloservice.administracion.application.dto.AuthRegisterCommand;
+import com.veloservice.administracion.interfaces.rest.AuthGoogleRequest;
 import com.veloservice.administracion.interfaces.rest.AuthRegisterRequest;
 import com.veloservice.administracion.interfaces.rest.AuthRequest;
 import com.veloservice.administracion.interfaces.rest.AuthResponse;
@@ -26,6 +28,10 @@ public final class AuthMapper {
                 request.getSucursalId(),
                 request.getRol()
         );
+    }
+
+    public static AuthGoogleCommand toCommand(AuthGoogleRequest request) {
+        return new AuthGoogleCommand(request.getIdToken());
     }
 
     public static AuthResponse toResponse(AuthLoginResult result) {

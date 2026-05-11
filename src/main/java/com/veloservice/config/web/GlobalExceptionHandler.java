@@ -1,6 +1,7 @@
 package com.veloservice.config.web;
 
 import com.veloservice.administracion.application.exception.AuthException;
+import com.veloservice.administracion.application.exception.GoogleAuthException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,17 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AuthException.class)
     public ResponseEntity<Map<String, Object>> handleAuthException(AuthException ex) {
+        return buildResponse(ex.getStatus(), ex.getCode().name());
+    }
+
+    /**
+     * Handles Google authentication errors.
+     *
+     * @param ex google auth exception
+     * @return error response
+     */
+    @ExceptionHandler(GoogleAuthException.class)
+    public ResponseEntity<Map<String, Object>> handleGoogleAuthException(GoogleAuthException ex) {
         return buildResponse(ex.getStatus(), ex.getCode().name());
     }
 

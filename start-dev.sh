@@ -58,14 +58,36 @@ ON CONFLICT (id) DO NOTHING;
 SQLEOF
 echo "      → Datos listos"
 
-# 4. Compilar
-echo "[4/6] Compilando backend..."
+# 4. Asegurar Java 21 antes de compilar
+echo "[4/7] Verificando Java 21..."
+for candidate in \
+    ${JAVA_HOME:-} \
+    /usr/lib/jvm/java-21-openjdk-amd64 \
+    /usr/lib/jvm/java-1.21.0-openjdk-amd64 \
+    /usr/local/sdkman/candidates/java/21.0.10-ms \
+    "$HOME/.sdkman/candidates/java/current"; do
+    if [ -n "$candidate" ] && [ -x "$candidate/bin/java" ] && "$candidate/bin/java" -version 2>&1 | grep -q '"21\.'; then
+        export JAVA_HOME="$candidate"
+        export PATH="$JAVA_HOME/bin:$PATH"
+        break
+    fi
+done
+
+if ! java -version 2>&1 | grep -q '"21\.'; then
+    echo "      ✗ Java 21 no está disponible en este entorno"
+    echo "        Instala o activa JDK 21 antes de compilar el proyecto"
+    exit 1
+fi
+echo "      → Java 21 listo"
+
+# 5. Compilar
+echo "[5/7] Compilando backend..."
 cd /workspaces/veloservice-backend
 ./mvnw clean compile -q
 echo "      → Compilación OK"
 
-# 5. Verificar puerto del backend
-echo "[5/7] Verificando puerto ${PORT}..."
+# 6. Verificar puerto del backend
+echo "[6/7] Verificando puerto ${PORT}..."
 PORT_PID="$(lsof -ti tcp:${PORT} -sTCP:LISTEN 2>/dev/null || true)"
 if [ -n "$PORT_PID" ]; then
     PORT_CMD="$(ps -p "$PORT_PID" -o args= 2>/dev/null || true)"
@@ -83,9 +105,9 @@ else
     echo "      → Puerto ${PORT} libre"
 fi
 
-# 6. Levantar Spring Boot
-echo "[6/7] Levantando Spring Boot (dev)..."
-echo "[7/7] Backend iniciando en http://localhost:${PORT}/api/v1"
+# 7. Levantar Spring Boot
+echo "[7/7] Levantando Spring Boot (dev)..."
+echo "Backend iniciando en http://localhost:${PORT}/api/v1"
 echo "=========================================="
 echo "  CREDENCIALES DEMO:"
 echo "  Email: admin@veloservice.cl"

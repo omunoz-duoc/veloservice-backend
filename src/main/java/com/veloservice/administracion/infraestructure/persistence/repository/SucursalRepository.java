@@ -14,6 +14,13 @@ import java.util.UUID;
 @Repository
 public interface SucursalRepository extends JpaRepository<Sucursal, UUID> {
 	/**
+	 * Finds the oldest active branch to use as a default branch.
+	 *
+	 * @return matching branch, if present
+	 */
+	Optional<Sucursal> findFirstByActivoTrueOrderByCreatedAtAsc();
+
+	/**
 	 * Finds a branch by workshop identifier.
 	 *
 	 * @param tallerId workshop identifier
