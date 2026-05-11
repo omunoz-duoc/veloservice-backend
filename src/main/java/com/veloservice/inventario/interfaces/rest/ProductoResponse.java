@@ -18,7 +18,6 @@ public class ProductoResponse {
     private String nombre;
     private String sku;
     private String marca;
-    private BigDecimal precioCosto;
     private BigDecimal precioVenta;
     private Integer stock;
     private Integer stockMinimo;

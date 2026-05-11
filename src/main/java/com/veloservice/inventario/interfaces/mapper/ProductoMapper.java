@@ -2,6 +2,7 @@ package com.veloservice.inventario.interfaces.mapper;
 
 import com.veloservice.inventario.application.dto.ProductoCreateCommand;
 import com.veloservice.inventario.application.dto.ProductoResult;
+import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.inventario.interfaces.rest.ProductoRequest;
 import com.veloservice.inventario.interfaces.rest.ProductoResponse;
 
@@ -10,6 +11,20 @@ import java.util.stream.Collectors;
 
 public final class ProductoMapper {
     private ProductoMapper() {
+    }
+
+    public static ProductoResult toResult(Producto producto) {
+        return ProductoResult.builder()
+                .id(producto.getId())
+                .nombre(producto.getNombre())
+                .sku(producto.getSku())
+                .marca(producto.getMarca())
+                .precioCosto(producto.getPrecioCosto())
+                .precioVenta(producto.getPrecioVenta())
+                .stock(producto.getStock())
+                .stockMinimo(producto.getStockMinimo())
+                .alertaStockBajo(producto.getStock() <= producto.getStockMinimo())
+                .build();
     }
 
     public static ProductoCreateCommand toCommand(ProductoRequest request) {
@@ -32,7 +47,6 @@ public final class ProductoMapper {
                 .nombre(result.getNombre())
                 .sku(result.getSku())
                 .marca(result.getMarca())
-                .precioCosto(result.getPrecioCosto())
                 .precioVenta(result.getPrecioVenta())
                 .stock(result.getStock())
                 .stockMinimo(result.getStockMinimo())

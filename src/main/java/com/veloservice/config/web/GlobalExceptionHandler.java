@@ -1,6 +1,7 @@
 package com.veloservice.config.web;
 
 import com.veloservice.administracion.application.exception.AuthException;
+import com.veloservice.inventario.application.exception.ProductoException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +30,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthException.class)
     public ResponseEntity<Map<String, Object>> handleAuthException(AuthException ex) {
         return buildResponse(ex.getStatus(), ex.getCode().name());
+    }
+
+    /**
+     * Handles business logic errors from inventory.
+     *
+     * @param ex product exception
+     * @return error response
+     */
+    @ExceptionHandler(ProductoException.class)
+    public ResponseEntity<Map<String, Object>> handleProductoException(ProductoException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     /**
