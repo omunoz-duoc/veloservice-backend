@@ -1,14 +1,19 @@
 package com.veloservice.ordenes.application.usecase;
 
+import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
+import com.veloservice.clientes.domain.model.Bicicleta;
+import com.veloservice.clientes.domain.model.Cliente;
+import com.veloservice.clientes.domain.model.SucursalCliente;
+import com.veloservice.clientes.infraestructure.persistence.repository.BicicletaRepository;
+import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRepository;
+import com.veloservice.clientes.infraestructure.persistence.repository.SucursalClienteRepository;
 import com.veloservice.inventario.infraestructure.persistence.repository.MovimientoStockRepository;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
-import com.veloservice.ordenes.application.dto.MultimediaCreateCommand;
-import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
+import com.veloservice.ordenes.application.dto.NuevaOrdenCommand;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
-import com.veloservice.ordenes.domain.model.Multimedia;
 import com.veloservice.ordenes.domain.model.Orden;
 import com.veloservice.ordenes.domain.model.OrdenEstado;
 import com.veloservice.ordenes.infraestructure.persistence.repository.MultimediaRepository;
@@ -26,6 +31,7 @@ import com.veloservice.config.security.UsuarioContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -72,55 +78,50 @@ public class OrdenService {
     private final OrdenProductoRepository ordenProductoRepository;
     private final MovimientoStockRepository movimientoStockRepository;
     private final SecuenciaService secuenciaService;
+    private final ClienteRepository clienteRepository;
+    private final BicicletaRepository bicicletaRepository;
+    private final SucursalClienteRepository sucursalClienteRepository;
+    private final UsuarioRepository usuarioRepository;
 
     /**
-     * Creates a work order with mandatory multimedia evidence.
+     * Creates a work order from the modal flow.
      *
-     * @param request work order request
+     * @param command work order command
      * @return created work order response
      */
     @TenantOperation
     @Transactional
-    public OrdenResult crear(OrdenCreateCommand command) {
+    public OrdenResult crearNuevaOrden(NuevaOrdenCommand command) {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
         UUID usuarioId = UsuarioContext.getCurrentUser();
         if (sucursalId == null || usuarioId == null) {
             throw new IllegalStateException("Contexto de sucursal/usuario requerido");
         }
 
-        if (command.getMultimedia() == null || command.getMultimedia().isEmpty()) {
-            throw new IllegalArgumentException("Evidencia multimedia obligatoria (RN01)");
-        }
+        UUID clienteId = resolveCliente(command, sucursalId);
+        UUID bicicletaId = resolveBicicleta(command, clienteId, sucursalId);
+        UUID mecanicoAsignadoId = resolveMecanicoAsignado(command.getMecanicoAsignadoId(), sucursalId);
 
         String numeroOrden = secuenciaService.generarNumeroOrden(sucursalId);
 
         Orden orden = Orden.builder()
-            .sucursalId(sucursalId)
-                .bicicletaId(command.getBicicletaId())
+                .sucursalId(sucursalId)
+                .bicicletaId(bicicletaId)
                 .mecanicoId(usuarioId)
+                .mecanicoAsignadoId(mecanicoAsignadoId)
                 .numeroOrden(numeroOrden)
-            .estado(EstadoOrdenEnum.recibida)
-                .tipo(command.getTipo())
-                .diagnosticoInicial(command.getDiagnosticoInicial())
-                .observacionesCliente(command.getObservacionesCliente())
+                .estado(EstadoOrdenEnum.recibida)
+                .tipo(command.getTipoTrabajo())
+                .prioridad(command.getPrioridad())
+                .fechaEstimadaEntrega(command.getFechaEstimadaEntrega())
+                .descripcionTrabajo(command.getDescripcionTrabajo())
+                .notasInternas(command.getNotasInternas())
                 .descuentoManual(BigDecimal.ZERO)
                 .porcentajeDescuentoMembresia(BigDecimal.ZERO)
                 .fechaIngreso(OffsetDateTime.now())
                 .build();
 
         orden = ordenRepository.save(orden);
-
-        for (MultimediaCreateCommand m : command.getMultimedia()) {
-            Multimedia multimedia = Multimedia.builder()
-                    .ordenId(orden.getId())
-                    .usuarioId(usuarioId)
-                    .url(m.getUrl())
-                    .tipoArchivo(m.getTipoArchivo())
-                    .etapa(EtapaMultimediaEnum.ingreso)
-                    .descripcion(m.getDescripcion())
-                    .build();
-            multimediaRepository.save(multimedia);
-        }
 
         registrarEstado(orden.getId(), sucursalId, usuarioId, null, EstadoOrdenEnum.recibida,
                 "Creacion de orden de trabajo");
@@ -299,17 +300,131 @@ public class OrdenService {
         ordenEstadoRepository.save(auditoria);
     }
 
+    private UUID resolveCliente(NuevaOrdenCommand command, UUID sucursalId) {
+        if (command.getClienteId() != null) {
+            sucursalClienteRepository.findBySucursalIdAndClienteId(sucursalId, command.getClienteId())
+                    .orElseThrow(() -> new IllegalArgumentException("Cliente no pertenece a la sucursal actual"));
+            clienteRepository.findById(command.getClienteId())
+                    .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+            return command.getClienteId();
+        }
+
+        if (command.getClienteNuevo() == null) {
+            throw new IllegalArgumentException("Debe indicar clienteId o clienteNuevo");
+        }
+
+        if (StringUtils.hasText(command.getClienteNuevo().getRut())
+                && clienteRepository.findByRut(command.getClienteNuevo().getRut()).isPresent()) {
+            throw new IllegalArgumentException("Cliente con RUT existente, use clienteId");
+        }
+        if (StringUtils.hasText(command.getClienteNuevo().getEmail())
+                && clienteRepository.findByEmailIgnoreCase(command.getClienteNuevo().getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Cliente con email existente, use clienteId");
+        }
+
+        String[] nombreApellido = splitNombreCompleto(command.getClienteNuevo().getNombreCompleto());
+        Cliente cliente = Cliente.builder()
+                .nombre(nombreApellido[0])
+                .apellido(nombreApellido[1])
+                .rut(command.getClienteNuevo().getRut())
+                .telefono(command.getClienteNuevo().getTelefono())
+                .email(command.getClienteNuevo().getEmail())
+                .build();
+
+        cliente = clienteRepository.save(cliente);
+
+        SucursalCliente vinculo = SucursalCliente.builder()
+                .sucursalId(sucursalId)
+                .clienteId(cliente.getId())
+                .build();
+        sucursalClienteRepository.save(vinculo);
+
+        return cliente.getId();
+    }
+
+    private UUID resolveBicicleta(NuevaOrdenCommand command, UUID clienteId, UUID sucursalId) {
+        if (command.getBicicletaId() != null) {
+            Bicicleta bicicleta = bicicletaRepository.findById(command.getBicicletaId())
+                    .orElseThrow(() -> new IllegalArgumentException("Bicicleta no encontrada"));
+            if (!bicicleta.getCliente().getId().equals(clienteId)) {
+                throw new IllegalArgumentException("La bicicleta no pertenece al cliente");
+            }
+            return bicicleta.getId();
+        }
+
+        if (command.getBicicletaNueva() == null) {
+            throw new IllegalArgumentException("Debe indicar bicicletaId o bicicletaNueva");
+        }
+
+        Cliente cliente = clienteRepository.findById(clienteId)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+
+        String[] marcaModelo = splitMarcaModelo(command.getBicicletaNueva().getMarcaModelo());
+
+        Bicicleta bicicleta = Bicicleta.builder()
+                .cliente(cliente)
+                .marca(marcaModelo[0])
+                .modelo(marcaModelo[1])
+                .tipo(command.getBicicletaNueva().getTipo())
+                .aro(command.getBicicletaNueva().getTalla())
+                .color(command.getBicicletaNueva().getColor())
+                .numeroSerie(command.getBicicletaNueva().getNumeroSerie())
+                .build();
+
+        bicicleta = bicicletaRepository.save(bicicleta);
+        return bicicleta.getId();
+    }
+
+    private UUID resolveMecanicoAsignado(UUID mecanicoAsignadoId, UUID sucursalId) {
+        if (mecanicoAsignadoId == null) {
+            return null;
+        }
+        boolean exists = usuarioRepository.existsByIdAndSucursalIdAndRolNombreAndActivoTrue(
+                mecanicoAsignadoId, sucursalId, "MECANICO");
+        if (!exists) {
+            throw new IllegalArgumentException("Mecanico asignado no valido");
+        }
+        return mecanicoAsignadoId;
+    }
+
+    private String[] splitNombreCompleto(String nombreCompleto) {
+        if (!StringUtils.hasText(nombreCompleto)) {
+            return new String[] {"", ""};
+        }
+        String trimmed = nombreCompleto.trim();
+        String[] parts = trimmed.split("\\s+", 2);
+        String nombre = parts[0];
+        String apellido = parts.length > 1 ? parts[1] : "";
+        return new String[] {nombre, apellido};
+    }
+
+    private String[] splitMarcaModelo(String marcaModelo) {
+        if (!StringUtils.hasText(marcaModelo)) {
+            return new String[] {"", ""};
+        }
+        String trimmed = marcaModelo.trim();
+        String[] parts = trimmed.split("\\s+", 2);
+        String marca = parts[0];
+        String modelo = parts.length > 1 ? parts[1] : "";
+        return new String[] {marca, modelo};
+    }
+
     private OrdenResult toResult(Orden orden) {
         return OrdenResult.builder()
                 .id(orden.getId())
                 .numeroOrden(orden.getNumeroOrden())
                 .estado(orden.getEstado())
                 .tipo(orden.getTipo())
+                .prioridad(orden.getPrioridad())
                 .bicicletaId(orden.getBicicletaId())
                 .mecanicoId(orden.getMecanicoId())
+                .mecanicoAsignadoId(orden.getMecanicoAsignadoId())
+                .descripcionTrabajo(orden.getDescripcionTrabajo())
+                .notasInternas(orden.getNotasInternas())
                 .diagnosticoInicial(orden.getDiagnosticoInicial())
                 .fechaIngreso(orden.getFechaIngreso())
                 .fechaPrometida(orden.getFechaPrometida())
+                .fechaEstimadaEntrega(orden.getFechaEstimadaEntrega())
                 .build();
     }
 }

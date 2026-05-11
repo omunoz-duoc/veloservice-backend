@@ -1,15 +1,13 @@
 package com.veloservice.ordenes.interfaces.mapper;
 
-import com.veloservice.ordenes.application.dto.MultimediaCreateCommand;
-import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
+import com.veloservice.ordenes.application.dto.NuevaOrdenCommand;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.interfaces.rest.EstadoChangeRequest;
-import com.veloservice.ordenes.interfaces.rest.MultimediaRequest;
+import com.veloservice.ordenes.interfaces.rest.NuevaOrdenRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenProductoRequest;
-import com.veloservice.ordenes.interfaces.rest.OrdenRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenResponse;
 import com.veloservice.ordenes.interfaces.rest.OrdenServicioRequest;
 
@@ -20,19 +18,37 @@ public final class OrdenMapper {
     private OrdenMapper() {
     }
 
-    public static OrdenCreateCommand toCommand(OrdenRequest request) {
-        List<MultimediaCreateCommand> multimedia = null;
-        if (request.getMultimedia() != null) {
-            multimedia = request.getMultimedia().stream()
-                    .map(OrdenMapper::toMultimediaCommand)
-                    .collect(Collectors.toList());
+    public static NuevaOrdenCommand toCommand(NuevaOrdenRequest request) {
+        NuevaOrdenCommand.ClienteNuevoCommand clienteNuevo = null;
+        if (request.getClienteNuevo() != null) {
+            clienteNuevo = new NuevaOrdenCommand.ClienteNuevoCommand(
+                    request.getClienteNuevo().getNombreCompleto(),
+                    request.getClienteNuevo().getEmail(),
+                    request.getClienteNuevo().getTelefono(),
+                    request.getClienteNuevo().getRut()
+            );
         }
-        return new OrdenCreateCommand(
+        NuevaOrdenCommand.BicicletaNuevaCommand bicicletaNueva = null;
+        if (request.getBicicletaNueva() != null) {
+            bicicletaNueva = new NuevaOrdenCommand.BicicletaNuevaCommand(
+                    request.getBicicletaNueva().getMarcaModelo(),
+                    request.getBicicletaNueva().getTipo(),
+                    request.getBicicletaNueva().getTalla(),
+                    request.getBicicletaNueva().getColor(),
+                    request.getBicicletaNueva().getNumeroSerie()
+            );
+        }
+        return new NuevaOrdenCommand(
+                request.getClienteId(),
                 request.getBicicletaId(),
-                request.getTipo(),
-                request.getDiagnosticoInicial(),
-                request.getObservacionesCliente(),
-                multimedia
+                clienteNuevo,
+                bicicletaNueva,
+                request.getTipoTrabajo(),
+                request.getPrioridad(),
+                request.getFechaEstimadaEntrega(),
+                request.getMecanicoAsignadoId(),
+                request.getDescripcionTrabajo(),
+                request.getNotasInternas()
         );
     }
 
@@ -42,11 +58,16 @@ public final class OrdenMapper {
                 .numeroOrden(result.getNumeroOrden())
                 .estado(result.getEstado())
                 .tipo(result.getTipo())
+                .prioridad(result.getPrioridad())
                 .bicicletaId(result.getBicicletaId())
                 .mecanicoId(result.getMecanicoId())
+                .mecanicoAsignadoId(result.getMecanicoAsignadoId())
+                .descripcionTrabajo(result.getDescripcionTrabajo())
+                .notasInternas(result.getNotasInternas())
                 .diagnosticoInicial(result.getDiagnosticoInicial())
                 .fechaIngreso(result.getFechaIngreso())
                 .fechaPrometida(result.getFechaPrometida())
+                .fechaEstimadaEntrega(result.getFechaEstimadaEntrega())
                 .build();
     }
 
@@ -76,11 +97,4 @@ public final class OrdenMapper {
         );
     }
 
-    private static MultimediaCreateCommand toMultimediaCommand(MultimediaRequest request) {
-        return new MultimediaCreateCommand(
-                request.getUrl(),
-                request.getTipoArchivo(),
-                request.getDescripcion()
-        );
-    }
 }

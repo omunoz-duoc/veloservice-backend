@@ -3,6 +3,7 @@ package com.veloservice.clientes.interfaces.mapper;
 import com.veloservice.clientes.application.dto.ClienteCreateCommand;
 import com.veloservice.clientes.application.dto.ClienteResult;
 import com.veloservice.clientes.application.dto.MembresiaActualResult;
+import com.veloservice.clientes.interfaces.rest.ClienteBusquedaResponse;
 import com.veloservice.clientes.interfaces.rest.ClienteRequest;
 import com.veloservice.clientes.interfaces.rest.ClienteResponse;
 import com.veloservice.clientes.interfaces.rest.MembresiaActualResponse;
@@ -44,6 +45,22 @@ public final class ClienteMapper {
                 .collect(Collectors.toList());
     }
 
+    public static ClienteBusquedaResponse toBusquedaResponse(ClienteResult result) {
+        return ClienteBusquedaResponse.builder()
+                .id(result.getId())
+                .nombreCompleto(buildNombreCompleto(result.getNombre(), result.getApellido()))
+                .email(result.getEmail())
+                .telefono(result.getTelefono())
+                .rut(result.getRut())
+                .build();
+    }
+
+    public static List<ClienteBusquedaResponse> toBusquedaResponseList(List<ClienteResult> results) {
+        return results.stream()
+                .map(ClienteMapper::toBusquedaResponse)
+                .collect(Collectors.toList());
+    }
+
     private static MembresiaActualResponse toMembresiaResponse(MembresiaActualResult result) {
         if (result == null) {
             return null;
@@ -52,5 +69,17 @@ public final class ClienteMapper {
                 .nombre(result.getNombre())
                 .descuento(result.getDescuento())
                 .build();
+    }
+
+    private static String buildNombreCompleto(String nombre, String apellido) {
+        String nombrePart = nombre == null ? "" : nombre.trim();
+        String apellidoPart = apellido == null ? "" : apellido.trim();
+        if (nombrePart.isEmpty()) {
+            return apellidoPart;
+        }
+        if (apellidoPart.isEmpty()) {
+            return nombrePart;
+        }
+        return nombrePart + " " + apellidoPart;
     }
 }

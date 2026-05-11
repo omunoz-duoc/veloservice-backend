@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.veloservice.clientes.application.usecase.BicicletaService;
 import com.veloservice.clientes.application.usecase.ClienteService;
+import com.veloservice.clientes.interfaces.mapper.BicicletaMapper;
 import com.veloservice.clientes.interfaces.mapper.ClienteMapper;
 
 import java.util.List;
@@ -25,6 +27,7 @@ import java.util.UUID;
 public class ClienteController {
 
     private final ClienteService clienteService;
+    private final BicicletaService bicicletaService;
 
     /**
      * Creates a customer for the current tenant.
@@ -50,6 +53,17 @@ public class ClienteController {
     }
 
     /**
+     * Searches customers by text for the current tenant.
+     *
+     * @param texto search text
+     * @return matching customers
+     */
+    @GetMapping("/buscar")
+    public ResponseEntity<List<ClienteBusquedaResponse>> buscar(@org.springframework.web.bind.annotation.RequestParam("q") String texto) {
+        return ResponseEntity.ok(ClienteMapper.toBusquedaResponseList(clienteService.buscar(texto)));
+    }
+
+    /**
      * Retrieves a customer by identifier.
      *
      * @param id customer identifier
@@ -58,5 +72,18 @@ public class ClienteController {
     @GetMapping("/{id}")
     public ResponseEntity<ClienteResponse> obtener(@PathVariable UUID id) {
         return ResponseEntity.ok(ClienteMapper.toResponse(clienteService.obtener(id)));
+    }
+
+    /**
+     * Lists bikes for a specific customer in the current tenant.
+     *
+     * @param clienteId customer identifier
+     * @return customer bikes
+     */
+    @GetMapping("/{clienteId}/bicicletas")
+    public ResponseEntity<List<BicicletaClienteResponse>> listarBicicletas(@PathVariable UUID clienteId) {
+        return ResponseEntity.ok(BicicletaMapper.toClienteResponseList(
+                bicicletaService.listarPorCliente(clienteId)
+        ));
     }
 }
