@@ -40,6 +40,9 @@ public class Orden {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "external_id", nullable = false, unique = true)
+    private String externalId;
+
     @Column(name = "sucursal_id", nullable = false)
     private UUID sucursalId;
 

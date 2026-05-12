@@ -5,11 +5,13 @@ import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.dto.OrdenListaEntregaResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
+import com.veloservice.ordenes.application.dto.OrdenResumenResult;
 import com.veloservice.ordenes.application.dto.OrdenResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.interfaces.rest.EstadoChangeRequest;
 import com.veloservice.ordenes.interfaces.rest.MultimediaRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenListaEntregaResponse;
+import com.veloservice.ordenes.interfaces.rest.OrdenResumenResponse;
 import com.veloservice.ordenes.interfaces.rest.OrdenProductoRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenResponse;
@@ -55,6 +57,31 @@ public final class OrdenMapper {
     public static List<OrdenResponse> toResponseList(List<OrdenResult> results) {
         return results.stream()
                 .map(OrdenMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    public static OrdenResumenResponse toResumenResponse(OrdenResumenResult result) {
+        return new OrdenResumenResponse(
+                result.getExternalId(),
+                result.getTipo(),
+                result.getFechaIngreso(),
+                result.getNombreMecanico(),
+                result.getNombreCliente(),
+                result.getDescripcion(),
+                result.getObservacionesCliente(),
+                new OrdenResumenResponse.BicicletaResumenResponse(
+                        result.getBicicletaMarca(),
+                        result.getBicicletaColor(),
+                        result.getBicicletaTipo(),
+                        result.getBicicletaTalla()
+                ),
+                result.getEstado()
+        );
+    }
+
+    public static List<OrdenResumenResponse> toResumenResponseList(List<OrdenResumenResult> results) {
+        return results.stream()
+                .map(OrdenMapper::toResumenResponse)
                 .collect(Collectors.toList());
     }
 

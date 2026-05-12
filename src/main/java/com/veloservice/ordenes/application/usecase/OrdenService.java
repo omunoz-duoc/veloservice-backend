@@ -7,6 +7,7 @@ import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.dto.OrdenListaEntregaResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
+import com.veloservice.ordenes.application.dto.OrdenResumenResult;
 import com.veloservice.ordenes.application.dto.OrdenResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.domain.model.Multimedia;
@@ -36,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Handles work order lifecycle operations.
@@ -266,11 +266,9 @@ public class OrdenService {
      */
     @TenantOperation
     @Transactional(readOnly = true)
-    public List<OrdenResult> listar() {
+    public List<OrdenResumenResult> listar() {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
-        return ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId).stream()
-                .map(this::toResult)
-                .collect(Collectors.toList());
+        return ordenRepository.findResumenBySucursalIdOrderByFechaIngresoDesc(sucursalId);
     }
 
     /**

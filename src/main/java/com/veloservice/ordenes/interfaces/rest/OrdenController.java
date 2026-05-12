@@ -46,8 +46,8 @@ public class OrdenController {
      * @return work orders
      */
     @GetMapping
-    public ResponseEntity<List<OrdenResponse>> listar() {
-        return ResponseEntity.ok(OrdenMapper.toResponseList(ordenService.listar()));
+    public ResponseEntity<List<OrdenResumenResponse>> listar() {
+        return ResponseEntity.ok(OrdenMapper.toResumenResponseList(ordenService.listar()));
     }
 
     /**
