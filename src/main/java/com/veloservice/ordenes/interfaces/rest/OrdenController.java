@@ -34,9 +34,9 @@ public class OrdenController {
      * @return created work order
      */
     @PostMapping
-    public ResponseEntity<OrdenResponse> crear(@Valid @RequestBody OrdenRequest request) {
+    public ResponseEntity<OrdenResponse> crear(@Valid @RequestBody NuevaOrdenRequest request) {
         return ResponseEntity.ok(OrdenMapper.toResponse(
-                ordenService.crear(OrdenMapper.toCommand(request))
+                ordenService.crearNuevaOrden(OrdenMapper.toCommand(request))
         ));
     }
 

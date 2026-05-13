@@ -14,6 +14,7 @@ import com.veloservice.config.security.SucursalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.UUID;
@@ -107,6 +108,24 @@ public class ClienteService {
         return toResponse(cliente, sucursalId);
     }
 
+    /**
+     * Searches customers in the current tenant by name, email, phone, or RUT.
+     *
+     * @param texto search text
+     * @return matching customers
+     */
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<ClienteResult> buscar(String texto) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null || !StringUtils.hasText(texto)) {
+            return List.of();
+        }
+        return clienteRepository.buscarPorSucursal(sucursalId, texto.trim()).stream()
+                .map(this::toBusquedaResult)
+                .collect(Collectors.toList());
+    }
+
     private ClienteResult toResponse(Cliente cliente, UUID sucursalId) {
         MembresiaActualResult membresiaActual = getMembresiaActual(cliente.getId(), sucursalId);
         return ClienteResult.builder()
@@ -118,6 +137,18 @@ public class ClienteService {
                 .email(cliente.getEmail())
                 .direccion(cliente.getDireccion())
                 .membresiaActual(membresiaActual)
+                .build();
+    }
+
+    private ClienteResult toBusquedaResult(Cliente cliente) {
+        return ClienteResult.builder()
+                .id(cliente.getId())
+                .nombre(cliente.getNombre())
+                .apellido(cliente.getApellido())
+                .rut(cliente.getRut())
+                .telefono(cliente.getTelefono())
+                .email(cliente.getEmail())
+                .direccion(cliente.getDireccion())
                 .build();
     }
 

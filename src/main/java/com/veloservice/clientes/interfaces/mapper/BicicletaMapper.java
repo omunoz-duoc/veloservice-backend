@@ -2,6 +2,7 @@ package com.veloservice.clientes.interfaces.mapper;
 
 import com.veloservice.clientes.application.dto.BicicletaCreateCommand;
 import com.veloservice.clientes.application.dto.BicicletaResult;
+import com.veloservice.clientes.interfaces.rest.BicicletaClienteResponse;
 import com.veloservice.clientes.interfaces.rest.BicicletaRequest;
 import com.veloservice.clientes.interfaces.rest.BicicletaResponse;
 
@@ -43,5 +44,34 @@ public final class BicicletaMapper {
         return results.stream()
                 .map(BicicletaMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    public static BicicletaClienteResponse toClienteResponse(BicicletaResult result) {
+        return BicicletaClienteResponse.builder()
+                .id(result.getId())
+                .marcaModelo(buildMarcaModelo(result.getMarca(), result.getModelo()))
+                .tipo(result.getTipo())
+                .talla(result.getAro())
+                .color(result.getColor())
+                .numeroSerie(result.getNumeroSerie())
+                .build();
+    }
+
+    public static List<BicicletaClienteResponse> toClienteResponseList(List<BicicletaResult> results) {
+        return results.stream()
+                .map(BicicletaMapper::toClienteResponse)
+                .collect(Collectors.toList());
+    }
+
+    private static String buildMarcaModelo(String marca, String modelo) {
+        String marcaPart = marca == null ? "" : marca.trim();
+        String modeloPart = modelo == null ? "" : modelo.trim();
+        if (marcaPart.isEmpty()) {
+            return modeloPart;
+        }
+        if (modeloPart.isEmpty()) {
+            return marcaPart;
+        }
+        return marcaPart + " " + modeloPart;
     }
 }

@@ -1,6 +1,7 @@
 package com.veloservice.ordenes.domain.model;
 
 import com.veloservice.config.enums.EstadoOrdenEnum;
+import com.veloservice.config.enums.PrioridadOrdenEnum;
 import com.veloservice.config.enums.TipoOrdenEnum;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,6 +22,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -52,6 +54,9 @@ public class Orden {
     @Column(name = "mecanico_id")
     private UUID mecanicoId;
 
+    @Column(name = "mecanico_asignado_id")
+    private UUID mecanicoAsignadoId;
+
     @Column(name = "numero_orden", nullable = false, unique = true)
     private String numeroOrden;
 
@@ -62,10 +67,23 @@ public class Orden {
     private EstadoOrdenEnum estado = EstadoOrdenEnum.recibida;
 
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(nullable = false, columnDefinition = "tipo_orden_enum")
+    @Column(name = "tipo", nullable = false, length = 50)
     @Builder.Default
-    private TipoOrdenEnum tipo = TipoOrdenEnum.reparacion;
+    private TipoOrdenEnum tipo = TipoOrdenEnum.MANTENCION;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "prioridad", nullable = false, length = 50)
+    @Builder.Default
+    private PrioridadOrdenEnum prioridad = PrioridadOrdenEnum.MEDIA;
+
+    @Column(name = "fecha_estimada_entrega")
+    private LocalDate fechaEstimadaEntrega;
+
+    @Column(name = "descripcion_trabajo", nullable = false, columnDefinition = "TEXT")
+    private String descripcionTrabajo;
+
+    @Column(name = "notas_internas", columnDefinition = "TEXT")
+    private String notasInternas;
 
     @Column(name = "diagnostico_inicial", columnDefinition = "TEXT")
     private String diagnosticoInicial;
