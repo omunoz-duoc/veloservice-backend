@@ -17,8 +17,8 @@ public class ActividadController {
 
     private final OrdenService ordenService;
 
-    @GetMapping("/reciente")
-    public ResponseEntity<List<OrdenActividadRecienteResponse>> reciente() {
-        return ResponseEntity.ok(OrdenMapper.toActividadRecienteResponseList(ordenService.listarActividadReciente()));
-    }
+    // @GetMapping("/reciente")
+    // public ResponseEntity<List<OrdenActividadRecienteResponse>> reciente() {
+    //     return ResponseEntity.ok(OrdenMapper.toActividadRecienteResponseList(ordenService.listarActividadReciente()));
+    // }
 }

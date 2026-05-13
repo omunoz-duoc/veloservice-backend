@@ -65,10 +65,10 @@ public class OrdenController {
      *
      * @return urgent work orders
      */
-    @GetMapping("/urgentes")
-    public ResponseEntity<List<OrdenUrgenteResponse>> listarUrgentes() {
-        return ResponseEntity.ok(OrdenMapper.toUrgenteResponseList(ordenService.listarUrgentes()));
-    }
+    // @GetMapping("/urgentes")
+    // public ResponseEntity<List<OrdenUrgenteResponse>> listarUrgentes() {
+    //     return ResponseEntity.ok(OrdenMapper.toUrgenteResponseList(ordenService.listarUrgentes()));
+    // }
 
     /**
      * Retrieves a work order by identifier.
