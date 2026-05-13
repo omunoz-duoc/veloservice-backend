@@ -1,22 +1,31 @@
 package com.veloservice.ordenes.interfaces.mapper;
 
 import com.veloservice.ordenes.application.dto.NuevaOrdenCommand;
+import com.veloservice.ordenes.application.dto.MultimediaCreateCommand;
+import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
+import com.veloservice.ordenes.application.dto.OrdenActividadRecienteResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.dto.OrdenListaEntregaResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenResumenResult;
 import com.veloservice.ordenes.application.dto.OrdenResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
+import com.veloservice.ordenes.application.dto.OrdenUrgenteResult;
 import com.veloservice.ordenes.interfaces.rest.EstadoChangeRequest;
 import com.veloservice.ordenes.interfaces.rest.MultimediaRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenListaEntregaResponse;
 import com.veloservice.ordenes.interfaces.rest.OrdenResumenResponse;
 import com.veloservice.ordenes.interfaces.rest.NuevaOrdenRequest;
+import com.veloservice.ordenes.interfaces.rest.OrdenActividadRecienteResponse;
+import com.veloservice.ordenes.interfaces.rest.OrdenListaEntregaResponse;
 import com.veloservice.ordenes.interfaces.rest.OrdenProductoRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenResponse;
 import com.veloservice.ordenes.interfaces.rest.OrdenServicioRequest;
+import com.veloservice.ordenes.interfaces.rest.OrdenUrgenteResponse;
 
 import java.util.List;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.stream.Collectors;
 
 public final class OrdenMapper {

@@ -7,11 +7,13 @@ import org.springframework.stereotype.Repository;
 
 import com.veloservice.ordenes.application.dto.OrdenListaEntregaResult;
 import com.veloservice.ordenes.application.dto.OrdenResumenResult;
+import com.veloservice.ordenes.application.dto.OrdenUrgenteResult;
 import com.veloservice.ordenes.domain.model.Orden;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
 
 /**
  * Repository for work orders.

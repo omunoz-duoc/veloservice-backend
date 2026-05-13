@@ -61,6 +61,16 @@ public class OrdenController {
     }
 
     /**
+     * Lists urgent work orders for the current tenant.
+     *
+     * @return urgent work orders
+     */
+    @GetMapping("/urgentes")
+    public ResponseEntity<List<OrdenUrgenteResponse>> listarUrgentes() {
+        return ResponseEntity.ok(OrdenMapper.toUrgenteResponseList(ordenService.listarUrgentes()));
+    }
+
+    /**
      * Retrieves a work order by identifier.
      *
      * @param id work order identifier
@@ -83,7 +93,7 @@ public class OrdenController {
             @PathVariable UUID id,
             @Valid @RequestBody EstadoChangeRequest request) {
         return ResponseEntity.ok(OrdenMapper.toResponse(
-            ordenService.cambiarEstado(id, OrdenMapper.toEstadoChangeCommand(request))
+            ordenService.cambiarEstado(id, com.veloservice.ordenes.interfaces.mapper.OrdenMapper.toEstadoChangeCommand(request))
         ));
     }
 
@@ -95,7 +105,7 @@ public class OrdenController {
             @PathVariable UUID id,
             @Valid @RequestBody com.veloservice.ordenes.interfaces.rest.OrdenServicioRequest request) {
         return ResponseEntity.ok(OrdenMapper.toResponse(
-            ordenService.agregarServicio(id, OrdenMapper.toServicioCommand(request))
+            ordenService.agregarServicio(id, com.veloservice.ordenes.interfaces.mapper.OrdenMapper.toServicioCommand(request))
         ));
     }
 
@@ -107,7 +117,7 @@ public class OrdenController {
             @PathVariable UUID id,
             @Valid @RequestBody com.veloservice.ordenes.interfaces.rest.OrdenProductoRequest request) {
         return ResponseEntity.ok(OrdenMapper.toResponse(
-                ordenService.agregarProducto(id, OrdenMapper.toProductoCommand(request))
+            ordenService.agregarProducto(id, com.veloservice.ordenes.interfaces.mapper.OrdenMapper.toProductoCommand(request))
         ));
     }
 }

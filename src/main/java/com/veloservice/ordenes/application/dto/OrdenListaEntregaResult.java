@@ -9,9 +9,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-/**
- * Application result for orders ready for delivery.
- */
 @Value
 @Builder
 @AllArgsConstructor
