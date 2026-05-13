@@ -8,12 +8,12 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Product response payload.
+ * Product response for minimum stock alerts without cost fields.
  */
 @Data
 @Builder
 @AllArgsConstructor
-public class ProductoResponse {
+public class ProductoStockMinimoResponse {
     private UUID id;
     private String nombre;
     private String sku;
