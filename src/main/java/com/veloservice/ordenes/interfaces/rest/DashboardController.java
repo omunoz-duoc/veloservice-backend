@@ -32,4 +32,5 @@ public class DashboardController {
     public ResponseEntity<DashboardAlertasResponse> alertas() {
         return ResponseEntity.ok(DashboardMapper.toResponse(dashboardService.alertas()));
     }
+
 }

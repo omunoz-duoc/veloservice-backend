@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -23,7 +24,6 @@ public class DashboardService {
 
     private final OrdenRepository ordenRepository;
     private final ProductoRepository productoRepository;
-    // private final CobroService cobroService; // TODO: desacoplar dominios
 
     @Transactional(readOnly = true)
         public DashboardHoyResult resumenHoy() {
@@ -102,4 +102,5 @@ public class DashboardService {
                 .ordenesAtrasadas(ordenesAtrasadas)
                 .build();
     }
+
 }
