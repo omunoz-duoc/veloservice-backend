@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.veloservice.clientes.application.dto.ClienteResumenResult;
 import com.veloservice.clientes.domain.model.Cliente;
 
 import java.util.List;
@@ -16,6 +17,35 @@ import java.util.UUID;
  */
 @Repository
 public interface ClienteRepository extends JpaRepository<Cliente, UUID> {
+    /**
+     * Finds all customers for a sucursal with aggregated data including bike count,
+     * order count, and total spending.
+     * Returns raw data that can be mapped to ClienteResumenResult.
+     * 
+     * @param sucursalId the sucursal identifier to filter orders
+     * @return customers with summary data as Object arrays:
+     *         [externalId, nombreCompleto, rut, telefono, email, numeroBicicletas, numeroOrdenes, gastoTotal]
+     */
+    @Query(value = """
+        SELECT 
+            c.external_id,
+            TRIM(CONCAT(COALESCE(c.nombre, ''), ' ', COALESCE(c.apellido, ''))),
+            c.rut,
+            c.telefono,
+            c.email,
+            COALESCE(COUNT(DISTINCT b.id), 0),
+            COALESCE(COUNT(DISTINCT o.id), 0),
+            COALESCE(SUM(COALESCE(os.precio_aplicado, 0) + COALESCE(op.precio_aplicado, 0)), 0)
+        FROM clientes c
+        LEFT JOIN bicicletas b ON b.cliente_id = c.id
+        LEFT JOIN ordenes o ON o.bicicleta_id = b.id AND o.sucursal_id = :sucursalId
+        LEFT JOIN orden_servicios os ON os.orden_id = o.id
+        LEFT JOIN orden_productos op ON op.orden_id = o.id
+        GROUP BY c.id, c.external_id, c.nombre, c.apellido, c.rut, c.telefono, c.email
+        ORDER BY c.created_at DESC
+        """, nativeQuery = true)
+    List<Object[]> findResumenRawBySucursalId(@Param("sucursalId") UUID sucursalId);
+
     /**
      * Finds a customer by RUT.
      *

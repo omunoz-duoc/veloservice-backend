@@ -1,0 +1,2 @@
+ALTER TABLE clientes
+    ADD COLUMN IF NOT EXISTS external_id VARCHAR(255) UNIQUE;

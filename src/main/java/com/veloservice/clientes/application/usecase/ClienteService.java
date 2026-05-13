@@ -3,6 +3,7 @@ package com.veloservice.clientes.application.usecase;
 import com.veloservice.config.tenant.TenantOperation;
 import com.veloservice.clientes.application.dto.ClienteCreateCommand;
 import com.veloservice.clientes.application.dto.ClienteResult;
+import com.veloservice.clientes.application.dto.ClienteResumenResult;
 import com.veloservice.clientes.application.dto.MembresiaActualResult;
 import com.veloservice.clientes.domain.model.Cliente;
 import com.veloservice.clientes.domain.model.Membresia;
@@ -10,6 +11,7 @@ import com.veloservice.clientes.domain.model.SucursalCliente;
 import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.MembresiaRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.SucursalClienteRepository;
+import com.veloservice.clientes.interfaces.mapper.ClienteMapper;
 import com.veloservice.config.security.SucursalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -86,6 +88,23 @@ public class ClienteService {
                         .orElseThrow(() -> new IllegalStateException("Cliente vinculado no encontrado")))
             .map(cliente -> toResponse(cliente, sucursalId))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Lists customers for the current tenant with aggregated summary data.
+     * Returns customer info, bike count, order count, and total spending.
+     * 
+     * @return customer resumen list with aggregated data
+     */
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<ClienteResumenResult> listarResumen() {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
+            return List.of();
+        }
+        List<Object[]> rawResults = clienteRepository.findResumenRawBySucursalId(sucursalId);
+        return ClienteMapper.toResumenResultList(rawResults);
     }
 
     /**

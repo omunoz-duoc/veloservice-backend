@@ -62,6 +62,16 @@ public class ClienteController {
     public ResponseEntity<List<ClienteBusquedaResponse>> buscar(@org.springframework.web.bind.annotation.RequestParam("q") String texto) {
         return ResponseEntity.ok(ClienteMapper.toBusquedaResponseList(clienteService.buscar(texto)));
     }
+    
+     /**
+     * Resumen of customers for a sucursal, including aggregated data.
+     * 
+     * @return customer resumen list
+     */
+    @GetMapping("/resumen")
+    public ResponseEntity<List<ClienteResumenResponse>> listarResumen() {
+        return ResponseEntity.ok(ClienteMapper.toResumenResponseList(clienteService.listarResumen()));
+    }
 
     /**
      * Retrieves a customer by identifier.
