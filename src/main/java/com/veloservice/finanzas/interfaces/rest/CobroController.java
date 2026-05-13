@@ -32,4 +32,9 @@ public class CobroController {
     public ResponseEntity<List<CobroResponse>> listar() {
         return ResponseEntity.ok(CobroMapper.toResponseList(cobroService.listar()));
     }
+
+    @GetMapping("/finanzas/hoy")
+    public ResponseEntity<FinanzasHoyResponse> finanzasHoy() {
+        return ResponseEntity.ok(CobroMapper.toResponse(cobroService.finanzasHoy()));
+    }
 }

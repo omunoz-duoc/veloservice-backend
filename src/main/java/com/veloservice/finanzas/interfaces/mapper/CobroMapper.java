@@ -2,8 +2,10 @@ package com.veloservice.finanzas.interfaces.mapper;
 
 import com.veloservice.finanzas.application.dto.CobroCreateCommand;
 import com.veloservice.finanzas.application.dto.CobroResult;
+import com.veloservice.finanzas.application.dto.FinanzasHoyResult;
 import com.veloservice.finanzas.interfaces.rest.CobroRequest;
 import com.veloservice.finanzas.interfaces.rest.CobroResponse;
+import com.veloservice.finanzas.interfaces.rest.FinanzasHoyResponse;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -51,5 +53,9 @@ public final class CobroMapper {
         return results.stream()
                 .map(CobroMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    public static FinanzasHoyResponse toResponse(FinanzasHoyResult result) {
+        return new FinanzasHoyResponse(result.totalIngresosHoy(), result.deltaVsAyerPorcentaje());
     }
 }

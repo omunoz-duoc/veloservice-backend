@@ -2,9 +2,7 @@ package com.veloservice.ordenes.interfaces.mapper;
 
 import com.veloservice.ordenes.application.dto.DashboardAlertasResult;
 import com.veloservice.ordenes.application.dto.DashboardHoyResult;
-import com.veloservice.ordenes.application.usecase.DashboardService;
 import com.veloservice.ordenes.interfaces.rest.DashboardAlertasResponse;
-import com.veloservice.ordenes.interfaces.rest.DashboardFinanzasHoyResponse;
 import com.veloservice.ordenes.interfaces.rest.DashboardHoyResponse;
 
 import java.util.List;
@@ -47,11 +45,4 @@ public final class DashboardMapper {
                 .build();
     }
 
-        public static DashboardFinanzasHoyResponse toResponse(DashboardService.DashboardFinanzasHoyResult result) {
-                return new DashboardFinanzasHoyResponse(
-                                result.totalIngresosHoy(),
-                                result.totalCobrosHoy(),
-                                result.metodoPagoMasUsado()
-                );
-        }
 }

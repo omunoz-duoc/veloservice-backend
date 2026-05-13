@@ -2,6 +2,7 @@ package com.veloservice.finanzas.application.usecase;
 
 import com.veloservice.finanzas.application.dto.CobroCreateCommand;
 import com.veloservice.finanzas.application.dto.CobroResult;
+import com.veloservice.finanzas.application.dto.FinanzasHoyResult;
 import com.veloservice.finanzas.domain.model.Cobro;
 import com.veloservice.finanzas.infraestructure.persistence.repository.CobroRepository;
 import com.veloservice.ordenes.domain.model.Orden;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -160,6 +162,27 @@ public class CobroService {
                 .map(Cobro::getTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    @Transactional(readOnly = true)
+    public FinanzasHoyResult finanzasHoy() {
+        OffsetDateTime ahora = OffsetDateTime.now();
+        OffsetDateTime inicioDia = ahora.toLocalDate().atStartOfDay().atOffset(ahora.getOffset());
+        OffsetDateTime finDia = inicioDia.plusDays(1);
+        OffsetDateTime inicioAyer = inicioDia.minusDays(1);
+
+        BigDecimal totalHoy = cobroRepository.sumTotalByCreatedAtBetween(inicioDia, finDia);
+        BigDecimal totalAyer = cobroRepository.sumTotalByCreatedAtBetween(inicioAyer, inicioDia);
+
+        BigDecimal delta = null;
+        if (totalAyer.compareTo(BigDecimal.ZERO) != 0) {
+            delta = totalHoy.subtract(totalAyer)
+                    .divide(totalAyer, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"))
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
+
+        return new FinanzasHoyResult(totalHoy, delta);
     }
 
     private CobroResult toResult(Cobro cobro) {
