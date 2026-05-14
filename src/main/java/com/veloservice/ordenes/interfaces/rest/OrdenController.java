@@ -1,7 +1,11 @@
 package com.veloservice.ordenes.interfaces.rest;
 
+import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
+import com.veloservice.ordenes.application.usecase.OrdenService;
+import com.veloservice.ordenes.interfaces.mapper.OrdenMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,10 +15,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.veloservice.ordenes.application.usecase.OrdenService;
-import com.veloservice.ordenes.interfaces.mapper.OrdenMapper;
-
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -29,32 +31,54 @@ public class OrdenController {
 
     /**
      * Creates a new work order.
-     *
-     * @param request work order request
-     * @return created work order
      */
     @PostMapping
     public ResponseEntity<OrdenResponse> crear(@Valid @RequestBody OrdenRequest request) {
-        return ResponseEntity.ok(OrdenMapper.toResponse(
-                ordenService.crear(OrdenMapper.toCommand(request))
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                OrdenMapper.toResponse(ordenService.crear(OrdenMapper.toCommand(request)))
+        );
+    }
+
+    /**
+     * Lists all work orders for the current tenant.
+     */
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> listar() {
+        List<OrdenResponse> ordenes = OrdenMapper.toResponseList(ordenService.listar());
+        return ResponseEntity.ok(Map.of(
+                "total", ordenes.size(),
+                "ordenes", ordenes
         ));
     }
 
     /**
-     * Lists work orders for the current tenant.
-     *
-     * @return work orders
+     * Lists urgent work orders.
      */
-    @GetMapping
-    public ResponseEntity<List<OrdenResponse>> listar() {
-        return ResponseEntity.ok(OrdenMapper.toResponseList(ordenService.listar()));
+    @GetMapping("/urgentes")
+    public ResponseEntity<Map<String, Object>> listarUrgentes() {
+        List<OrdenResponse> ordenes = OrdenMapper.toResponseList(ordenService.listarUrgentes());
+        return ResponseEntity.ok(Map.of(
+                "total", ordenes.size(),
+                "ordenes", ordenes
+        ));
+    }
+
+    /**
+     * Returns order metrics.
+     */
+    @GetMapping("/metricas")
+    public ResponseEntity<OrdenMetricasResponse> metricas() {
+        OrdenMetricasResult result = ordenService.metricas();
+        return ResponseEntity.ok(new OrdenMetricasResponse(
+                result.getRecibidas(),
+                result.getEnProceso(),
+                result.getListas(),
+                result.getEntregadas()
+        ));
     }
 
     /**
      * Retrieves a work order by identifier.
-     *
-     * @param id work order identifier
-     * @return work order
      */
     @GetMapping("/{id}")
     public ResponseEntity<OrdenResponse> obtener(@PathVariable UUID id) {
@@ -63,17 +87,13 @@ public class OrdenController {
 
     /**
      * Changes the state of a work order.
-     *
-     * @param id work order identifier
-     * @param request state change request
-     * @return updated work order
      */
     @PutMapping("/{id}/estado")
     public ResponseEntity<OrdenResponse> cambiarEstado(
             @PathVariable UUID id,
             @Valid @RequestBody EstadoChangeRequest request) {
         return ResponseEntity.ok(OrdenMapper.toResponse(
-            ordenService.cambiarEstado(id, OrdenMapper.toEstadoChangeCommand(request))
+                ordenService.cambiarEstado(id, OrdenMapper.toEstadoChangeCommand(request))
         ));
     }
 
@@ -83,9 +103,9 @@ public class OrdenController {
     @PostMapping("/{id}/servicios")
     public ResponseEntity<OrdenResponse> agregarServicio(
             @PathVariable UUID id,
-            @Valid @RequestBody com.veloservice.ordenes.interfaces.rest.OrdenServicioRequest request) {
+            @Valid @RequestBody OrdenServicioRequest request) {
         return ResponseEntity.ok(OrdenMapper.toResponse(
-            ordenService.agregarServicio(id, OrdenMapper.toServicioCommand(request))
+                ordenService.agregarServicio(id, OrdenMapper.toServicioCommand(request))
         ));
     }
 
@@ -95,7 +115,7 @@ public class OrdenController {
     @PostMapping("/{id}/productos")
     public ResponseEntity<OrdenResponse> agregarProducto(
             @PathVariable UUID id,
-            @Valid @RequestBody com.veloservice.ordenes.interfaces.rest.OrdenProductoRequest request) {
+            @Valid @RequestBody OrdenProductoRequest request) {
         return ResponseEntity.ok(OrdenMapper.toResponse(
                 ordenService.agregarProducto(id, OrdenMapper.toProductoCommand(request))
         ));

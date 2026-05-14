@@ -12,11 +12,11 @@ import com.veloservice.ordenes.interfaces.rest.OrdenProductoRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenRequest;
 import com.veloservice.ordenes.interfaces.rest.OrdenResponse;
 import com.veloservice.ordenes.interfaces.rest.OrdenServicioRequest;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
 public final class OrdenMapper {
+
     private OrdenMapper() {
     }
 
@@ -37,16 +37,42 @@ public final class OrdenMapper {
     }
 
     public static OrdenResponse toResponse(OrdenResult result) {
+        OrdenResponse.ClienteResponse cliente = null;
+        if (result.getClienteNombre() != null) {
+            cliente = OrdenResponse.ClienteResponse.builder()
+                    .nombre(result.getClienteNombre())
+                    .apellido(result.getClienteApellido())
+                    .telefono(result.getClienteTelefono())
+                    .build();
+        }
+
+        OrdenResponse.BicicletaResponse bicicleta = null;
+        if (result.getBicicletaMarca() != null) {
+            bicicleta = OrdenResponse.BicicletaResponse.builder()
+                    .marca(result.getBicicletaMarca())
+                    .modelo(result.getBicicletaModelo())
+                    .tipo(result.getBicicletaTipo())
+                    .color(result.getBicicletaColor())
+                    .talla(result.getBicicletaTalla())
+                    .build();
+        }
+
+        String mecanico = null;
+        if (result.getMecanicoNombre() != null) {
+            mecanico = result.getMecanicoNombre() + " " + result.getMecanicoApellido();
+        }
+
         return OrdenResponse.builder()
                 .id(result.getId())
                 .numeroOrden(result.getNumeroOrden())
                 .estado(result.getEstado())
                 .tipo(result.getTipo())
-                .bicicletaId(result.getBicicletaId())
-                .mecanicoId(result.getMecanicoId())
-                .diagnosticoInicial(result.getDiagnosticoInicial())
+                .descripcion(result.getDiagnosticoInicial())
+                .mecanico(mecanico)
+                .cliente(cliente)
+                .bicicleta(bicicleta)
                 .fechaIngreso(result.getFechaIngreso())
-                .fechaPrometida(result.getFechaPrometida())
+                .fechaEstimada(result.getFechaPrometida())
                 .build();
     }
 
