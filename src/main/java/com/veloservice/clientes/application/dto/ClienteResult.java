@@ -3,7 +3,7 @@ package com.veloservice.clientes.application.dto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -21,4 +21,8 @@ public class ClienteResult {
     private String email;
     private String direccion;
     private MembresiaActualResult membresiaActual;
+    private String tipo;
+    private int bicicletasCount;
+    private int ordenesCount;
+    private BigDecimal totalGastado;
 }

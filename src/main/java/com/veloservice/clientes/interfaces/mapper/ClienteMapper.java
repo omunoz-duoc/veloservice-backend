@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public final class ClienteMapper {
+
     private ClienteMapper() {
     }
 
@@ -27,13 +28,18 @@ public final class ClienteMapper {
 
     public static ClienteResponse toResponse(ClienteResult result) {
         return ClienteResponse.builder()
-                .id(result.getId())
+                .id(result.getId() != null
+                        ? "CL-" + result.getId().toString().substring(0, 8).toUpperCase()
+                        : null)
                 .nombre(result.getNombre())
                 .apellido(result.getApellido())
+                .tipo(result.getTipo())
                 .rut(result.getRut())
-                .telefono(result.getTelefono())
                 .email(result.getEmail())
-                .direccion(result.getDireccion())
+                .telefono(result.getTelefono())
+                .bicicletasCount(result.getBicicletasCount())
+                .ordenesCount(result.getOrdenesCount())
+                .totalGastado(result.getTotalGastado())
                 .membresiaActual(toMembresiaResponse(result.getMembresiaActual()))
                 .build();
     }
