@@ -120,4 +120,61 @@ public class OrdenController {
                 ordenService.agregarProducto(id, OrdenMapper.toProductoCommand(request))
         ));
     }
+    /**
+ * Exports work orders as CSV.
+ */
+@GetMapping("/exportar-csv")
+public ResponseEntity<byte[]> exportarCsv() {
+    List<OrdenResponse> ordenes = OrdenMapper.toResponseList(ordenService.listar());
+
+    StringBuilder csv = new StringBuilder();
+    csv.append("id,tipo,estado,descripcion,mecanico,fecha_ingreso,fecha_estimada,")
+       .append("cliente_nombre,cliente_apellido,cliente_telefono,")
+       .append("bicicleta_marca,bicicleta_modelo,bicicleta_tipo,bicicleta_color,bicicleta_talla\n");
+
+    for (OrdenResponse o : ordenes) {
+        csv.append(safe(o.getId())).append(",")
+           .append(safe(o.getTipo())).append(",")
+           .append(safe(o.getEstado())).append(",")
+           .append(safe(o.getDescripcion())).append(",")
+           .append(safe(o.getMecanico())).append(",")
+           .append(safe(o.getFechaIngreso())).append(",")
+           .append(safe(o.getFechaEstimada())).append(",");
+
+        if (o.getCliente() != null) {
+            csv.append(safe(o.getCliente().getNombre())).append(",")
+               .append(safe(o.getCliente().getApellido())).append(",")
+               .append(safe(o.getCliente().getTelefono())).append(",");
+        } else {
+            csv.append(",,,");
+        }
+
+        if (o.getBicicleta() != null) {
+            csv.append(safe(o.getBicicleta().getMarca())).append(",")
+               .append(safe(o.getBicicleta().getModelo())).append(",")
+               .append(safe(o.getBicicleta().getTipo())).append(",")
+               .append(safe(o.getBicicleta().getColor())).append(",")
+               .append(safe(o.getBicicleta().getTalla()));
+        } else {
+            csv.append(",,,,");
+        }
+        csv.append("\n");
+    }
+
+    byte[] bytes = csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    return ResponseEntity.ok()
+            .header("Content-Disposition", "attachment; filename=\"ordenes.csv\"")
+            .contentType(org.springframework.http.MediaType.parseMediaType("text/csv"))
+            .body(bytes);
+}
+
+    private String safe(Object value) {
+       if (value == null) return "";
+    String str = value.toString().replace("\"", "\"\"");
+    if (str.contains(",") || str.contains("\n") || str.contains("\"")) {
+        return "\"" + str + "\"";
+    }
+    return str;
+}
+
 }
