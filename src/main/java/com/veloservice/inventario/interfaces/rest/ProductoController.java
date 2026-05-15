@@ -1,18 +1,20 @@
 package com.veloservice.inventario.interfaces.rest;
 
+import com.veloservice.inventario.application.usecase.ProductoService;
+import com.veloservice.inventario.interfaces.mapper.ProductoMapper;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.veloservice.inventario.application.usecase.ProductoService;
-import com.veloservice.inventario.interfaces.mapper.ProductoMapper;
-
-import java.util.List;
 
 /**
  * REST endpoints for products.
@@ -32,9 +34,10 @@ public class ProductoController {
      */
     @PostMapping
     public ResponseEntity<ProductoResponse> crear(@Valid @RequestBody ProductoRequest request) {
-        return ResponseEntity.ok(ProductoMapper.toResponse(
-                productoService.crear(ProductoMapper.toCommand(request))
-        ));
+        ProductoResponse response = ProductoMapper.toResponse(
+            productoService.crear(ProductoMapper.toCommand(request))
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
@@ -43,8 +46,12 @@ public class ProductoController {
      * @return product list
      */
     @GetMapping
-    public ResponseEntity<List<ProductoResponse>> listar() {
-        return ResponseEntity.ok(ProductoMapper.toResponseList(productoService.listar()));
+    public ResponseEntity<Map<String, Object>> listar() {
+        List<ProductoResponse> productos = ProductoMapper.toResponseList(productoService.listar());
+        return ResponseEntity.ok(Map.of(
+                "total", productos.size(),
+                "productos", productos
+        ));
     }
 
     /**
@@ -55,5 +62,43 @@ public class ProductoController {
     @GetMapping("/alertas")
     public ResponseEntity<List<ProductoResponse>> alertas() {
         return ResponseEntity.ok(ProductoMapper.toResponseList(productoService.alertasStockBajo()));
+    }
+
+    @GetMapping("/metricas")
+    public ResponseEntity<InventarioMetricasResponse> metricas() {
+        return ResponseEntity.ok(productoService.metricas());
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<String> exportarCsv() {
+        List<ProductoResponse> productos = ProductoMapper.toResponseList(productoService.listar());
+        StringBuilder csv = new StringBuilder();
+        csv.append("id,nombre,sku,categoria,costo_unitario,precio_asignado,stock\n");
+        for (ProductoResponse producto : productos) {
+            csv.append(producto.getId()).append(',')
+                    .append(csvEscape(producto.getNombre())).append(',')
+                    .append(csvEscape(producto.getSku())).append(',')
+                    .append(csvEscape(producto.getCategoria())).append(',')
+                    .append(producto.getPrecioCosto()).append(',')
+                    .append(producto.getPrecioVenta()).append(',')
+                    .append(producto.getStock())
+                    .append('\n');
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=productos.csv")
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(csv.toString());
+    }
+
+    private String csvEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        String escaped = value.replace("\"", "\"\"");
+        if (escaped.contains(",") || escaped.contains("\n") || escaped.contains("\r") || escaped.contains("\"")) {
+            return '"' + escaped + '"';
+        }
+        return escaped;
     }
 }

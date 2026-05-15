@@ -3,6 +3,7 @@ package com.veloservice.inventario.application.usecase;
 import com.veloservice.inventario.application.dto.ProductoCreateCommand;
 import com.veloservice.inventario.application.dto.ProductoResult;
 import com.veloservice.inventario.domain.model.Producto;
+import com.veloservice.inventario.infraestructure.persistence.repository.CategoriaProductoRepository;
 import com.veloservice.inventario.infraestructure.persistence.repository.MovimientoStockRepository;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import com.veloservice.config.tenant.TenantOperation;
@@ -24,6 +25,7 @@ public class ProductoService {
 
     private final ProductoRepository productoRepository;
     private final MovimientoStockRepository movimientoRepository;
+    private final CategoriaProductoRepository categoriaProductoRepository;
 
     @TenantOperation
     @Transactional
@@ -69,7 +71,7 @@ public class ProductoService {
             return List.of();
         }
         return productoRepository.findBySucursalId(sucursalId).stream()
-                .map(this::toResult)
+                .map(producto -> toResult(producto, resolveCategoriaNombre(producto.getCategoriaId())))
                 .collect(Collectors.toList());
     }
 
@@ -81,21 +83,76 @@ public class ProductoService {
             return List.of();
         }
         return productoRepository.findBySucursalIdAndStockLessThanEqualStockMinimo(sucursalId).stream()
-                .map(this::toResult)
+                .map(producto -> toResult(producto, resolveCategoriaNombre(producto.getCategoriaId())))
                 .collect(Collectors.toList());
     }
 
+        @TenantOperation
+        @Transactional(readOnly = true)
+        public com.veloservice.inventario.interfaces.rest.InventarioMetricasResponse metricas() {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
+            return com.veloservice.inventario.interfaces.rest.InventarioMetricasResponse.builder()
+                .valorInventario(0)
+                .enStock(0)
+                .stockBajo(0)
+                .agotados(0)
+                .build();
+        }
+
+        List<Producto> productos = productoRepository.findBySucursalId(sucursalId);
+        long enStock = productos.stream()
+            .mapToLong(p -> p.getStock() == null ? 0 : p.getStock())
+            .sum();
+        long stockBajo = productos.stream()
+            .filter(p -> p.getStock() != null && p.getStockMinimo() != null && p.getStock() <= p.getStockMinimo())
+            .count();
+        long agotados = productos.stream()
+            .filter(p -> p.getStock() != null && p.getStock() == 0)
+            .count();
+        long valorInventario = productos.stream()
+            .mapToLong(p -> {
+                if (p.getPrecioCosto() == null || p.getStock() == null) {
+                return 0L;
+                }
+                return p.getPrecioCosto().longValue() * p.getStock();
+            })
+            .sum();
+
+        return com.veloservice.inventario.interfaces.rest.InventarioMetricasResponse.builder()
+            .valorInventario(valorInventario)
+            .enStock(enStock)
+            .stockBajo(stockBajo)
+            .agotados(agotados)
+            .build();
+        }
+
     private ProductoResult toResult(Producto producto) {
+        return toResult(producto, resolveCategoriaNombre(producto.getCategoriaId()));
+    }
+
+    private ProductoResult toResult(Producto producto, String categoriaNombre) {
         return ProductoResult.builder()
                 .id(producto.getId())
                 .nombre(producto.getNombre())
                 .sku(producto.getSku())
                 .marca(producto.getMarca())
+                .categoriaId(producto.getCategoriaId())
+                .categoriaNombre(categoriaNombre)
                 .precioCosto(producto.getPrecioCosto())
                 .precioVenta(producto.getPrecioVenta())
                 .stock(producto.getStock())
                 .stockMinimo(producto.getStockMinimo())
                 .alertaStockBajo(producto.getStock() <= producto.getStockMinimo())
                 .build();
+    }
+
+    private String resolveCategoriaNombre(UUID categoriaId) {
+        if (categoriaId == null) {
+            return null;
+        }
+        return categoriaProductoRepository.findById(categoriaId)
+                .map(categoria -> categoria.getNombre())
+                .orElse(null);
     }
 }
