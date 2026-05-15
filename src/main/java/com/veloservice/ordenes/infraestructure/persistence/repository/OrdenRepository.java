@@ -40,3 +40,8 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
      */
     boolean existsByNumeroOrdenAndSucursalId(String numeroOrden, UUID sucursalId);
 }
+
+/**
+ * Finds active orders by mecanico.
+ */
+List<Orden> findByMecanicoIdAndEstadoNotIn(UUID mecanicoId, List<EstadoOrdenEnum> estados);

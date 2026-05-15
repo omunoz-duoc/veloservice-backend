@@ -7,6 +7,14 @@ import com.veloservice.administracion.domain.model.Usuario;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
+
+
+
+/**
+ * Finds active users by role name and branch.
+ */
+List<Usuario> findBySucursalIdAndActivoTrue(UUID sucursalId);
 
 /**
  * Repository for tenant users.
