@@ -1,36 +1,46 @@
 package com.veloservice.ordenes.interfaces.rest;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.veloservice.config.enums.EstadoOrdenEnum;
+import com.veloservice.config.enums.TipoOrdenEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-
-import com.veloservice.config.enums.EstadoOrdenEnum;
-import com.veloservice.config.enums.PrioridadOrdenEnum;
-import com.veloservice.config.enums.TipoOrdenEnum;
-
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.UUID;
 
-/**
- * Work order response payload.
- */
 @Data
 @Builder
 @AllArgsConstructor
 public class OrdenResponse {
-    private UUID id;
-    private String numeroOrden;
+    private String id;
     private EstadoOrdenEnum estado;
     private TipoOrdenEnum tipo;
-    private PrioridadOrdenEnum prioridad;
-    private UUID bicicletaId;
-    private UUID mecanicoId;
-    private UUID mecanicoAsignadoId;
-    private String descripcionTrabajo;
-    private String notasInternas;
-    private String diagnosticoInicial;
+    private String descripcion;
+    private String mecanico;
+    private ClienteResponse cliente;
+    private BicicletaResponse bicicleta;
+    @JsonProperty("fecha_ingreso")
     private OffsetDateTime fechaIngreso;
-    private OffsetDateTime fechaPrometida;
-    private LocalDate fechaEstimadaEntrega;
+    @JsonProperty("fecha_estimada")
+    private OffsetDateTime fechaEstimada;
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    public static class ClienteResponse {
+        private String nombre;
+        private String apellido;
+        private String telefono;
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    public static class BicicletaResponse {
+        private String marca;
+        private String modelo;
+        private String tipo;
+        private String color;
+        private String talla;
+    }
 }

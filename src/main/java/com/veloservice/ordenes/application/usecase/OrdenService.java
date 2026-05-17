@@ -1,12 +1,15 @@
 package com.veloservice.ordenes.application.usecase;
 
+import com.veloservice.administracion.domain.model.Usuario;
 import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.clientes.domain.model.Bicicleta;
-import com.veloservice.clientes.domain.model.Cliente;
-import com.veloservice.clientes.domain.model.SucursalCliente;
 import com.veloservice.clientes.infraestructure.persistence.repository.BicicletaRepository;
-import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRepository;
-import com.veloservice.clientes.infraestructure.persistence.repository.SucursalClienteRepository;
+import com.veloservice.config.enums.EstadoOrdenEnum;
+import com.veloservice.config.enums.EtapaMultimediaEnum;
+import com.veloservice.config.enums.TipoMovimientoEnum;
+import com.veloservice.config.security.SucursalContext;
+import com.veloservice.config.security.UsuarioContext;
+import com.veloservice.config.tenant.TenantOperation;
 import com.veloservice.inventario.infraestructure.persistence.repository.MovimientoStockRepository;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import com.veloservice.ordenes.application.dto.NuevaOrdenCommand;
@@ -14,7 +17,7 @@ import com.veloservice.ordenes.application.dto.MultimediaCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenActividadRecienteResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
-import com.veloservice.ordenes.application.dto.OrdenListaEntregaResult;
+import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenResumenResult;
 import com.veloservice.ordenes.application.dto.OrdenResult;
@@ -28,13 +31,7 @@ import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenEstad
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenProductoRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenServicioRepository;
-import com.veloservice.config.enums.EstadoOrdenEnum;
-import com.veloservice.config.enums.EtapaMultimediaEnum;
-import com.veloservice.config.enums.TipoMovimientoEnum;
-import com.veloservice.config.tenant.TenantOperation;
 import com.veloservice.servicios.infraestructure.persistence.repository.ServicioRepository;
-import com.veloservice.config.security.SucursalContext;
-import com.veloservice.config.security.UsuarioContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,24 +54,24 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OrdenService {
 
-        private static final Map<EstadoOrdenEnum, Set<EstadoOrdenEnum>> TRANSICIONES_VALIDAS;
+    private static final Map<EstadoOrdenEnum, Set<EstadoOrdenEnum>> TRANSICIONES_VALIDAS;
 
-        static {
+    static {
         Map<EstadoOrdenEnum, Set<EstadoOrdenEnum>> transiciones = new EnumMap<>(EstadoOrdenEnum.class);
         transiciones.put(EstadoOrdenEnum.recibida,
-            EnumSet.of(EstadoOrdenEnum.en_diagnostico, EstadoOrdenEnum.cancelada));
+                EnumSet.of(EstadoOrdenEnum.en_diagnostico, EstadoOrdenEnum.cancelada));
         transiciones.put(EstadoOrdenEnum.en_diagnostico,
-            EnumSet.of(EstadoOrdenEnum.esperando_repuestos, EstadoOrdenEnum.en_reparacion, EstadoOrdenEnum.cancelada));
+                EnumSet.of(EstadoOrdenEnum.esperando_repuestos, EstadoOrdenEnum.en_reparacion, EstadoOrdenEnum.cancelada));
         transiciones.put(EstadoOrdenEnum.esperando_repuestos,
-            EnumSet.of(EstadoOrdenEnum.en_reparacion));
+                EnumSet.of(EstadoOrdenEnum.en_reparacion));
         transiciones.put(EstadoOrdenEnum.en_reparacion,
-            EnumSet.of(EstadoOrdenEnum.control_calidad));
+                EnumSet.of(EstadoOrdenEnum.control_calidad));
         transiciones.put(EstadoOrdenEnum.control_calidad,
-            EnumSet.of(EstadoOrdenEnum.lista_para_entrega));
+                EnumSet.of(EstadoOrdenEnum.lista_para_entrega));
         transiciones.put(EstadoOrdenEnum.lista_para_entrega,
-            EnumSet.of(EstadoOrdenEnum.entregada));
+                EnumSet.of(EstadoOrdenEnum.entregada));
         TRANSICIONES_VALIDAS = Map.copyOf(transiciones);
-        }
+    }
 
     private final OrdenRepository ordenRepository;
     private final OrdenEstadoRepository ordenEstadoRepository;
@@ -85,17 +82,9 @@ public class OrdenService {
     private final OrdenProductoRepository ordenProductoRepository;
     private final MovimientoStockRepository movimientoStockRepository;
     private final SecuenciaService secuenciaService;
-    private final ClienteRepository clienteRepository;
     private final BicicletaRepository bicicletaRepository;
-    private final SucursalClienteRepository sucursalClienteRepository;
     private final UsuarioRepository usuarioRepository;
 
-    /**
-     * Creates a work order from the modal flow.
-     *
-     * @param command work order command
-     * @return created work order response
-     */
     @TenantOperation
     @Transactional
     public OrdenResult crearNuevaOrden(NuevaOrdenCommand command) {
@@ -104,25 +93,22 @@ public class OrdenService {
         if (sucursalId == null || usuarioId == null) {
             throw new IllegalStateException("Contexto de sucursal/usuario requerido");
         }
-
-        UUID clienteId = resolveCliente(command, sucursalId);
-        UUID bicicletaId = resolveBicicleta(command, clienteId, sucursalId);
-        UUID mecanicoAsignadoId = resolveMecanicoAsignado(command.getMecanicoAsignadoId(), sucursalId);
+        if (command.getMultimedia() == null || command.getMultimedia().isEmpty()) {
+            throw new IllegalArgumentException("Evidencia multimedia obligatoria (RN01)");
+        }
 
         String numeroOrden = secuenciaService.generarNumeroOrden(sucursalId);
 
         Orden orden = Orden.builder()
                 .sucursalId(sucursalId)
-                .bicicletaId(bicicletaId)
+                .bicicletaId(command.getBicicletaId())
                 .mecanicoId(usuarioId)
                 .mecanicoAsignadoId(mecanicoAsignadoId)
                 .numeroOrden(numeroOrden)
                 .estado(EstadoOrdenEnum.recibida)
-                .tipo(command.getTipoTrabajo())
-                .prioridad(command.getPrioridad())
-                .fechaEstimadaEntrega(command.getFechaEstimadaEntrega())
-                .descripcionTrabajo(command.getDescripcionTrabajo())
-                .notasInternas(command.getNotasInternas())
+                .tipo(command.getTipo())
+                .diagnosticoInicial(command.getDiagnosticoInicial())
+                .observacionesCliente(command.getObservacionesCliente())
                 .descuentoManual(BigDecimal.ZERO)
                 .porcentajeDescuentoMembresia(BigDecimal.ZERO)
                 .fechaIngreso(OffsetDateTime.now())
@@ -136,13 +122,6 @@ public class OrdenService {
         return toResult(orden);
     }
 
-    /**
-     * Changes the state of a work order and records audit evidence.
-     *
-     * @param ordenId work order identifier
-     * @param request change request
-     * @return updated work order response
-     */
     @TenantOperation
     @Transactional
     public OrdenResult cambiarEstado(UUID ordenId, OrdenEstadoChangeCommand command) {
@@ -185,92 +164,78 @@ public class OrdenService {
         return toResult(orden);
     }
 
-        /**
-         * Agrega un servicio a la orden tomando snapshot de precios.
-         */
-        @TenantOperation
-        @Transactional
-        public OrdenResult agregarServicio(UUID ordenId, OrdenServicioAddCommand command) {
+    @TenantOperation
+    @Transactional
+    public OrdenResult agregarServicio(UUID ordenId, OrdenServicioAddCommand command) {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
 
         Orden orden = ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)
-            .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
 
         var servicio = servicioRepository.findById(command.getServicioId())
-            .orElseThrow(() -> new IllegalArgumentException("Servicio no encontrado"));
+                .orElseThrow(() -> new IllegalArgumentException("Servicio no encontrado"));
 
         var ordenServicio = com.veloservice.ordenes.domain.model.OrdenServicio.builder()
-            .ordenId(ordenId)
-            .servicioId(servicio.getId())
-            .precioBaseSnapshot(servicio.getPrecioBase())
-            .precioAplicado(servicio.getPrecioBase())
-            .descuentoAplicado(java.math.BigDecimal.ZERO)
-            .notas(command.getNotas())
-            .build();
+                .ordenId(ordenId)
+                .servicioId(servicio.getId())
+                .precioBaseSnapshot(servicio.getPrecioBase())
+                .precioAplicado(servicio.getPrecioBase())
+                .descuentoAplicado(BigDecimal.ZERO)
+                .notas(command.getNotas())
+                .build();
 
         ordenServicioRepository.save(ordenServicio);
-
         return toResult(orden);
-        }
+    }
 
-        /**
-         * Agrega un producto a la orden, valida stock y registra movimiento tipo "salida".
-         */
-        @TenantOperation
-        @Transactional
-        public OrdenResult agregarProducto(UUID ordenId, OrdenProductoAddCommand command) {
+    @TenantOperation
+    @Transactional
+    public OrdenResult agregarProducto(UUID ordenId, OrdenProductoAddCommand command) {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
         UUID usuarioId = UsuarioContext.getCurrentUser();
 
         Orden orden = ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)
-            .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
 
         var producto = productoRepository.findByIdAndSucursalId(command.getProductoId(), sucursalId)
-            .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado en la sucursal"));
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado en la sucursal"));
 
         if (!Boolean.TRUE.equals(command.getProporcionadoPorCliente())) {
             if (producto.getStock() < command.getCantidad()) {
-            throw new IllegalArgumentException("Stock insuficiente para el producto solicitado");
+                throw new IllegalArgumentException("Stock insuficiente para el producto solicitado");
             }
-
             int stockAnterior = producto.getStock();
             producto.setStock(stockAnterior - command.getCantidad());
             productoRepository.save(producto);
 
             var movimiento = com.veloservice.inventario.domain.model.MovimientoStock.builder()
-                .productoId(producto.getId())
-                .ordenId(ordenId)
-                .usuarioId(usuarioId)
-                .tipo(TipoMovimientoEnum.salida)
-                .cantidad(command.getCantidad())
-                .stockAnterior(stockAnterior)
-                .stockPosterior(producto.getStock())
-                .motivo("Consumo por orden de trabajo")
-                .build();
+                    .productoId(producto.getId())
+                    .ordenId(ordenId)
+                    .usuarioId(usuarioId)
+                    .tipo(TipoMovimientoEnum.salida)
+                    .cantidad(command.getCantidad())
+                    .stockAnterior(stockAnterior)
+                    .stockPosterior(producto.getStock())
+                    .motivo("Consumo por orden de trabajo")
+                    .build();
             movimientoStockRepository.save(movimiento);
         }
 
         var ordenProducto = com.veloservice.ordenes.domain.model.OrdenProducto.builder()
-            .ordenId(ordenId)
-            .productoId(producto.getId())
-            .cantidad(command.getCantidad())
-            .precioCostoSnapshot(producto.getPrecioCosto())
-            .precioVentaSnapshot(producto.getPrecioVenta())
-            .precioAplicado(producto.getPrecioVenta().multiply(new java.math.BigDecimal(command.getCantidad())))
-            .proporcionadoPorCliente(Boolean.TRUE.equals(command.getProporcionadoPorCliente()))
-            .notas(command.getNotas())
-            .build();
+                .ordenId(ordenId)
+                .productoId(producto.getId())
+                .cantidad(command.getCantidad())
+                .precioCostoSnapshot(producto.getPrecioCosto())
+                .precioVentaSnapshot(producto.getPrecioVenta())
+                .precioAplicado(producto.getPrecioVenta().multiply(new BigDecimal(command.getCantidad())))
+                .proporcionadoPorCliente(Boolean.TRUE.equals(command.getProporcionadoPorCliente()))
+                .notas(command.getNotas())
+                .build();
 
         ordenProductoRepository.save(ordenProducto);
-
         return toResult(orden);
-        }
+    }
 
-    /**
-     * Lists work orders for the current tenant.
-     *
-     * @return work orders
-     */
     @TenantOperation
     @Transactional(readOnly = true)
     public List<OrdenResumenResult> listar() {
@@ -278,12 +243,6 @@ public class OrdenService {
         return ordenRepository.findResumenBySucursalIdOrderByFechaIngresoDesc(sucursalId);
     }
 
-    /**
-     * Retrieves a work order by identifier.
-     *
-     * @param id work order identifier
-     * @return work order response
-     */
     @TenantOperation
     @Transactional(readOnly = true)
     public OrdenResult obtener(UUID id) {
@@ -293,23 +252,42 @@ public class OrdenService {
         return toResult(orden);
     }
 
-    /**
-     * Lists orders ready for delivery for the current tenant.
-     *
-     * @return orders ready for delivery
-     */
     @TenantOperation
     @Transactional(readOnly = true)
-    public List<OrdenListaEntregaResult> listarListaEntrega() {
+    public List<OrdenResult> listarUrgentes() {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null) {
-            return List.of();
-        }
-        return ordenRepository.findListaEntregaBySucursalId(sucursalId);
+        return ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId).stream()
+                .filter(o -> o.getFechaPrometida() != null
+                        && o.getFechaPrometida().isBefore(OffsetDateTime.now())
+                        && !o.getEstado().equals(EstadoOrdenEnum.entregada)
+                        && !o.getEstado().equals(EstadoOrdenEnum.cancelada))
+                .map(this::toResult)
+                .collect(Collectors.toList());
     }
 
-        private void registrarEstado(UUID ordenId, UUID sucursalId, UUID usuarioId,
-                     EstadoOrdenEnum anterior, EstadoOrdenEnum nuevo, String observacion) {
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public OrdenMetricasResult metricas() {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        List<Orden> ordenes = ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId);
+
+        long recibidas = ordenes.stream()
+                .filter(o -> o.getEstado().equals(EstadoOrdenEnum.recibida)).count();
+        long enProceso = ordenes.stream()
+                .filter(o -> o.getEstado().equals(EstadoOrdenEnum.en_diagnostico)
+                        || o.getEstado().equals(EstadoOrdenEnum.esperando_repuestos)
+                        || o.getEstado().equals(EstadoOrdenEnum.en_reparacion)
+                        || o.getEstado().equals(EstadoOrdenEnum.control_calidad)).count();
+        long listas = ordenes.stream()
+                .filter(o -> o.getEstado().equals(EstadoOrdenEnum.lista_para_entrega)).count();
+        long entregadas = ordenes.stream()
+                .filter(o -> o.getEstado().equals(EstadoOrdenEnum.entregada)).count();
+
+        return new OrdenMetricasResult(recibidas, enProceso, listas, entregadas);
+    }
+
+    private void registrarEstado(UUID ordenId, UUID sucursalId, UUID usuarioId,
+                                 EstadoOrdenEnum anterior, EstadoOrdenEnum nuevo, String observacion) {
         OrdenEstado auditoria = OrdenEstado.builder()
                 .ordenId(ordenId)
                 .usuarioId(usuarioId)
@@ -430,21 +408,38 @@ public class OrdenService {
     }
 
     private OrdenResult toResult(Orden orden) {
-        return OrdenResult.builder()
+        OrdenResult.OrdenResultBuilder builder = OrdenResult.builder()
                 .id(orden.getId())
                 .numeroOrden(orden.getNumeroOrden())
                 .estado(orden.getEstado())
                 .tipo(orden.getTipo())
-                .prioridad(orden.getPrioridad())
-                .bicicletaId(orden.getBicicletaId())
-                .mecanicoId(orden.getMecanicoId())
-                .mecanicoAsignadoId(orden.getMecanicoAsignadoId())
-                .descripcionTrabajo(orden.getDescripcionTrabajo())
-                .notasInternas(orden.getNotasInternas())
                 .diagnosticoInicial(orden.getDiagnosticoInicial())
                 .fechaIngreso(orden.getFechaIngreso())
-                .fechaPrometida(orden.getFechaPrometida())
-                .fechaEstimadaEntrega(orden.getFechaEstimadaEntrega())
-                .build();
+                .fechaPrometida(orden.getFechaPrometida());
+
+        if (orden.getBicicletaId() != null) {
+            bicicletaRepository.findById(orden.getBicicletaId()).ifPresent(bicicleta -> {
+                builder.bicicletaMarca(bicicleta.getMarca());
+                builder.bicicletaModelo(bicicleta.getModelo());
+                builder.bicicletaTipo(bicicleta.getTipo());
+                builder.bicicletaColor(bicicleta.getColor());
+                builder.bicicletaTalla(bicicleta.getAro());
+
+                if (bicicleta.getCliente() != null) {
+                    builder.clienteNombre(bicicleta.getCliente().getNombre());
+                    builder.clienteApellido(bicicleta.getCliente().getApellido());
+                    builder.clienteTelefono(bicicleta.getCliente().getTelefono());
+                }
+            });
+        }
+
+        if (orden.getMecanicoId() != null) {
+            usuarioRepository.findById(orden.getMecanicoId()).ifPresent(mecanico -> {
+                builder.mecanicoNombre(mecanico.getNombre());
+                builder.mecanicoApellido(mecanico.getApellido());
+            });
+        }
+
+        return builder.build();
     }
 }

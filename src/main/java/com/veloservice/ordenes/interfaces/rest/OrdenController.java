@@ -1,7 +1,11 @@
 package com.veloservice.ordenes.interfaces.rest;
 
+import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
+import com.veloservice.ordenes.application.usecase.OrdenService;
+import com.veloservice.ordenes.interfaces.mapper.OrdenMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,10 +15,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.veloservice.ordenes.application.usecase.OrdenService;
-import com.veloservice.ordenes.interfaces.mapper.OrdenMapper;
-
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -29,25 +31,50 @@ public class OrdenController {
 
     /**
      * Creates a new work order.
-     *
-     * @param request work order request
-     * @return created work order
      */
     @PostMapping
-    public ResponseEntity<OrdenResponse> crear(@Valid @RequestBody NuevaOrdenRequest request) {
-        return ResponseEntity.ok(OrdenMapper.toResponse(
-                ordenService.crearNuevaOrden(OrdenMapper.toCommand(request))
+    public ResponseEntity<OrdenResponse> crear(@Valid @RequestBody OrdenRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                OrdenMapper.toResponse(ordenService.crear(OrdenMapper.toCommand(request)))
+        );
+    }
+
+    /**
+     * Lists all work orders for the current tenant.
+     */
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> listar() {
+        List<OrdenResponse> ordenes = OrdenMapper.toResponseList(ordenService.listar());
+        return ResponseEntity.ok(Map.of(
+                "total", ordenes.size(),
+                "ordenes", ordenes
         ));
     }
 
     /**
-     * Lists work orders for the current tenant.
-     *
-     * @return work orders
+     * Lists urgent work orders.
      */
-    @GetMapping
-    public ResponseEntity<List<OrdenResumenResponse>> listar() {
-        return ResponseEntity.ok(OrdenMapper.toResumenResponseList(ordenService.listar()));
+    @GetMapping("/urgentes")
+    public ResponseEntity<Map<String, Object>> listarUrgentes() {
+        List<OrdenResponse> ordenes = OrdenMapper.toResponseList(ordenService.listarUrgentes());
+        return ResponseEntity.ok(Map.of(
+                "total", ordenes.size(),
+                "ordenes", ordenes
+        ));
+    }
+
+    /**
+     * Returns order metrics.
+     */
+    @GetMapping("/metricas")
+    public ResponseEntity<OrdenMetricasResponse> metricas() {
+        OrdenMetricasResult result = ordenService.metricas();
+        return ResponseEntity.ok(new OrdenMetricasResponse(
+                result.getRecibidas(),
+                result.getEnProceso(),
+                result.getListas(),
+                result.getEntregadas()
+        ));
     }
 
     /**
@@ -72,9 +99,6 @@ public class OrdenController {
 
     /**
      * Retrieves a work order by identifier.
-     *
-     * @param id work order identifier
-     * @return work order
      */
     @GetMapping("/{id}")
     public ResponseEntity<OrdenResponse> obtener(@PathVariable UUID id) {
@@ -83,17 +107,13 @@ public class OrdenController {
 
     /**
      * Changes the state of a work order.
-     *
-     * @param id work order identifier
-     * @param request state change request
-     * @return updated work order
      */
     @PutMapping("/{id}/estado")
     public ResponseEntity<OrdenResponse> cambiarEstado(
             @PathVariable UUID id,
             @Valid @RequestBody EstadoChangeRequest request) {
         return ResponseEntity.ok(OrdenMapper.toResponse(
-            ordenService.cambiarEstado(id, com.veloservice.ordenes.interfaces.mapper.OrdenMapper.toEstadoChangeCommand(request))
+                ordenService.cambiarEstado(id, OrdenMapper.toEstadoChangeCommand(request))
         ));
     }
 
@@ -103,9 +123,9 @@ public class OrdenController {
     @PostMapping("/{id}/servicios")
     public ResponseEntity<OrdenResponse> agregarServicio(
             @PathVariable UUID id,
-            @Valid @RequestBody com.veloservice.ordenes.interfaces.rest.OrdenServicioRequest request) {
+            @Valid @RequestBody OrdenServicioRequest request) {
         return ResponseEntity.ok(OrdenMapper.toResponse(
-            ordenService.agregarServicio(id, com.veloservice.ordenes.interfaces.mapper.OrdenMapper.toServicioCommand(request))
+                ordenService.agregarServicio(id, OrdenMapper.toServicioCommand(request))
         ));
     }
 
@@ -115,9 +135,66 @@ public class OrdenController {
     @PostMapping("/{id}/productos")
     public ResponseEntity<OrdenResponse> agregarProducto(
             @PathVariable UUID id,
-            @Valid @RequestBody com.veloservice.ordenes.interfaces.rest.OrdenProductoRequest request) {
+            @Valid @RequestBody OrdenProductoRequest request) {
         return ResponseEntity.ok(OrdenMapper.toResponse(
             ordenService.agregarProducto(id, com.veloservice.ordenes.interfaces.mapper.OrdenMapper.toProductoCommand(request))
         ));
     }
+    /**
+ * Exports work orders as CSV.
+ */
+@GetMapping("/exportar-csv")
+public ResponseEntity<byte[]> exportarCsv() {
+    List<OrdenResponse> ordenes = OrdenMapper.toResponseList(ordenService.listar());
+
+    StringBuilder csv = new StringBuilder();
+    csv.append("id,tipo,estado,descripcion,mecanico,fecha_ingreso,fecha_estimada,")
+       .append("cliente_nombre,cliente_apellido,cliente_telefono,")
+       .append("bicicleta_marca,bicicleta_modelo,bicicleta_tipo,bicicleta_color,bicicleta_talla\n");
+
+    for (OrdenResponse o : ordenes) {
+        csv.append(safe(o.getId())).append(",")
+           .append(safe(o.getTipo())).append(",")
+           .append(safe(o.getEstado())).append(",")
+           .append(safe(o.getDescripcion())).append(",")
+           .append(safe(o.getMecanico())).append(",")
+           .append(safe(o.getFechaIngreso())).append(",")
+           .append(safe(o.getFechaEstimada())).append(",");
+
+        if (o.getCliente() != null) {
+            csv.append(safe(o.getCliente().getNombre())).append(",")
+               .append(safe(o.getCliente().getApellido())).append(",")
+               .append(safe(o.getCliente().getTelefono())).append(",");
+        } else {
+            csv.append(",,,");
+        }
+
+        if (o.getBicicleta() != null) {
+            csv.append(safe(o.getBicicleta().getMarca())).append(",")
+               .append(safe(o.getBicicleta().getModelo())).append(",")
+               .append(safe(o.getBicicleta().getTipo())).append(",")
+               .append(safe(o.getBicicleta().getColor())).append(",")
+               .append(safe(o.getBicicleta().getTalla()));
+        } else {
+            csv.append(",,,,");
+        }
+        csv.append("\n");
+    }
+
+    byte[] bytes = csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    return ResponseEntity.ok()
+            .header("Content-Disposition", "attachment; filename=\"ordenes.csv\"")
+            .contentType(org.springframework.http.MediaType.parseMediaType("text/csv"))
+            .body(bytes);
+}
+
+    private String safe(Object value) {
+       if (value == null) return "";
+    String str = value.toString().replace("\"", "\"\"");
+    if (str.contains(",") || str.contains("\n") || str.contains("\"")) {
+        return "\"" + str + "\"";
+    }
+    return str;
+}
+
 }
