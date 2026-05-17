@@ -48,13 +48,11 @@ public class Multimedia {
     private String url;
 
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "tipo_archivo", nullable = false, columnDefinition = "tipo_archivo_enum")
+    @Column(name = "tipo_archivo", nullable = false)
     private TipoArchivoEnum tipoArchivo;
 
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(nullable = false, columnDefinition = "etapa_multimedia_enum")
+    @Column(nullable = false)
     private EtapaMultimediaEnum etapa;
 
     @Column(columnDefinition = "TEXT")
