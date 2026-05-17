@@ -234,6 +234,21 @@ public class OrdenService {
 
         ordenProductoRepository.save(ordenProducto);
         return toResult(orden);
+        }
+
+    /**
+     * Lists work orders for the current tenant.
+     *
+     * @return work orders
+     */
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<OrdenResult> listar() {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        UUID mecanicoId = UsuarioContext.getCurrentUser();
+        return ordenRepository.findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId).stream()
+                .map(this::toResult)
+                .collect(Collectors.toList());
     }
 
     @TenantOperation

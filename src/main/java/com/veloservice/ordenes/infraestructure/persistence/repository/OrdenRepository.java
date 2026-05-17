@@ -1,3 +1,7 @@
+    /**
+     * Lista órdenes por sucursal y mecánico en orden descendente de ingreso.
+     */
+    List<Orden> findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(UUID sucursalId, UUID mecanicoId);
 package com.veloservice.ordenes.infraestructure.persistence.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
