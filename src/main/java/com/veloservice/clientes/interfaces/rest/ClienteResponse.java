@@ -1,10 +1,10 @@
 package com.veloservice.clientes.interfaces.rest;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-
-import java.util.UUID;
+import java.math.BigDecimal;
 
 /**
  * Customer response payload.
@@ -13,12 +13,18 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 public class ClienteResponse {
-    private UUID id;
+    private String id;
     private String nombre;
     private String apellido;
+    private String tipo;
     private String rut;
-    private String telefono;
     private String email;
-    private String direccion;
+    private String telefono;
+    @JsonProperty("bicicletas_count")
+    private int bicicletasCount;
+    @JsonProperty("ordenes_count")
+    private int ordenesCount;
+    @JsonProperty("total_gastado")
+    private BigDecimal totalGastado;
     private MembresiaActualResponse membresiaActual;
 }

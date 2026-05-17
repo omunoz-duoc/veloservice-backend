@@ -13,11 +13,14 @@ import com.veloservice.clientes.infraestructure.persistence.repository.Membresia
 import com.veloservice.clientes.infraestructure.persistence.repository.SucursalClienteRepository;
 import com.veloservice.clientes.interfaces.mapper.ClienteMapper;
 import com.veloservice.config.security.SucursalContext;
+import com.veloservice.finanzas.infraestructure.persistence.repository.CobroRepository;
+import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,13 +35,9 @@ public class ClienteService {
     private final ClienteRepository clienteRepository;
     private final SucursalClienteRepository sucursalClienteRepository;
     private final MembresiaRepository membresiaRepository;
+    private final OrdenRepository ordenRepository;
+    private final CobroRepository cobroRepository;
 
-    /**
-     * Creates a customer in the current tenant.
-     *
-     * @param request customer request payload
-     * @return created customer
-     */
     @TenantOperation
     @Transactional
     public ClienteResult crear(ClienteCreateCommand command) {
@@ -68,14 +67,9 @@ public class ClienteService {
             sucursalClienteRepository.save(vinculo);
         }
 
-        return toResponse(cliente, SucursalContext.getCurrentSucursal());
+        return toResult(cliente, sucursalId);
     }
 
-    /**
-     * Lists customers for the current tenant.
-     *
-     * @return tenant customers
-     */
     @TenantOperation
     @Transactional(readOnly = true)
     public List<ClienteResult> listar() {
@@ -86,33 +80,10 @@ public class ClienteService {
         return sucursalClienteRepository.findAllBySucursalId(sucursalId).stream()
                 .map(vinculo -> clienteRepository.findById(vinculo.getClienteId())
                         .orElseThrow(() -> new IllegalStateException("Cliente vinculado no encontrado")))
-            .map(cliente -> toResponse(cliente, sucursalId))
+                .map(cliente -> toResult(cliente, sucursalId))
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Lists customers for the current tenant with aggregated summary data.
-     * Returns customer info, bike count, order count, and total spending.
-     * 
-     * @return customer resumen list with aggregated data
-     */
-    @TenantOperation
-    @Transactional(readOnly = true)
-    public List<ClienteResumenResult> listarResumen() {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null) {
-            return List.of();
-        }
-        List<Object[]> rawResults = clienteRepository.findResumenRawBySucursalId(sucursalId);
-        return ClienteMapper.toResumenResultList(rawResults);
-    }
-
-    /**
-     * Retrieves a customer by identifier.
-     *
-     * @param id customer identifier
-     * @return customer response
-     */
     @TenantOperation
     @Transactional(readOnly = true)
     public ClienteResult obtener(UUID id) {
@@ -121,32 +92,39 @@ public class ClienteService {
             throw new IllegalStateException("Operacion requiere contexto de sucursal");
         }
         sucursalClienteRepository.findBySucursalIdAndClienteId(sucursalId, id)
-            .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
-        return toResponse(cliente, sucursalId);
+        return toResult(cliente, sucursalId);
     }
 
-    /**
-     * Searches customers in the current tenant by name, email, phone, or RUT.
-     *
-     * @param texto search text
-     * @return matching customers
-     */
-    @TenantOperation
-    @Transactional(readOnly = true)
-    public List<ClienteResult> buscar(String texto) {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null || !StringUtils.hasText(texto)) {
-            return List.of();
-        }
-        return clienteRepository.buscarPorSucursal(sucursalId, texto.trim()).stream()
-                .map(this::toBusquedaResult)
-                .collect(Collectors.toList());
-    }
-
-    private ClienteResult toResponse(Cliente cliente, UUID sucursalId) {
+    private ClienteResult toResult(Cliente cliente, UUID sucursalId) {
         MembresiaActualResult membresiaActual = getMembresiaActual(cliente.getId(), sucursalId);
+
+        int bicicletasCount = cliente.getBicicletas() != null ? cliente.getBicicletas().size() : 0;
+
+        List<UUID> bicicletaIds = cliente.getBicicletas() != null
+                ? cliente.getBicicletas().stream()
+                        .map(b -> b.getId())
+                        .collect(Collectors.toList())
+                : List.of();
+
+        long ordenesCount = bicicletaIds.isEmpty() ? 0
+                : ordenRepository.countByBicicletaIdIn(bicicletaIds);
+
+        BigDecimal totalGastado = bicicletaIds.isEmpty() ? BigDecimal.ZERO
+                : ordenRepository.findAllByBicicletaIdIn(bicicletaIds).stream()
+                        .flatMap(o -> cobroRepository.findByOrdenId(o.getId()).stream())
+                        .filter(c -> c.getEstado().name().equals("pagado"))
+                        .map(c -> c.getTotal())
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        String tipo;
+        if (ordenesCount == 0) tipo = "nuevo";
+        else if (ordenesCount <= 2) tipo = "regular";
+        else if (ordenesCount <= 5) tipo = "frecuente";
+        else tipo = "VIP";
+
         return ClienteResult.builder()
                 .id(cliente.getId())
                 .nombre(cliente.getNombre())
@@ -156,6 +134,10 @@ public class ClienteService {
                 .email(cliente.getEmail())
                 .direccion(cliente.getDireccion())
                 .membresiaActual(membresiaActual)
+                .tipo(tipo)
+                .bicicletasCount(bicicletasCount)
+                .ordenesCount((int) ordenesCount)
+                .totalGastado(totalGastado)
                 .build();
     }
 
@@ -177,7 +159,7 @@ public class ClienteService {
                 .flatMap(vinculo -> membresiaRepository.findById(vinculo.getMembresiaId())
                         .map(this::toMembresiaActual))
                 .orElse(null);
-        }
+    }
 
     private MembresiaActualResult toMembresiaActual(Membresia membresia) {
         return MembresiaActualResult.builder()
