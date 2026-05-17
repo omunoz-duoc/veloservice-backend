@@ -53,14 +53,12 @@ public class Orden {
     private String numeroOrden;
 
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(nullable = false, columnDefinition = "estado_orden_enum")
+    @Column(nullable = false)
     @Builder.Default
     private EstadoOrdenEnum estado = EstadoOrdenEnum.recibida;
 
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(nullable = false, columnDefinition = "tipo_orden_enum")
+    @Column(nullable = false)
     @Builder.Default
     private TipoOrdenEnum tipo = TipoOrdenEnum.reparacion;
 
