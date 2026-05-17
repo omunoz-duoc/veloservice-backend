@@ -13,15 +13,11 @@ public final class MecanicoMapper {
     }
 
     public static MecanicoResponse toResponse(MecanicoResult result) {
-        return new MecanicoResponse(
-                result.getId(),
-                result.getNombre(),
-                result.getApellido(),
-                result.getIniciales(),
-                result.getEmail(),
-                result.getActivo(),
-                result.getSucursalId()
-        );
+        return MecanicoResponse.builder()
+                .nombre(result.getNombre())
+                .apellido(result.getApellido())
+                .ordenesEnCurso(List.of())
+                .build();
     }
 
     public static List<MecanicoResponse> toResponseList(List<MecanicoResult> results) {

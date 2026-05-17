@@ -19,6 +19,12 @@ public final class ClienteMapper {
     private ClienteMapper() {
     }
 
+    private static String buildNombreCompleto(String nombre, String apellido) {
+        if (nombre == null) nombre = "";
+        if (apellido == null) apellido = "";
+        return (nombre + " " + apellido).trim();
+    }
+
     public static ClienteCreateCommand toCommand(ClienteRequest request) {
         return new ClienteCreateCommand(
                 request.getNombre(),

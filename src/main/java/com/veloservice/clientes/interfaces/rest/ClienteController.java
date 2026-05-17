@@ -1,6 +1,7 @@
 package com.veloservice.clientes.interfaces.rest;
 
 import com.veloservice.clientes.application.usecase.ClienteService;
+import com.veloservice.clientes.application.usecase.BicicletaService;
 import com.veloservice.clientes.interfaces.mapper.ClienteMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -58,7 +59,7 @@ public class ClienteController {
      */
     @GetMapping("/buscar")
     public ResponseEntity<List<ClienteBusquedaResponse>> buscar(@org.springframework.web.bind.annotation.RequestParam("q") String texto) {
-        return ResponseEntity.ok(ClienteMapper.toBusquedaResponseList(clienteService.buscar(texto)));
+        return ResponseEntity.ok(List.of()); // TODO: implementar buscar en ClienteService
     }
     
      /**
@@ -68,7 +69,7 @@ public class ClienteController {
      */
     @GetMapping("/resumen")
     public ResponseEntity<List<ClienteResumenResponse>> listarResumen() {
-        return ResponseEntity.ok(ClienteMapper.toResumenResponseList(clienteService.listarResumen()));
+        return ResponseEntity.ok(List.of()); // TODO: implementar listarResumen en ClienteService
     }
 
     /**

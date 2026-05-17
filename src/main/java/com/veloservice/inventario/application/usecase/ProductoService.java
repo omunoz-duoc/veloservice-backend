@@ -153,4 +153,21 @@ public class ProductoService {
                 .map(categoria -> categoria.getNombre())
                 .orElse(null);
     }
+
+    private void validateSucursal(UUID sucursalId) {
+        if (sucursalId == null) {
+            throw new IllegalArgumentException("Sucursal requerida");
+        }
+    }
+
+    private void validateStock(int stock, int stockMinimo) {
+        if (stock < 0 || stockMinimo < 0) {
+            throw new IllegalArgumentException("Stock no puede ser negativo");
+        }
+    }
+
+    private void validateSkuUnico(String sku, UUID sucursalId) {
+        if (sku == null || sku.isBlank()) return;
+        // TODO: validar unicidad real contra repositorio
+    }
 }

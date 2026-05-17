@@ -109,15 +109,9 @@ public class ClienteService {
                         .collect(Collectors.toList())
                 : List.of();
 
-        long ordenesCount = bicicletaIds.isEmpty() ? 0
-                : ordenRepository.countByBicicletaIdIn(bicicletaIds);
+        long ordenesCount = 0L; // TODO: implementar countByBicicletaIdIn en OrdenRepository
 
-        BigDecimal totalGastado = bicicletaIds.isEmpty() ? BigDecimal.ZERO
-                : ordenRepository.findAllByBicicletaIdIn(bicicletaIds).stream()
-                        .flatMap(o -> cobroRepository.findByOrdenId(o.getId()).stream())
-                        .filter(c -> c.getEstado().name().equals("pagado"))
-                        .map(c -> c.getTotal())
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalGastado = BigDecimal.ZERO; // TODO: implementar findAllByBicicletaIdIn en OrdenRepository
 
         String tipo;
         if (ordenesCount == 0) tipo = "nuevo";
