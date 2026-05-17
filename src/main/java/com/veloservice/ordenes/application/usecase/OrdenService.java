@@ -267,7 +267,8 @@ public class OrdenService {
     @Transactional(readOnly = true)
     public List<OrdenResult> listar() {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
-        return ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId).stream()
+        UUID mecanicoId = UsuarioContext.getCurrentUser();
+        return ordenRepository.findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId).stream()
                 .map(this::toResult)
                 .collect(Collectors.toList());
     }

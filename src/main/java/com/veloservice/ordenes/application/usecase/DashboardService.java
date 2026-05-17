@@ -37,7 +37,8 @@ public class DashboardService {
         }
 
         LocalDate hoy = LocalDate.now();
-        List<Orden> ordenes = ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId);
+        UUID mecanicoId = com.veloservice.config.security.UsuarioContext.getCurrentUser();
+        List<Orden> ordenes = ordenRepository.findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId);
 
         long recibidas = ordenes.stream()
                 .filter(o -> o.getFechaIngreso() != null && hoy.equals(o.getFechaIngreso().toLocalDate()))
@@ -60,7 +61,8 @@ public class DashboardService {
         if (sucursalId == null) {
             return Map.of();
         }
-        return ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId).stream()
+        UUID mecanicoId = com.veloservice.config.security.UsuarioContext.getCurrentUser();
+        return ordenRepository.findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId).stream()
                 .collect(Collectors.groupingBy(o -> o.getEstado().name(), Collectors.counting()));
     }
 
@@ -85,7 +87,8 @@ public class DashboardService {
                 .toList();
 
         OffsetDateTime ahora = OffsetDateTime.now();
-        var ordenesAtrasadas = ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId).stream()
+        UUID mecanicoId = com.veloservice.config.security.UsuarioContext.getCurrentUser();
+        var ordenesAtrasadas = ordenRepository.findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId).stream()
                 .filter(o -> o.getFechaPrometida() != null && o.getFechaPrometida().isBefore(ahora))
                 .filter(o -> !EstadoOrdenEnum.entregada.equals(o.getEstado()))
                 .filter(o -> !EstadoOrdenEnum.cancelada.equals(o.getEstado()))
