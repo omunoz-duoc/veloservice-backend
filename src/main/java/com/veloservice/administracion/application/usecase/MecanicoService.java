@@ -1,95 +1,87 @@
 package com.veloservice.administracion.application.usecase;
 
-import com.veloservice.administracion.application.dto.MecanicoDisponibleResult;
-import com.veloservice.administracion.application.dto.MecanicoResult;
 import com.veloservice.administracion.domain.model.Usuario;
 import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
+import com.veloservice.administracion.interfaces.rest.MecanicoResponse;
+import com.veloservice.config.enums.EstadoOrdenEnum;
 import com.veloservice.config.security.SucursalContext;
 import com.veloservice.config.tenant.TenantOperation;
+import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
 /**
- * Handles mechanic listings for the current tenant.
+ * Handles mechanic operations.
  */
 @Service
 @RequiredArgsConstructor
 public class MecanicoService {
-    private static final String ROL_MECANICO = "MECANICO";
 
     private final UsuarioRepository usuarioRepository;
+    private final OrdenRepository ordenRepository;
+
+    private static final List<EstadoOrdenEnum> ESTADOS_FINALES = List.of(
+            EstadoOrdenEnum.entregada,
+            EstadoOrdenEnum.cancelada
+    );
 
     /**
-     * Listar mechanics for the current tenant, optionally filtering by active status.
-     * @return
+     * Lists active mechanics with their current orders.
      */
     @TenantOperation
     @Transactional(readOnly = true)
-    public List<MecanicoResult> listar(Boolean activo) {
+    public List<MecanicoResponse> listarActivos() {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null) {
-            return List.of();
-        }
-        List<Usuario> usuarios = (activo == null)
-                ? usuarioRepository.findBySucursalIdAndRolNombre(sucursalId, ROL_MECANICO)
-                : usuarioRepository.findBySucursalIdAndRolNombreAndActivo(sucursalId, ROL_MECANICO, activo);
-        return usuarios.stream()
-                .map(this::toMecanicoResult)
+        return usuarioRepository.findBySucursalIdAndActivoTrue(sucursalId).stream()
+                .map(this::toResponse)
                 .collect(Collectors.toList());
     }
-
 
     /**
-     * Lists active mechanics for the current branch.
-     *
-     * @return available mechanics
+     * Changes mechanic active status.
      */
     @TenantOperation
-    @Transactional(readOnly = true)
-    public List<MecanicoDisponibleResult> listarDisponibles() {
+    @Transactional
+    public void cambiarEstado(UUID id, boolean activo) {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null) {
-            return List.of();
-        }
-        return usuarioRepository.findBySucursalIdAndRolNombreAndActivoTrue(sucursalId, ROL_MECANICO).stream()
-                .map(this::toMecanicoDisponibleResult)
-                .collect(Collectors.toList());
+        Usuario usuario = usuarioRepository.findById(id)
+                .filter(u -> u.getSucursal().getId().equals(sucursalId))
+                .orElseThrow(() -> new IllegalArgumentException("Mecanico no encontrado"));
+        usuario.setActivo(activo);
+        usuarioRepository.save(usuario);
     }
 
-    private MecanicoResult toMecanicoResult(Usuario usuario) {
-        return MecanicoResult.builder()
-                .id(usuario.getId())
+    /**
+     * Changes mechanic role.
+     */
+    @TenantOperation
+    @Transactional
+    public void cambiarRol(UUID id, String nuevoRol) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        Usuario usuario = usuarioRepository.findById(id)
+                .filter(u -> u.getSucursal().getId().equals(sucursalId))
+                .orElseThrow(() -> new IllegalArgumentException("Mecanico no encontrado"));
+        usuario.getRol().setNombre(nuevoRol);
+        usuarioRepository.save(usuario);
+    }
+
+    private MecanicoResponse toResponse(Usuario usuario) {
+        List<MecanicoResponse.OrdenEnCursoResponse> ordenesEnCurso =
+                ordenRepository.findByMecanicoIdAndEstadoNotIn(usuario.getId(), ESTADOS_FINALES)
+                        .stream()
+                        .map(o -> MecanicoResponse.OrdenEnCursoResponse.builder()
+                                .id(o.getNumeroOrden())
+                                .build())
+                        .collect(Collectors.toList());
+
+        return MecanicoResponse.builder()
                 .nombre(usuario.getNombre())
                 .apellido(usuario.getApellido())
-                .iniciales(buildIniciales(usuario.getNombre(), usuario.getApellido()))
-                .email(usuario.getEmail())
-                .activo(usuario.getActivo())
-                .sucursalId(usuario.getSucursal().getId())
+                .ordenesEnCurso(ordenesEnCurso)
                 .build();
-    }
-
-    private MecanicoDisponibleResult toMecanicoDisponibleResult(Usuario usuario) {
-        return MecanicoDisponibleResult.builder()
-                .id(usuario.getId())
-                .nombre(usuario.getNombre())
-                .apellido(usuario.getApellido())
-                .iniciales(buildIniciales(usuario.getNombre(), usuario.getApellido()))
-                .build();
-    }
-
-    private String buildIniciales(String nombre, String apellido) {
-        StringBuilder iniciales = new StringBuilder();
-        if (nombre != null && !nombre.isBlank()) {
-            iniciales.append(Character.toUpperCase(nombre.trim().charAt(0)));
-        }
-        if (apellido != null && !apellido.isBlank()) {
-            iniciales.append(Character.toUpperCase(apellido.trim().charAt(0)));
-        }
-        return iniciales.toString();
     }
 }

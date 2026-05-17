@@ -21,14 +21,9 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
     List<Orden> findAllBySucursalIdOrderByFechaIngresoDesc(UUID sucursalId);
 
     boolean existsByNumeroOrdenAndSucursalId(String numeroOrden, UUID sucursalId);
-
-    /**
-     * Counts orders by bicicleta id list.
-     */
-    long countByBicicletaIdIn(List<UUID> bicicletaIds);
-
-    /**
-     * Finds orders by bicicleta id list.
-     */
-    List<Orden> findAllByBicicletaIdIn(List<UUID> bicicletaIds);
 }
+
+/**
+ * Finds active orders by mecanico.
+ */
+List<Orden> findByMecanicoIdAndEstadoNotIn(UUID mecanicoId, List<EstadoOrdenEnum> estados);
