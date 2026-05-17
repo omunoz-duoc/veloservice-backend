@@ -61,10 +61,16 @@ public class OrdenService {
     static {
         Map<EstadoOrdenEnum, Set<EstadoOrdenEnum>> transiciones = new EnumMap<>(EstadoOrdenEnum.class);
         transiciones.put(EstadoOrdenEnum.recibida,
-                EnumSet.of(EstadoOrdenEnum.en_proceso));
-        transiciones.put(EstadoOrdenEnum.en_proceso,
-                EnumSet.of(EstadoOrdenEnum.listo));
-        transiciones.put(EstadoOrdenEnum.listo,
+                EnumSet.of(EstadoOrdenEnum.en_diagnostico));
+        transiciones.put(EstadoOrdenEnum.en_diagnostico,
+                EnumSet.of(EstadoOrdenEnum.esperando_repuestos));
+        transiciones.put(EstadoOrdenEnum.esperando_repuestos,
+                EnumSet.of(EstadoOrdenEnum.en_reparacion));
+        transiciones.put(EstadoOrdenEnum.en_reparacion,
+                EnumSet.of(EstadoOrdenEnum.control_calidad));
+        transiciones.put(EstadoOrdenEnum.control_calidad,
+                EnumSet.of(EstadoOrdenEnum.lista_para_entrega));
+        transiciones.put(EstadoOrdenEnum.lista_para_entrega,
                 EnumSet.of(EstadoOrdenEnum.entregada));
         TRANSICIONES_VALIDAS = Map.copyOf(transiciones);
     }
@@ -130,7 +136,7 @@ public class OrdenService {
             throw new IllegalArgumentException("Transicion no permitida: " + estadoActual + "->" + estadoNuevo);
         }
 
-        if (EstadoOrdenEnum.listo.equals(estadoNuevo)) {
+        if (EstadoOrdenEnum.lista_para_entrega.equals(estadoNuevo)) {
             boolean tieneEvidenciaTecnica = multimediaRepository.existsByOrdenIdAndEtapa(
                     ordenId, EtapaMultimediaEnum.reparacion);
             if (!tieneEvidenciaTecnica) {
@@ -277,9 +283,9 @@ public class OrdenService {
         long recibidas = ordenes.stream()
                 .filter(o -> o.getEstado().equals(EstadoOrdenEnum.recibida)).count();
         long enProceso = ordenes.stream()
-                .filter(o -> o.getEstado().equals(EstadoOrdenEnum.en_proceso)).count();
+                .filter(o -> o.getEstado().equals(EstadoOrdenEnum.en_diagnostico)).count();
         long listas = ordenes.stream()
-                .filter(o -> o.getEstado().equals(EstadoOrdenEnum.listo)).count();
+                .filter(o -> o.getEstado().equals(EstadoOrdenEnum.lista_para_entrega)).count();
         long entregadas = ordenes.stream()
                 .filter(o -> o.getEstado().equals(EstadoOrdenEnum.entregada)).count();
 
