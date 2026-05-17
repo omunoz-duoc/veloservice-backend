@@ -23,14 +23,5 @@ spring:
     console:
       enabled: true
       path: /h2-console
-
 jwt:
   secret: dev-secret-not-for-production-use-min32chars!!
-
-# Forzar enums como VARCHAR en H2 (no afecta producción)
-spring:
-  jpa:
-    properties:
-      hibernate:
-        hbm2ddl:
-          import_files_sql_extractor: org.hibernate.tool.hbm2ddl.MultipleLinesSqlCommandExtractor
