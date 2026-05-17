@@ -5,6 +5,8 @@ import com.veloservice.inventario.application.dto.ProductoResult;
 import com.veloservice.inventario.application.exception.ProductoErrorCode;
 import com.veloservice.inventario.application.exception.ProductoException;
 import com.veloservice.inventario.domain.model.Producto;
+import com.veloservice.inventario.infraestructure.persistence.repository.CategoriaProductoRepository;
+import com.veloservice.inventario.infraestructure.persistence.repository.MovimientoStockRepository;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import com.veloservice.inventario.interfaces.mapper.ProductoMapper;
 import com.veloservice.config.tenant.TenantOperation;
@@ -25,6 +27,8 @@ import java.util.stream.Collectors;
 public class ProductoService {
 
     private final ProductoRepository productoRepository;
+    private final MovimientoStockRepository movimientoRepository;
+    private final CategoriaProductoRepository categoriaProductoRepository;
 
     @TenantOperation
     @Transactional
@@ -65,7 +69,7 @@ public class ProductoService {
             return List.of();
         }
         return productoRepository.findBySucursalId(sucursalId).stream()
-                .map(ProductoMapper::toResult)
+                .map(producto -> toResult(producto, resolveCategoriaNombre(producto.getCategoriaId())))
                 .collect(Collectors.toList());
     }
 
@@ -77,25 +81,76 @@ public class ProductoService {
             return List.of();
         }
         return productoRepository.findBySucursalIdAndStockLessThanEqualStockMinimo(sucursalId).stream()
-                .map(ProductoMapper::toResult)
+                .map(producto -> toResult(producto, resolveCategoriaNombre(producto.getCategoriaId())))
                 .collect(Collectors.toList());
     }
 
-    private void validateSucursal(UUID sucursalId) {
+        @TenantOperation
+        @Transactional(readOnly = true)
+        public com.veloservice.inventario.interfaces.rest.InventarioMetricasResponse metricas() {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
         if (sucursalId == null) {
-            throw new ProductoException(ProductoErrorCode.SUCURSAL_REQUERIDA, "Contexto de sucursal requerido");
+            return com.veloservice.inventario.interfaces.rest.InventarioMetricasResponse.builder()
+                .valorInventario(0)
+                .enStock(0)
+                .stockBajo(0)
+                .agotados(0)
+                .build();
         }
+
+        List<Producto> productos = productoRepository.findBySucursalId(sucursalId);
+        long enStock = productos.stream()
+            .mapToLong(p -> p.getStock() == null ? 0 : p.getStock())
+            .sum();
+        long stockBajo = productos.stream()
+            .filter(p -> p.getStock() != null && p.getStockMinimo() != null && p.getStock() <= p.getStockMinimo())
+            .count();
+        long agotados = productos.stream()
+            .filter(p -> p.getStock() != null && p.getStock() == 0)
+            .count();
+        long valorInventario = productos.stream()
+            .mapToLong(p -> {
+                if (p.getPrecioCosto() == null || p.getStock() == null) {
+                return 0L;
+                }
+                return p.getPrecioCosto().longValue() * p.getStock();
+            })
+            .sum();
+
+        return com.veloservice.inventario.interfaces.rest.InventarioMetricasResponse.builder()
+            .valorInventario(valorInventario)
+            .enStock(enStock)
+            .stockBajo(stockBajo)
+            .agotados(agotados)
+            .build();
+        }
+
+    private ProductoResult toResult(Producto producto) {
+        return toResult(producto, resolveCategoriaNombre(producto.getCategoriaId()));
     }
 
-    private void validateStock(Integer stock, Integer stockMinimo) {
-        if (stock < 0 || stockMinimo < 0) {
-            throw new ProductoException(ProductoErrorCode.STOCK_NEGATIVO, "Stock negativo no permitido (RN17)");
-        }
+    private ProductoResult toResult(Producto producto, String categoriaNombre) {
+        return ProductoResult.builder()
+                .id(producto.getId())
+                .nombre(producto.getNombre())
+                .sku(producto.getSku())
+                .marca(producto.getMarca())
+                .categoriaId(producto.getCategoriaId())
+                .categoriaNombre(categoriaNombre)
+                .precioCosto(producto.getPrecioCosto())
+                .precioVenta(producto.getPrecioVenta())
+                .stock(producto.getStock())
+                .stockMinimo(producto.getStockMinimo())
+                .alertaStockBajo(producto.getStock() <= producto.getStockMinimo())
+                .build();
     }
 
-    private void validateSkuUnico(String sku, UUID sucursalId) {
-        if (productoRepository.existsBySkuAndSucursalId(sku, sucursalId)) {
-            throw new ProductoException(ProductoErrorCode.SKU_DUPLICADO, "SKU duplicado en esta sucursal: " + sku);
+    private String resolveCategoriaNombre(UUID categoriaId) {
+        if (categoriaId == null) {
+            return null;
         }
+        return categoriaProductoRepository.findById(categoriaId)
+                .map(categoria -> categoria.getNombre())
+                .orElse(null);
     }
 }

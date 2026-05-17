@@ -18,6 +18,8 @@ public class ProductoResult {
     private String nombre;
     private String sku;
     private String marca;
+    private UUID categoriaId;
+    private String categoriaNombre;
     private BigDecimal precioCosto;
     private BigDecimal precioVenta;
     private Integer stock;
