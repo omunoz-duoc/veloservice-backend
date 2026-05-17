@@ -73,7 +73,7 @@ public class AuthController {
     @PostMapping("/change-password")
     public ResponseEntity<Void> changePassword(@Valid @RequestBody AuthChangePasswordRequest request) {
         authService.changePassword(request.getToken(), request.getNewPassword());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build(); 
     }
 
     private String resolveClientIp(HttpServletRequest request) {
