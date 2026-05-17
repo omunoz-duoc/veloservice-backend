@@ -1,6 +1,7 @@
 package com.veloservice.administracion.application.usecase;
 
 import com.veloservice.administracion.application.dto.MecanicoDisponibleResult;
+import com.veloservice.administracion.application.dto.MecanicoResult;
 import com.veloservice.administracion.domain.model.Usuario;
 import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.config.security.SucursalContext;
@@ -24,6 +25,26 @@ public class MecanicoService {
     private final UsuarioRepository usuarioRepository;
 
     /**
+     * Listar mechanics for the current tenant, optionally filtering by active status.
+     * @return
+     */
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<MecanicoResult> listar(Boolean activo) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
+            return List.of();
+        }
+        List<Usuario> usuarios = (activo == null)
+                ? usuarioRepository.findBySucursalIdAndRolNombre(sucursalId, ROL_MECANICO)
+                : usuarioRepository.findBySucursalIdAndRolNombreAndActivo(sucursalId, ROL_MECANICO, activo);
+        return usuarios.stream()
+                .map(this::toMecanicoResult)
+                .collect(Collectors.toList());
+    }
+
+
+    /**
      * Lists active mechanics for the current branch.
      *
      * @return available mechanics
@@ -36,11 +57,23 @@ public class MecanicoService {
             return List.of();
         }
         return usuarioRepository.findBySucursalIdAndRolNombreAndActivoTrue(sucursalId, ROL_MECANICO).stream()
-                .map(this::toResult)
+                .map(this::toMecanicoDisponibleResult)
                 .collect(Collectors.toList());
     }
 
-    private MecanicoDisponibleResult toResult(Usuario usuario) {
+    private MecanicoResult toMecanicoResult(Usuario usuario) {
+        return MecanicoResult.builder()
+                .id(usuario.getId())
+                .nombre(usuario.getNombre())
+                .apellido(usuario.getApellido())
+                .iniciales(buildIniciales(usuario.getNombre(), usuario.getApellido()))
+                .email(usuario.getEmail())
+                .activo(usuario.getActivo())
+                .sucursalId(usuario.getSucursal().getId())
+                .build();
+    }
+
+    private MecanicoDisponibleResult toMecanicoDisponibleResult(Usuario usuario) {
         return MecanicoDisponibleResult.builder()
                 .id(usuario.getId())
                 .nombre(usuario.getNombre())

@@ -41,6 +41,25 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
     boolean existsByEmail(String email);
 
     /**
+     * Lists users by role for a specific branch.
+     *
+     * @param sucursalId branch identifier
+     * @param rolNombre role name
+     * @return users with the specified role
+     */
+    List<Usuario> findBySucursalIdAndRolNombre(UUID sucursalId, String rolNombre);
+
+    /**
+     * Lists users by role and active status for a specific branch.
+     *
+     * @param sucursalId branch identifier
+     * @param rolNombre role name
+     * @param activo active status filter
+     * @return users matching criteria
+     */
+    List<Usuario> findBySucursalIdAndRolNombreAndActivo(UUID sucursalId, String rolNombre, Boolean activo);
+
+    /**
      * Lists active users by role for a specific branch.
      *
      * @param sucursalId branch identifier

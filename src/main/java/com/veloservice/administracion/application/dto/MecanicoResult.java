@@ -1,4 +1,4 @@
-package com.veloservice.ordenes.application.dto;
+package com.veloservice.administracion.application.dto;
 
 import lombok.Builder;
 import lombok.Value;

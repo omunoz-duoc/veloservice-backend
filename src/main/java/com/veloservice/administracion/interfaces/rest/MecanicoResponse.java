@@ -1,4 +1,4 @@
-package com.veloservice.ordenes.interfaces.rest;
+package com.veloservice.administracion.interfaces.rest;
 
 import java.util.UUID;
 
