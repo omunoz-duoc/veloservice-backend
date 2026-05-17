@@ -20,7 +20,7 @@ VALUES ('990e8400-e29b-41d4-a716-446655440004', 'aa0e8400-e29b-41d4-a716-4466554
 
 -- Insertar orden 1 (EN_PROCESO)
 INSERT INTO ordenes (id, external_id, numero_orden, sucursal_id, mecanico_id, bicicleta_id, estado, tipo, prioridad, descripcion_trabajo, diagnostico_inicial, fecha_ingreso, fecha_prometida, created_at, updated_at, descuento_manual, porcentaje_descuento_membresia)
-VALUES ('bb0e8400-e29b-41d4-a716-446655440006', 'OT-2026-001', 'OT-2026-001', '660e8400-e29b-41d4-a716-446655440001', '880e8400-e29b-41d4-a716-446655440003', '990e8400-e29b-41d4-a716-446655440004', 'en_reparacion', 'mantencion', 'MEDIA', 'Cambio de cadena y ajuste de frenos', 'Cambio de cadena y ajuste de frenos', CURRENT_TIMESTAMP, DATEADD('DAY', 3, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 0);
+VALUES ('bb0e8400-e29b-41d4-a716-446655440006', 'OT-2026-001', 'OT-2026-001', '660e8400-e29b-41d4-a716-446655440001', '880e8400-e29b-41d4-a716-446655440003', '990e8400-e29b-41d4-a716-446655440004', 'en_proceso', 'mantencion', 'MEDIA', 'Cambio de cadena y ajuste de frenos', 'Cambio de cadena y ajuste de frenos', CURRENT_TIMESTAMP, DATEADD('DAY', 3, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 0);
 
 -- Insertar orden 2 (RECIBIDA)
 INSERT INTO ordenes (id, external_id, numero_orden, sucursal_id, mecanico_id, bicicleta_id, estado, tipo, prioridad, descripcion_trabajo, diagnostico_inicial, fecha_ingreso, fecha_prometida, created_at, updated_at, descuento_manual, porcentaje_descuento_membresia)

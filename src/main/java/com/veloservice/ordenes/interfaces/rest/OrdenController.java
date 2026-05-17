@@ -1,7 +1,11 @@
 package com.veloservice.ordenes.interfaces.rest;
-
+ 
+import com.veloservice.config.security.SucursalContext;
+import com.veloservice.config.security.UsuarioContext;
 import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
 import com.veloservice.ordenes.application.usecase.OrdenService;
+import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
+import com.veloservice.config.enums.EstadoOrdenEnum;
 import com.veloservice.ordenes.interfaces.mapper.OrdenMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,11 +18,12 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+ 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
+import java.util.stream.Collectors;
+ 
 /**
  * REST endpoints for work orders.
  */
@@ -26,9 +31,10 @@ import java.util.UUID;
 @RequestMapping("/ordenes")
 @RequiredArgsConstructor
 public class OrdenController {
-
+ 
     private final OrdenService ordenService;
-
+    private final OrdenRepository ordenRepository;
+ 
     /**
      * Creates a new work order.
      */
@@ -38,9 +44,9 @@ public class OrdenController {
                 OrdenMapper.toResponse(ordenService.crearNuevaOrden(OrdenMapper.toCommand(request)))
         );
     }
-
+ 
     /**
-     * Lists all work orders for the current tenant.
+     * Lists all work orders for the authenticated mechanic.
      */
     @GetMapping
     public ResponseEntity<Map<String, Object>> listar() {
@@ -50,7 +56,24 @@ public class OrdenController {
                 "ordenes", ordenes
         ));
     }
-
+ 
+    /**
+     * Returns order count grouped by status for the authenticated mechanic.
+     */
+    @GetMapping("/estados")
+    public ResponseEntity<Map<String, Long>> estados() {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        UUID mecanicoId = UsuarioContext.getCurrentUser();
+        if (sucursalId == null || mecanicoId == null) {
+            return ResponseEntity.ok(Map.of());
+        }
+        Map<String, Long> estados = ordenRepository
+                .findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId)
+                .stream()
+                .collect(Collectors.groupingBy(o -> o.getEstado().name(), Collectors.counting()));
+        return ResponseEntity.ok(estados);
+    }
+ 
     /**
      * Lists urgent work orders.
      */
@@ -62,7 +85,7 @@ public class OrdenController {
                 "ordenes", ordenes
         ));
     }
-
+ 
     /**
      * Returns order metrics.
      */
@@ -76,27 +99,15 @@ public class OrdenController {
                 result.getEntregadas()
         ));
     }
-
+ 
     /**
      * Lists orders ready for delivery.
-     *
-     * @return orders ready for delivery
      */
     @GetMapping("/lista-entrega")
     public ResponseEntity<List<OrdenListaEntregaResponse>> listarListaEntrega() {
         return ResponseEntity.ok(List.of()); // TODO: implementar listarListaEntrega en OrdenService
     }
-
-    /**
-     * Lists urgent work orders for the current tenant.
-     *
-     * @return urgent work orders
-     */
-    // @GetMapping("/urgentes")
-    // public ResponseEntity<List<OrdenUrgenteResponse>> listarUrgentes() {
-    //     return ResponseEntity.ok(OrdenMapper.toUrgenteResponseList(ordenService.listarUrgentes()));
-    // }
-
+ 
     /**
      * Retrieves a work order by identifier.
      */
@@ -104,7 +115,7 @@ public class OrdenController {
     public ResponseEntity<OrdenResponse> obtener(@PathVariable UUID id) {
         return ResponseEntity.ok(OrdenMapper.toResponse(ordenService.obtener(id)));
     }
-
+ 
     /**
      * Changes the state of a work order.
      */
@@ -116,7 +127,7 @@ public class OrdenController {
                 ordenService.cambiarEstado(id, OrdenMapper.toEstadoChangeCommand(request))
         ));
     }
-
+ 
     /**
      * Agrega un servicio a la orden.
      */
@@ -128,7 +139,7 @@ public class OrdenController {
                 ordenService.agregarServicio(id, OrdenMapper.toServicioCommand(request))
         ));
     }
-
+ 
     /**
      * Agrega un producto a la orden.
      */
@@ -140,61 +151,62 @@ public class OrdenController {
             ordenService.agregarProducto(id, com.veloservice.ordenes.interfaces.mapper.OrdenMapper.toProductoCommand(request))
         ));
     }
+ 
     /**
- * Exports work orders as CSV.
- */
-@GetMapping("/exportar-csv")
-public ResponseEntity<byte[]> exportarCsv() {
-    List<OrdenResponse> ordenes = OrdenMapper.toResponseList(ordenService.listar());
-
-    StringBuilder csv = new StringBuilder();
-    csv.append("id,tipo,estado,descripcion,mecanico,fecha_ingreso,fecha_estimada,")
-       .append("cliente_nombre,cliente_apellido,cliente_telefono,")
-       .append("bicicleta_marca,bicicleta_modelo,bicicleta_tipo,bicicleta_color,bicicleta_talla\n");
-
-    for (OrdenResponse o : ordenes) {
-        csv.append(safe(o.getId())).append(",")
-           .append(safe(o.getTipo())).append(",")
-           .append(safe(o.getEstado())).append(",")
-           .append(safe(o.getDescripcion())).append(",")
-           .append(safe(o.getMecanico())).append(",")
-           .append(safe(o.getFechaIngreso())).append(",")
-           .append(safe(o.getFechaEstimada())).append(",");
-
-        if (o.getCliente() != null) {
-            csv.append(safe(o.getCliente().getNombre())).append(",")
-               .append(safe(o.getCliente().getApellido())).append(",")
-               .append(safe(o.getCliente().getTelefono())).append(",");
-        } else {
-            csv.append(",,,");
+     * Exports work orders as CSV.
+     */
+    @GetMapping("/exportar-csv")
+    public ResponseEntity<byte[]> exportarCsv() {
+        List<OrdenResponse> ordenes = OrdenMapper.toResponseList(ordenService.listar());
+ 
+        StringBuilder csv = new StringBuilder();
+        csv.append("id,tipo,estado,descripcion,mecanico,fecha_ingreso,fecha_estimada,")
+           .append("cliente_nombre,cliente_apellido,cliente_telefono,")
+           .append("bicicleta_marca,bicicleta_modelo,bicicleta_tipo,bicicleta_color,bicicleta_talla\n");
+ 
+        for (OrdenResponse o : ordenes) {
+            csv.append(safe(o.getId())).append(",")
+               .append(safe(o.getTipo())).append(",")
+               .append(safe(o.getEstado())).append(",")
+               .append(safe(o.getDescripcion())).append(",")
+               .append(safe(o.getMecanico())).append(",")
+               .append(safe(o.getFechaIngreso())).append(",")
+               .append(safe(o.getFechaEstimada())).append(",");
+ 
+            if (o.getCliente() != null) {
+                csv.append(safe(o.getCliente().getNombre())).append(",")
+                   .append(safe(o.getCliente().getApellido())).append(",")
+                   .append(safe(o.getCliente().getTelefono())).append(",");
+            } else {
+                csv.append(",,,");
+            }
+ 
+            if (o.getBicicleta() != null) {
+                csv.append(safe(o.getBicicleta().getMarca())).append(",")
+                   .append(safe(o.getBicicleta().getModelo())).append(",")
+                   .append(safe(o.getBicicleta().getTipo())).append(",")
+                   .append(safe(o.getBicicleta().getColor())).append(",")
+                   .append(safe(o.getBicicleta().getTalla()));
+            } else {
+                csv.append(",,,,");
+            }
+            csv.append("\n");
         }
-
-        if (o.getBicicleta() != null) {
-            csv.append(safe(o.getBicicleta().getMarca())).append(",")
-               .append(safe(o.getBicicleta().getModelo())).append(",")
-               .append(safe(o.getBicicleta().getTipo())).append(",")
-               .append(safe(o.getBicicleta().getColor())).append(",")
-               .append(safe(o.getBicicleta().getTalla()));
-        } else {
-            csv.append(",,,,");
-        }
-        csv.append("\n");
+ 
+        byte[] bytes = csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"ordenes.csv\"")
+                .contentType(org.springframework.http.MediaType.parseMediaType("text/csv"))
+                .body(bytes);
     }
-
-    byte[] bytes = csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-    return ResponseEntity.ok()
-            .header("Content-Disposition", "attachment; filename=\"ordenes.csv\"")
-            .contentType(org.springframework.http.MediaType.parseMediaType("text/csv"))
-            .body(bytes);
-}
-
+ 
     private String safe(Object value) {
-       if (value == null) return "";
-    String str = value.toString().replace("\"", "\"\"");
-    if (str.contains(",") || str.contains("\n") || str.contains("\"")) {
-        return "\"" + str + "\"";
+        if (value == null) return "";
+        String str = value.toString().replace("\"", "\"\"");
+        if (str.contains(",") || str.contains("\n") || str.contains("\"")) {
+            return "\"" + str + "\"";
+        }
+        return str;
     }
-    return str;
 }
-
-}
+ 

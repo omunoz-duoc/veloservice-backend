@@ -61,16 +61,10 @@ public class OrdenService {
     static {
         Map<EstadoOrdenEnum, Set<EstadoOrdenEnum>> transiciones = new EnumMap<>(EstadoOrdenEnum.class);
         transiciones.put(EstadoOrdenEnum.recibida,
-                EnumSet.of(EstadoOrdenEnum.en_diagnostico, EstadoOrdenEnum.cancelada));
-        transiciones.put(EstadoOrdenEnum.en_diagnostico,
-                EnumSet.of(EstadoOrdenEnum.esperando_repuestos, EstadoOrdenEnum.en_reparacion, EstadoOrdenEnum.cancelada));
-        transiciones.put(EstadoOrdenEnum.esperando_repuestos,
-                EnumSet.of(EstadoOrdenEnum.en_reparacion));
-        transiciones.put(EstadoOrdenEnum.en_reparacion,
-                EnumSet.of(EstadoOrdenEnum.control_calidad));
-        transiciones.put(EstadoOrdenEnum.control_calidad,
-                EnumSet.of(EstadoOrdenEnum.lista_para_entrega));
-        transiciones.put(EstadoOrdenEnum.lista_para_entrega,
+                EnumSet.of(EstadoOrdenEnum.en_proceso));
+        transiciones.put(EstadoOrdenEnum.en_proceso,
+                EnumSet.of(EstadoOrdenEnum.listo));
+        transiciones.put(EstadoOrdenEnum.listo,
                 EnumSet.of(EstadoOrdenEnum.entregada));
         TRANSICIONES_VALIDAS = Map.copyOf(transiciones);
     }
@@ -136,19 +130,16 @@ public class OrdenService {
             throw new IllegalArgumentException("Transicion no permitida: " + estadoActual + "->" + estadoNuevo);
         }
 
-        if (EstadoOrdenEnum.lista_para_entrega.equals(estadoNuevo)) {
+        if (EstadoOrdenEnum.listo.equals(estadoNuevo)) {
             boolean tieneEvidenciaTecnica = multimediaRepository.existsByOrdenIdAndEtapa(
                     ordenId, EtapaMultimediaEnum.reparacion);
             if (!tieneEvidenciaTecnica) {
                 throw new IllegalArgumentException(
-                        "No se puede cambiar a lista_para_entrega sin evidencia tecnica final (RN02)");
+                        "No se puede cambiar a listo sin evidencia tecnica final (RN02)");
             }
         }
 
-        if (EstadoOrdenEnum.cancelada.equals(estadoNuevo)
-                && EnumSet.of(EstadoOrdenEnum.lista_para_entrega, EstadoOrdenEnum.entregada).contains(estadoActual)) {
-            throw new IllegalArgumentException("No se puede cancelar una orden en estado " + estadoActual);
-        }
+
 
         orden.setEstado(estadoNuevo);
         if (EstadoOrdenEnum.entregada.equals(estadoNuevo)) {
@@ -272,7 +263,7 @@ public class OrdenService {
                 .filter(o -> o.getFechaPrometida() != null
                         && o.getFechaPrometida().isBefore(OffsetDateTime.now())
                         && !o.getEstado().equals(EstadoOrdenEnum.entregada)
-                        && !o.getEstado().equals(EstadoOrdenEnum.cancelada))
+)
                 .map(this::toResult)
                 .collect(Collectors.toList());
     }
@@ -286,12 +277,9 @@ public class OrdenService {
         long recibidas = ordenes.stream()
                 .filter(o -> o.getEstado().equals(EstadoOrdenEnum.recibida)).count();
         long enProceso = ordenes.stream()
-                .filter(o -> o.getEstado().equals(EstadoOrdenEnum.en_diagnostico)
-                        || o.getEstado().equals(EstadoOrdenEnum.esperando_repuestos)
-                        || o.getEstado().equals(EstadoOrdenEnum.en_reparacion)
-                        || o.getEstado().equals(EstadoOrdenEnum.control_calidad)).count();
+                .filter(o -> o.getEstado().equals(EstadoOrdenEnum.en_proceso)).count();
         long listas = ordenes.stream()
-                .filter(o -> o.getEstado().equals(EstadoOrdenEnum.lista_para_entrega)).count();
+                .filter(o -> o.getEstado().equals(EstadoOrdenEnum.listo)).count();
         long entregadas = ordenes.stream()
                 .filter(o -> o.getEstado().equals(EstadoOrdenEnum.entregada)).count();
 

@@ -25,8 +25,7 @@ public class MecanicoService {
     private final OrdenRepository ordenRepository;
 
     private static final List<EstadoOrdenEnum> ESTADOS_FINALES = List.of(
-            EstadoOrdenEnum.entregada,
-            EstadoOrdenEnum.cancelada
+            EstadoOrdenEnum.entregada
     );
 
     /**

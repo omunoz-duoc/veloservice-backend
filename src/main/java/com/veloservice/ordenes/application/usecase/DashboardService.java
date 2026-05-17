@@ -92,7 +92,6 @@ public class DashboardService {
         var ordenesAtrasadas = ordenRepository.findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId).stream()
                 .filter(o -> o.getFechaPrometida() != null && o.getFechaPrometida().isBefore(ahora))
                 .filter(o -> !EstadoOrdenEnum.entregada.equals(o.getEstado()))
-                .filter(o -> !EstadoOrdenEnum.cancelada.equals(o.getEstado()))
                 .map(o -> DashboardAlertasResult.OrdenAtrasadaItem.builder()
                         .ordenId(o.getId())
                         .numeroOrden(o.getNumeroOrden())
