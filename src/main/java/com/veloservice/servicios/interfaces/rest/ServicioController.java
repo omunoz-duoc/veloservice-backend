@@ -4,12 +4,15 @@ import com.veloservice.servicios.application.usecase.ServicioService;
 import com.veloservice.servicios.interfaces.mapper.ServicioMapper;
 
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/servicios")
@@ -19,15 +22,20 @@ public class ServicioController {
     private final ServicioService servicioService;
 
     @GetMapping
-    public ResponseEntity<List<ServicioResponse>> listar() {
-        return ResponseEntity.ok(ServicioMapper.toResponseList(servicioService.listar()));
+    public ResponseEntity<Map<String, Object>> listar() {
+        List<ServicioResponse> servicios = ServicioMapper.toResponseList(servicioService.listar());
+        return ResponseEntity.ok(Map.of(
+                "total", servicios.size(),
+                "servicios", servicios
+        ));
     }
 
     @PostMapping
     public ResponseEntity<ServicioResponse> crear(@Valid @RequestBody ServicioRequest request) {
-        return ResponseEntity.ok(ServicioMapper.toResponse(
+        ServicioResponse response = ServicioMapper.toResponse(
                 servicioService.crear(ServicioMapper.toCommand(request))
-        ));
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
@@ -52,5 +60,36 @@ public class ServicioController {
     @GetMapping("/sucursal")
     public ResponseEntity<List<SucursalServicioResponse>> listarSucursal() {
         return ResponseEntity.ok(ServicioMapper.toSucursalResponseList(servicioService.listarServiciosSucursal()));
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<String> exportarCsv() {
+        List<ServicioResponse> servicios = ServicioMapper.toResponseList(servicioService.listar());
+        StringBuilder csv = new StringBuilder();
+        csv.append("id,nombre,descripcion,precio_base,activo\n");
+        for (ServicioResponse servicio : servicios) {
+            csv.append(servicio.getId()).append(',')
+                    .append(csvEscape(servicio.getNombre())).append(',')
+                    .append(csvEscape(servicio.getDescripcion())).append(',')
+                    .append(servicio.getPrecioBase()).append(',')
+                    .append(servicio.getActivo())
+                    .append('\n');
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=servicios.csv")
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(csv.toString());
+    }
+
+    private String csvEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        String escaped = value.replace("\"", "\"\"");
+        if (escaped.contains(",") || escaped.contains("\n") || escaped.contains("\r") || escaped.contains("\"")) {
+            return '"' + escaped + '"';
+        }
+        return escaped;
     }
 }
