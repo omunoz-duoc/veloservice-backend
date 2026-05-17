@@ -2,8 +2,10 @@ package com.veloservice.ordenes.domain.model;
 
 import com.veloservice.config.enums.EstadoOrdenEnum;
 import com.veloservice.config.enums.PrioridadOrdenEnum;
+import com.veloservice.config.enums.TipoOrdenEnumConverter;
 import com.veloservice.config.enums.TipoOrdenEnum;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -17,9 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -65,7 +65,7 @@ public class Orden {
     @Builder.Default
     private EstadoOrdenEnum estado = EstadoOrdenEnum.recibida;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = TipoOrdenEnumConverter.class)
     @Column(nullable = false)
     @Builder.Default
     private TipoOrdenEnum tipo = TipoOrdenEnum.MANTENCION;
