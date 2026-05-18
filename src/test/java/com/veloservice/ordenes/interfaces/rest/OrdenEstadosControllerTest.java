@@ -3,12 +3,15 @@ package com.veloservice.ordenes.interfaces.rest;
 import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.config.enums.EstadoOrdenEnum;
 import com.veloservice.config.security.JwtTokenProvider;
+import com.veloservice.config.security.SucursalContext;
+import com.veloservice.config.security.UsuarioContext;
 import com.veloservice.ordenes.application.usecase.ComentarioService;
 import com.veloservice.ordenes.application.usecase.MultimediaService;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.ordenes.infraestructure.persistence.repository.MultimediaRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenProductoRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -17,6 +20,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -38,6 +42,14 @@ class OrdenEstadosControllerTest {
     @MockBean private ComentarioService comentarioService;
     @MockBean private JwtTokenProvider jwtTokenProvider;
     @MockBean private UsuarioRepository usuarioRepository;
+
+    @BeforeEach
+    void setUp() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        UsuarioContext.setCurrentUser(usuarioId);
+    }
 
     @Test
     void estadosReturnsFourGroups() throws Exception {

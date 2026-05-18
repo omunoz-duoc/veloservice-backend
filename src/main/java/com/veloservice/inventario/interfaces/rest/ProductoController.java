@@ -1,5 +1,6 @@
 package com.veloservice.inventario.interfaces.rest;
 
+import com.veloservice.inventario.application.dto.ProductoResult;
 import com.veloservice.inventario.application.usecase.ProductoService;
 import com.veloservice.inventario.interfaces.mapper.ProductoMapper;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -46,8 +48,11 @@ public class ProductoController {
      * @return product list
      */
     @GetMapping
-    public ResponseEntity<Map<String, Object>> listar() {
-        List<ProductoResponse> productos = ProductoMapper.toResponseList(productoService.listar());
+    public ResponseEntity<Map<String, Object>> listar(@RequestParam(required = false) String search) {
+        List<ProductoResult> results = (search != null && search.length() >= 1)
+                ? productoService.buscar(search)
+                : productoService.listar();
+        List<ProductoResponse> productos = ProductoMapper.toResponseList(results);
         return ResponseEntity.ok(Map.of(
                 "total", productos.size(),
                 "productos", productos

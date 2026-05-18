@@ -75,6 +75,21 @@ public class ProductoService {
 
     @TenantOperation
     @Transactional(readOnly = true)
+    public List<ProductoResult> buscar(String query) {
+        if (query == null || query.isBlank()) {
+            return listar();
+        }
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null) {
+            return List.of();
+        }
+        return productoRepository.searchBySucursalId(sucursalId, query).stream()
+                .map(producto -> toResult(producto, resolveCategoriaNombre(producto.getCategoriaId())))
+                .collect(Collectors.toList());
+    }
+
+    @TenantOperation
+    @Transactional(readOnly = true)
     public List<ProductoResult> alertasStockBajo() {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
         if (sucursalId == null) {

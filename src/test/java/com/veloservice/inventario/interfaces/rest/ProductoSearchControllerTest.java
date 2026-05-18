@@ -1,0 +1,66 @@
+package com.veloservice.inventario.interfaces.rest;
+
+import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
+import com.veloservice.config.security.JwtTokenProvider;
+import com.veloservice.inventario.application.dto.ProductoResult;
+import com.veloservice.inventario.application.usecase.ProductoService;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.UUID;
+
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(ProductoController.class)
+@AutoConfigureMockMvc(addFilters = false)
+class ProductoSearchControllerTest {
+
+    @Autowired private MockMvc mockMvc;
+
+    @MockBean private ProductoService productoService;
+    @MockBean private JwtTokenProvider jwtTokenProvider;
+    @MockBean private UsuarioRepository usuarioRepository;
+
+    @Test
+    void searchReturnsFilteredProducts() throws Exception {
+        ProductoResult r = ProductoResult.builder()
+                .id(UUID.randomUUID())
+                .nombre("Cadena Shimano HG601")
+                .sku("SHM-HG601-11")
+                .precioVenta(new BigDecimal("18900"))
+                .stock(4)
+                .build();
+
+        when(productoService.buscar("shimano")).thenReturn(List.of(r));
+
+        mockMvc.perform(get("/productos").param("search", "shimano"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productos[0].nombre").value("Cadena Shimano HG601"));
+    }
+
+    @Test
+    void listarWithoutSearchReturnsAll() throws Exception {
+        ProductoResult r = ProductoResult.builder()
+                .id(UUID.randomUUID())
+                .nombre("Llanta MTB")
+                .sku("LLT-MTB-29")
+                .precioVenta(new BigDecimal("45000"))
+                .stock(2)
+                .build();
+
+        when(productoService.listar()).thenReturn(List.of(r));
+
+        mockMvc.perform(get("/productos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productos[0].nombre").value("Llanta MTB"));
+    }
+}

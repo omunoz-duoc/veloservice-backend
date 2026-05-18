@@ -2,6 +2,7 @@ package com.veloservice.inventario.infraestructure.persistence.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.veloservice.inventario.domain.model.Producto;
@@ -83,4 +84,9 @@ public interface ProductoRepository extends JpaRepository<Producto, UUID> {
      */
     @Query("select p from Producto p where p.sucursalId = :sucursalId and p.stock <= p.stockMinimo")
     List<Producto> findBySucursalIdAndStockLessThanEqualStockMinimo(UUID sucursalId);
+
+    @Query("SELECT p FROM Producto p WHERE p.sucursalId = :sucursalId AND " +
+           "(LOWER(p.nombre) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           " LOWER(p.sku)    LIKE LOWER(CONCAT('%', :q, '%')))")
+    List<Producto> searchBySucursalId(@Param("sucursalId") UUID sucursalId, @Param("q") String q);
 }
