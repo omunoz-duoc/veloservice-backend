@@ -3,6 +3,7 @@ package com.veloservice.ordenes.interfaces.rest;
 import com.veloservice.config.security.SucursalContext;
 import com.veloservice.config.security.UsuarioContext;
 import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
+import com.veloservice.ordenes.application.usecase.ComentarioService;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import com.veloservice.config.enums.EstadoOrdenEnum;
@@ -36,6 +37,7 @@ public class OrdenController {
  
     private final OrdenService ordenService;
     private final OrdenRepository ordenRepository;
+    private final ComentarioService comentarioService;
  
     /**
      * Creates a new work order.
@@ -226,6 +228,38 @@ public class OrdenController {
             return "\"" + str + "\"";
         }
         return str;
+    }
+
+    /**
+     * Lists comments for a work order.
+     */
+    @GetMapping("/{id}/comentarios")
+    public ResponseEntity<Map<String, Object>> listarComentarios(@PathVariable UUID id) {
+        var comentarios = comentarioService.listarPorOrden(id).stream()
+                .map(c -> ComentarioResponse.builder()
+                        .id(c.getId())
+                        .autor(c.getAutor())
+                        .texto(c.getTexto())
+                        .creadoEn(c.getCreadoEn())
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(Map.of("comentarios", comentarios));
+    }
+
+    /**
+     * Adds a comment to a work order.
+     */
+    @PostMapping("/{id}/comentarios")
+    public ResponseEntity<ComentarioResponse> agregarComentario(
+            @PathVariable UUID id,
+            @Valid @RequestBody ComentarioRequest request) {
+        var result = comentarioService.agregar(id, request.getTexto());
+        return ResponseEntity.ok(ComentarioResponse.builder()
+                .id(result.getId())
+                .autor(result.getAutor())
+                .texto(result.getTexto())
+                .creadoEn(result.getCreadoEn())
+                .build());
     }
 }
  
