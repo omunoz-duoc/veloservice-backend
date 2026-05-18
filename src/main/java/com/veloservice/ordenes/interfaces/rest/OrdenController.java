@@ -72,6 +72,9 @@ public class OrdenController {
     public ResponseEntity<Map<String, Long>> estados() {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
         UUID mecanicoId = UsuarioContext.getCurrentUser();
+        if (sucursalId == null || mecanicoId == null) {
+            return ResponseEntity.ok(Map.of());
+        }
         Map<String, Long> estados = ordenRepository
                 .findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId)
                 .stream()
