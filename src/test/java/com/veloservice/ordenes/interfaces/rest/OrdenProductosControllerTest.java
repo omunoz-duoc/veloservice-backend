@@ -66,7 +66,6 @@ class OrdenProductosControllerTest {
                 .andExpect(jsonPath("$.productos[0].cantidad").value(1));
     }
 
-    @Disabled("Task 8: DELETE /ordenes/{id}/productos/{productoId} not yet implemented")
     @Test
     void deleteProductoReturnsOk() throws Exception {
         UUID ordenId = UUID.randomUUID();

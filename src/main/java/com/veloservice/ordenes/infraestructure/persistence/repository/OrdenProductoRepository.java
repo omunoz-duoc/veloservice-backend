@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import com.veloservice.ordenes.domain.model.OrdenProducto;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -20,4 +21,13 @@ public interface OrdenProductoRepository extends JpaRepository<OrdenProducto, UU
      * @return work order products
      */
     List<OrdenProducto> findByOrdenId(UUID ordenId);
+
+    /**
+     * Finds a product line by work order and catalog product identifiers.
+     *
+     * @param ordenId    work order identifier
+     * @param productoId catalog product identifier
+     * @return matching order product, if present
+     */
+    Optional<OrdenProducto> findByOrdenIdAndProductoId(UUID ordenId, UUID productoId);
 }

@@ -249,6 +249,40 @@ public class OrdenService {
                 .collect(Collectors.toList());
     }
 
+    @TenantOperation
+    @Transactional
+    public void eliminarProducto(UUID ordenId, UUID productoId) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        UUID usuarioId = UsuarioContext.getCurrentUser();
+
+        var ordenProducto = ordenProductoRepository.findByOrdenIdAndProductoId(ordenId, productoId)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado en la orden"));
+
+        if (!Boolean.TRUE.equals(ordenProducto.getProporcionadoPorCliente())) {
+            var producto = productoRepository.findByIdAndSucursalId(productoId, sucursalId)
+                    .orElse(null);
+            if (producto != null) {
+                int stockAnterior = producto.getStock();
+                producto.setStock(stockAnterior + ordenProducto.getCantidad());
+                productoRepository.save(producto);
+
+                var movimiento = com.veloservice.inventario.domain.model.MovimientoStock.builder()
+                        .productoId(productoId)
+                        .ordenId(ordenId)
+                        .usuarioId(usuarioId)
+                        .tipo(TipoMovimientoEnum.entrada)
+                        .cantidad(ordenProducto.getCantidad())
+                        .stockAnterior(stockAnterior)
+                        .stockPosterior(producto.getStock())
+                        .motivo("Devolución por eliminación de orden")
+                        .build();
+                movimientoStockRepository.save(movimiento);
+            }
+        }
+
+        ordenProductoRepository.delete(ordenProducto);
+    }
+
     /**
      * Lists work orders for the current tenant.
      *

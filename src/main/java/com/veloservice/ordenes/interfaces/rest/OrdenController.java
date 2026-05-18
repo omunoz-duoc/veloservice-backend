@@ -336,5 +336,13 @@ public class OrdenController {
                 .collect(Collectors.toList());
         return ResponseEntity.ok(Map.of("productos", productos));
     }
+
+    @DeleteMapping("/{id}/productos/{productoId}")
+    public ResponseEntity<Map<String, Object>> eliminarProducto(
+            @PathVariable UUID id,
+            @PathVariable UUID productoId) {
+        ordenService.eliminarProducto(id, productoId);
+        return ResponseEntity.ok(Map.of());
+    }
 }
  
