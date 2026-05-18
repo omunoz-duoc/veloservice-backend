@@ -47,6 +47,11 @@ public class MultimediaService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public void eliminar(UUID id) {
+        multimediaRepository.deleteById(id);
+    }
+
     private MultimediaResult toResult(Multimedia m) {
         return MultimediaResult.builder()
                 .id(m.getId())

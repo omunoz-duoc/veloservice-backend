@@ -4,7 +4,9 @@ import com.veloservice.config.security.SucursalContext;
 import com.veloservice.config.security.UsuarioContext;
 import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
 import com.veloservice.ordenes.application.usecase.ComentarioService;
+import com.veloservice.ordenes.application.usecase.MultimediaService;
 import com.veloservice.ordenes.application.usecase.OrdenService;
+import com.veloservice.ordenes.interfaces.mapper.MultimediaMapper;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import com.veloservice.config.enums.EstadoOrdenEnum;
 import com.veloservice.ordenes.interfaces.mapper.OrdenMapper;
@@ -15,10 +17,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
  
 import java.util.EnumSet;
@@ -38,6 +42,7 @@ public class OrdenController {
     private final OrdenService ordenService;
     private final OrdenRepository ordenRepository;
     private final ComentarioService comentarioService;
+    private final MultimediaService multimediaService;
  
     /**
      * Creates a new work order.
@@ -260,6 +265,58 @@ public class OrdenController {
                 .texto(result.getTexto())
                 .creadoEn(result.getCreadoEn())
                 .build());
+    }
+
+    /**
+     * Lists multimedia for a work order.
+     */
+    @GetMapping("/{id}/multimedia")
+    public ResponseEntity<Map<String, Object>> listarMultimedia(@PathVariable UUID id) {
+        var multimedia = multimediaService.listarPorOrden(id).stream()
+                .map(m -> MultimediaResponse.builder()
+                        .id(m.getId())
+                        .ordenId(m.getOrdenId())
+                        .usuarioId(m.getUsuarioId())
+                        .url(m.getUrl())
+                        .tipoArchivo(m.getTipoArchivo())
+                        .etapa(m.getEtapa())
+                        .descripcion(m.getDescripcion())
+                        .createdAt(m.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(Map.of("multimedia", multimedia));
+    }
+
+    /**
+     * Uploads multimedia for a work order.
+     */
+    @PostMapping("/{id}/multimedia")
+    public ResponseEntity<MultimediaResponse> subirMultimedia(
+            @PathVariable UUID id,
+            @RequestParam String etapa,
+            @Valid @RequestBody MultimediaRequest request) {
+        var result = multimediaService.subir(id, etapa, MultimediaMapper.toCommand(request));
+        return ResponseEntity.ok(MultimediaResponse.builder()
+                .id(result.getId())
+                .ordenId(result.getOrdenId())
+                .usuarioId(result.getUsuarioId())
+                .url(result.getUrl())
+                .tipoArchivo(result.getTipoArchivo())
+                .etapa(result.getEtapa())
+                .descripcion(result.getDescripcion())
+                .createdAt(result.getCreatedAt())
+                .build());
+    }
+
+    /**
+     * Deletes multimedia from a work order.
+     */
+    @DeleteMapping("/{id}/multimedia/{mediaId}")
+    public ResponseEntity<Map<String, Object>> eliminarMultimedia(
+            @PathVariable UUID id,
+            @PathVariable UUID mediaId) {
+        multimediaService.eliminar(mediaId);
+        return ResponseEntity.ok(Map.of());
     }
 }
  
