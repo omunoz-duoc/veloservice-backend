@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
  
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -57,6 +58,13 @@ public class OrdenController {
         ));
     }
  
+    private static final java.util.Set<EstadoOrdenEnum> EN_PROCESO_ESTADOS = EnumSet.of(
+        EstadoOrdenEnum.en_diagnostico,
+        EstadoOrdenEnum.esperando_repuestos,
+        EstadoOrdenEnum.en_reparacion,
+        EstadoOrdenEnum.control_calidad
+    );
+
     /**
      * Returns order count grouped by status for the authenticated mechanic.
      */
@@ -64,14 +72,20 @@ public class OrdenController {
     public ResponseEntity<Map<String, Long>> estados() {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
         UUID mecanicoId = UsuarioContext.getCurrentUser();
-        if (sucursalId == null || mecanicoId == null) {
-            return ResponseEntity.ok(Map.of());
-        }
         Map<String, Long> estados = ordenRepository
                 .findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId)
                 .stream()
-                .collect(Collectors.groupingBy(o -> o.getEstado().name(), Collectors.counting()));
+                .filter(o -> o.getEstado() != EstadoOrdenEnum.cancelada)
+                .collect(Collectors.groupingBy(
+                    o -> toGrupoEstado(o.getEstado()),
+                    Collectors.counting()
+                ));
         return ResponseEntity.ok(estados);
+    }
+
+    private static String toGrupoEstado(EstadoOrdenEnum estado) {
+        if (EN_PROCESO_ESTADOS.contains(estado)) return "en_proceso";
+        return estado.name();
     }
  
     /**
