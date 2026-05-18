@@ -48,7 +48,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * Handles work order lifecycle operations.
@@ -255,29 +254,30 @@ public class OrdenService {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
         UUID usuarioId = UsuarioContext.getCurrentUser();
 
+        ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)
+                .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+
         var ordenProducto = ordenProductoRepository.findByOrdenIdAndProductoId(ordenId, productoId)
                 .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado en la orden"));
 
         if (!Boolean.TRUE.equals(ordenProducto.getProporcionadoPorCliente())) {
             var producto = productoRepository.findByIdAndSucursalId(productoId, sucursalId)
-                    .orElse(null);
-            if (producto != null) {
-                int stockAnterior = producto.getStock();
-                producto.setStock(stockAnterior + ordenProducto.getCantidad());
-                productoRepository.save(producto);
+                    .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado en la sucursal"));
+            int stockAnterior = producto.getStock();
+            producto.setStock(stockAnterior + ordenProducto.getCantidad());
+            productoRepository.save(producto);
 
-                var movimiento = com.veloservice.inventario.domain.model.MovimientoStock.builder()
-                        .productoId(productoId)
-                        .ordenId(ordenId)
-                        .usuarioId(usuarioId)
-                        .tipo(TipoMovimientoEnum.entrada)
-                        .cantidad(ordenProducto.getCantidad())
-                        .stockAnterior(stockAnterior)
-                        .stockPosterior(producto.getStock())
-                        .motivo("Devolución por eliminación de orden")
-                        .build();
-                movimientoStockRepository.save(movimiento);
-            }
+            var movimiento = com.veloservice.inventario.domain.model.MovimientoStock.builder()
+                    .productoId(productoId)
+                    .ordenId(ordenId)
+                    .usuarioId(usuarioId)
+                    .tipo(TipoMovimientoEnum.entrada)
+                    .cantidad(ordenProducto.getCantidad())
+                    .stockAnterior(stockAnterior)
+                    .stockPosterior(producto.getStock())
+                    .motivo("Devolución por eliminación de orden")
+                    .build();
+            movimientoStockRepository.save(movimiento);
         }
 
         ordenProductoRepository.delete(ordenProducto);

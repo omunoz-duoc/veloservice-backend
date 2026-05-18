@@ -20,8 +20,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.Disabled;
-
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -73,5 +72,7 @@ class OrdenProductosControllerTest {
 
         mockMvc.perform(delete("/ordenes/{id}/productos/{productoId}", ordenId, productoId))
                 .andExpect(status().isOk());
+
+        verify(ordenService).eliminarProducto(ordenId, productoId);
     }
 }
