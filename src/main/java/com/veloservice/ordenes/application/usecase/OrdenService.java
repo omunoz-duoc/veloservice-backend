@@ -22,6 +22,7 @@ import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenResumenResult;
 import com.veloservice.ordenes.application.dto.OrdenResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
+import com.veloservice.ordenes.application.dto.OrdenProductoResult;
 import com.veloservice.ordenes.application.dto.OrdenUrgenteResult;
 import com.veloservice.ordenes.domain.model.Multimedia;
 import com.veloservice.ordenes.domain.model.Orden;
@@ -229,6 +230,24 @@ public class OrdenService {
         ordenProductoRepository.save(ordenProducto);
         return toResult(orden);
         }
+
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<OrdenProductoResult> listarProductosPorOrden(UUID ordenId) {
+        return ordenProductoRepository.findByOrdenId(ordenId).stream()
+                .map(op -> {
+                    var producto = productoRepository.findById(op.getProductoId()).orElse(null);
+                    return OrdenProductoResult.builder()
+                            .id(op.getId())
+                            .productoId(op.getProductoId())
+                            .nombre(producto != null ? producto.getNombre() : "")
+                            .sku(producto != null ? producto.getSku() : "")
+                            .cantidad(op.getCantidad())
+                            .precioVenta(op.getPrecioVentaSnapshot())
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
 
     /**
      * Lists work orders for the current tenant.

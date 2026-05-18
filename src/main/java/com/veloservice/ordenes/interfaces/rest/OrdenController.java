@@ -318,5 +318,23 @@ public class OrdenController {
         multimediaService.eliminar(mediaId);
         return ResponseEntity.ok(Map.of());
     }
+
+    /**
+     * Lists products for a work order.
+     */
+    @GetMapping("/{id}/productos")
+    public ResponseEntity<Map<String, Object>> listarProductos(@PathVariable UUID id) {
+        var productos = ordenService.listarProductosPorOrden(id).stream()
+                .map(r -> OrdenProductoResponse.builder()
+                        .id(r.getId())
+                        .productoId(r.getProductoId())
+                        .nombre(r.getNombre())
+                        .sku(r.getSku())
+                        .cantidad(r.getCantidad())
+                        .precioVenta(r.getPrecioVenta())
+                        .build())
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(Map.of("productos", productos));
+    }
 }
  
