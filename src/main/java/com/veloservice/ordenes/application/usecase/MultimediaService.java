@@ -4,6 +4,7 @@ import com.veloservice.config.enums.EtapaMultimediaEnum;
 import com.veloservice.config.security.UsuarioContext;
 import com.veloservice.ordenes.application.dto.MultimediaCreateCommand;
 import com.veloservice.ordenes.application.dto.MultimediaResult;
+import com.veloservice.ordenes.application.dto.PresignResult;
 import com.veloservice.ordenes.domain.model.Multimedia;
 import com.veloservice.ordenes.infraestructure.persistence.repository.MultimediaRepository;
 
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 public class MultimediaService {
 
     private final MultimediaRepository multimediaRepository;
+    private final StorageService storageService;
 
     @Transactional
     public MultimediaResult subir(UUID ordenId, String etapa, MultimediaCreateCommand command) {
@@ -50,6 +52,19 @@ public class MultimediaService {
     @Transactional
     public void eliminar(UUID id) {
         multimediaRepository.deleteById(id);
+    }
+
+    public PresignResult generarPresign(UUID ordenId, String fileName, String contentType, long fileSize) {
+        if (!List.of("image/jpeg", "image/png").contains(contentType)) {
+            throw new IllegalArgumentException("Tipo de archivo no permitido. Use image/jpeg o image/png");
+        }
+        if (fileSize > 10_485_760L) {
+            throw new IllegalArgumentException("El archivo supera el límite de 10 MB");
+        }
+        String ext = "image/jpeg".equals(contentType) ? "jpg" : "png";
+        String fileKey = "ordenes/" + ordenId + "/" + UUID.randomUUID() + "." + ext;
+        String uploadUrl = storageService.presign(fileKey, contentType, 10);
+        return new PresignResult(uploadUrl, fileKey);
     }
 
     private MultimediaResult toResult(Multimedia m) {
