@@ -14,14 +14,53 @@ VALUES ('880e8400-e29b-41d4-a716-446655440003', '660e8400-e29b-41d4-a716-4466554
 INSERT INTO clientes (id, external_id, nombre, apellido, rut, email, telefono, created_at, updated_at)
 VALUES ('aa0e8400-e29b-41d4-a716-446655440005', 'CLI-0001', 'Matias', 'Diaz', '13.456.789-0', 'matias@email.com', '+56912345678', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
+-- Cliente adicional
+INSERT INTO clientes (id, external_id, nombre, apellido, rut, email, telefono, created_at, updated_at)
+VALUES ('aa0e8400-e29b-41d4-a716-446655440099', 'CLI-0002', 'Juan', 'Pérez', '15.222.333-4', 'juan@email.com', '+56911112222', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
 -- Insertar bicicleta de prueba
 INSERT INTO bicicletas (id, cliente_id, marca, modelo, numero_serie, color, tipo, created_at)
 VALUES ('990e8400-e29b-41d4-a716-446655440004', 'aa0e8400-e29b-41d4-a716-446655440005', 'Trek', 'Domane SL', 'SN123456', 'Rojo', 'Ruta', CURRENT_TIMESTAMP);
 
+-- Bicicleta adicional
+INSERT INTO bicicletas (id, cliente_id, marca, modelo, numero_serie, color, tipo, created_at)
+VALUES ('990e8400-e29b-41d4-a716-446655440099', 'aa0e8400-e29b-41d4-a716-446655440099', 'Specialized', 'Allez', 'SN654321', 'Azul', 'Ruta', CURRENT_TIMESTAMP);
+
 -- Insertar orden 1 (EN_PROCESO)
 INSERT INTO ordenes (id, external_id, numero_orden, sucursal_id, mecanico_id, bicicleta_id, estado, tipo, prioridad, descripcion_trabajo, diagnostico_inicial, fecha_ingreso, fecha_prometida, created_at, updated_at, descuento_manual, porcentaje_descuento_membresia)
-VALUES ('bb0e8400-e29b-41d4-a716-446655440006', 'OT-2026-001', 'OT-2026-001', '660e8400-e29b-41d4-a716-446655440001', '880e8400-e29b-41d4-a716-446655440003', '990e8400-e29b-41d4-a716-446655440004', 'en_proceso', 'mantencion', 'MEDIA', 'Cambio de cadena y ajuste de frenos', 'Cambio de cadena y ajuste de frenos', CURRENT_TIMESTAMP, DATEADD('DAY', 3, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 0);
+VALUES ('bb0e8400-e29b-41d4-a716-446655440006', 'OT-2026-001', 'OT-2026-001', '660e8400-e29b-41d4-a716-446655440001', '880e8400-e29b-41d4-a716-446655440003', '990e8400-e29b-41d4-a716-446655440004', 'recibida', 'mantencion', 'MEDIA', 'Cambio de cadena y ajuste de frenos', 'Cambio de cadena y ajuste de frenos', CURRENT_TIMESTAMP, DATEADD('DAY', 3, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 0);
+
+-- Orden adicional
+INSERT INTO ordenes (id, external_id, numero_orden, sucursal_id, mecanico_id, bicicleta_id, estado, tipo, prioridad, descripcion_trabajo, diagnostico_inicial, fecha_ingreso, fecha_prometida, created_at, updated_at, descuento_manual, porcentaje_descuento_membresia)
+VALUES ('bb0e8400-e29b-41d4-a716-446655440099', 'OT-2026-099', 'OT-2026-099', '660e8400-e29b-41d4-a716-446655440001', '880e8400-e29b-41d4-a716-446655440003', '990e8400-e29b-41d4-a716-446655440099', 'recibida', 'mantencion', 'ALTA', 'Ajuste de cambios', 'Ajuste de cambios', CURRENT_TIMESTAMP, DATEADD('DAY', 2, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 0);
 
 -- Insertar orden 2 (RECIBIDA)
 INSERT INTO ordenes (id, external_id, numero_orden, sucursal_id, mecanico_id, bicicleta_id, estado, tipo, prioridad, descripcion_trabajo, diagnostico_inicial, fecha_ingreso, fecha_prometida, created_at, updated_at, descuento_manual, porcentaje_descuento_membresia)
 VALUES ('cc0e8400-e29b-41d4-a716-446655440007', 'OT-2026-002', 'OT-2026-002', '660e8400-e29b-41d4-a716-446655440001', '880e8400-e29b-41d4-a716-446655440003', '990e8400-e29b-41d4-a716-446655440004', 'recibida', 'reparacion', 'MEDIA', 'Revisión de transmisión', 'Ruido en transmisión al pedalear', CURRENT_TIMESTAMP, DATEADD('DAY', 2, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 0);
+
+INSERT INTO comentarios (id, orden_id, usuario_id, texto, created_at)
+VALUES ('d10e8400-e29b-41d4-a716-446655440010', 'bb0e8400-e29b-41d4-a716-446655440006', '880e8400-e29b-41d4-a716-446655440003', 'Se detectó desgaste', CURRENT_TIMESTAMP);
+
+-- Comentario adicional para orden nueva
+INSERT INTO comentarios (id, orden_id, usuario_id, texto, created_at)
+VALUES ('d10e8400-e29b-41d4-a716-446655440099', 'bb0e8400-e29b-41d4-a716-446655440099', '880e8400-e29b-41d4-a716-446655440003', 'Cambio de piñón realizado', CURRENT_TIMESTAMP);
+
+-- Insertar multimedia de prueba para orden 1
+INSERT INTO multimedia (id, orden_id, usuario_id, url, tipo_archivo, etapa, descripcion, created_at)
+VALUES ('e10e8400-e29b-41d4-a716-446655440011', 'bb0e8400-e29b-41d4-a716-446655440006', '880e8400-e29b-41d4-a716-446655440003', 'https://storage.example.com/foto1.jpg', 'imagen', 'diagnostico', 'Foto de daño', CURRENT_TIMESTAMP);
+
+-- Multimedia adicional para orden nueva
+INSERT INTO multimedia (id, orden_id, usuario_id, url, tipo_archivo, etapa, descripcion, created_at)
+VALUES ('e10e8400-e29b-41d4-a716-446655440099', 'bb0e8400-e29b-41d4-a716-446655440099', '880e8400-e29b-41d4-a716-446655440003', 'https://storage.example.com/foto2.jpg', 'imagen', 'reparacion', 'Foto de reparación', CURRENT_TIMESTAMP);
+
+-- Insertar producto de prueba para orden 1
+INSERT INTO orden_productos (id, orden_id, producto_id, cantidad, precio_aplicado, precio_costo_snapshot, precio_venta_snapshot, proporcionado_por_cliente, created_at, notas)
+VALUES ('f10e8400-e29b-41d4-a716-446655440012', 'bb0e8400-e29b-41d4-a716-446655440006', 'a10e8400-e29b-41d4-a716-446655440013', 1, 18900, 15000, 18900, FALSE, CURRENT_TIMESTAMP, 'Cadena Shimano HG601');
+
+-- Producto adicional para orden nueva
+INSERT INTO orden_productos (id, orden_id, producto_id, cantidad, precio_aplicado, precio_costo_snapshot, precio_venta_snapshot, proporcionado_por_cliente, created_at, notas)
+VALUES ('f10e8400-e29b-41d4-a716-446655440099', 'bb0e8400-e29b-41d4-a716-446655440099', 'a10e8400-e29b-41d4-a716-446655440013', 2, 18900, 15000, 18900, FALSE, CURRENT_TIMESTAMP, 'Cadena Shimano HG601 (adicional)');
+
+-- Insertar producto en tabla productos para referencia
+INSERT INTO productos (id, sucursal_id, nombre, sku, precio_costo, precio_venta, stock, stock_minimo, unidad_medida, activo, created_at, updated_at)
+VALUES ('a10e8400-e29b-41d4-a716-446655440013', '660e8400-e29b-41d4-a716-446655440001', 'Cadena Shimano HG601', 'SHM-HG601-11', 15000, 18900, 10, 2, 'unidad', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);

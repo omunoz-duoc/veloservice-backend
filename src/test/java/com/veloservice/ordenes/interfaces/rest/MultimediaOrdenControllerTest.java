@@ -52,6 +52,7 @@ class MultimediaOrdenControllerTest {
     @Test
     void getMultimediaReturnsListForOrden() throws Exception {
         UUID ordenId = UUID.randomUUID();
+        when(ordenService.resolveOrdenId(ordenId.toString())).thenReturn(ordenId);
         MultimediaResult m = MultimediaResult.builder()
                 .id(UUID.randomUUID())
                 .ordenId(ordenId)
@@ -73,6 +74,7 @@ class MultimediaOrdenControllerTest {
     @Test
     void postMultimediaUploadsAndReturns() throws Exception {
         UUID ordenId = UUID.randomUUID();
+        when(ordenService.resolveOrdenId(ordenId.toString())).thenReturn(ordenId);
         MultimediaResult m = MultimediaResult.builder()
                 .id(UUID.randomUUID())
                 .ordenId(ordenId)
@@ -99,6 +101,7 @@ class MultimediaOrdenControllerTest {
     @Test
     void deleteMultimediaReturnsOk() throws Exception {
         UUID ordenId = UUID.randomUUID();
+        when(ordenService.resolveOrdenId(ordenId.toString())).thenReturn(ordenId);
         UUID mediaId = UUID.randomUUID();
         doNothing().when(multimediaService).eliminar(mediaId);
 

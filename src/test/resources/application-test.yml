@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:veloservice;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        type:
+          preferred_instant_jdbc_type: TIMESTAMP
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: never
+
+# Variables de entorno que el código espera
+jwt:
+  secret: test-secret-key-para-tests-de-veloservice-backend-12345678901234567890
+  expiration: 86400000
+
+app:
+  url: http://localhost:8080

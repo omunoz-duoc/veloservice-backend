@@ -1,6 +1,7 @@
 package com.veloservice.administracion.interfaces.rest;
 
 import com.veloservice.administracion.application.usecase.MecanicoService;
+import com.veloservice.administracion.interfaces.rest.MecanicoPerfilResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,14 @@ public class MecanicoController {
                 "total", mecanicos.size(),
                 "mecanicos", mecanicos
         ));
+    }
+
+    /**
+     * Perfil técnico del mecánico: métricas, órdenes completadas y datos relevantes
+     */
+    @GetMapping("/{id}/perfil-tecnico")
+    public ResponseEntity<MecanicoPerfilResponse> perfilTecnico(@PathVariable UUID id) {
+        return ResponseEntity.ok(mecanicoService.obtenerPerfilTecnico(id));
     }
 
     /**

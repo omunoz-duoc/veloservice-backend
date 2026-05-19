@@ -50,8 +50,7 @@ public class MovimientoStock {
     private UUID usuarioId;
 
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(nullable = false, columnDefinition = "tipo_movimiento_enum")
+    @Column(nullable = false)
     private TipoMovimientoEnum tipo;
 
     @Column(nullable = false)

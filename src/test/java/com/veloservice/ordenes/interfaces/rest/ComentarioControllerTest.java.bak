@@ -1,8 +1,9 @@
 package com.veloservice.ordenes.interfaces.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.config.security.JwtTokenProvider;
-import com.veloservice.ordenes.application.dto.OrdenProductoResult;
+import com.veloservice.ordenes.application.dto.ComentarioResult;
 import com.veloservice.ordenes.application.usecase.ComentarioService;
 import com.veloservice.ordenes.application.usecase.MultimediaService;
 import com.veloservice.ordenes.application.usecase.OrdenService;
@@ -14,24 +15,30 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.TestPropertySource;
 
-import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(OrdenController.class)
+@TestPropertySource(properties = "server.servlet.context-path=/api/v1")
 @AutoConfigureMockMvc(addFilters = false)
-class OrdenProductosControllerTest {
+@AutoConfigureMockMvc(printOnlyOnFailure = false)
+class ComentarioControllerTest {
 
     @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
     @MockBean private OrdenService ordenService;
     @MockBean private OrdenRepository ordenRepository;
@@ -43,38 +50,42 @@ class OrdenProductosControllerTest {
     @MockBean private UsuarioRepository usuarioRepository;
 
     @Test
-    void getProductosReturnsListForOrden() throws Exception {
+    void getComentariosReturnsListForOrden() throws Exception {
         UUID ordenId = UUID.randomUUID();
-        when(ordenService.resolveOrdenId(ordenId.toString())).thenReturn(ordenId);
-        UUID productoId = UUID.randomUUID();
-
-        OrdenProductoResult r = OrdenProductoResult.builder()
+        ComentarioResult result = ComentarioResult.builder()
                 .id(UUID.randomUUID())
-                .productoId(productoId)
-                .nombre("Cadena Shimano HG601")
-                .sku("SHM-HG601-11")
-                .cantidad(1)
-                .precioVenta(new BigDecimal("18900"))
+                .autor("Juan Pérez")
+                .texto("Se detectó desgaste")
+                .creadoEn(OffsetDateTime.now())
                 .build();
 
-        when(ordenService.listarProductosPorOrden(ordenId)).thenReturn(List.of(r));
+        when(comentarioService.listarPorOrden(ordenId)).thenReturn(List.of(result));
 
-        mockMvc.perform(get("/ordenes/{id}/productos", ordenId))
+        mockMvc.perform(get("/ordenes/{id}/comentarios", ordenId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.productos[0].nombre").value("Cadena Shimano HG601"))
-                .andExpect(jsonPath("$.productos[0].sku").value("SHM-HG601-11"))
-                .andExpect(jsonPath("$.productos[0].cantidad").value(1));
+                .andExpect(jsonPath("$.comentarios[0].autor").value("Juan Pérez"))
+                .andExpect(jsonPath("$.comentarios[0].texto").value("Se detectó desgaste"));
     }
 
     @Test
-    void deleteProductoReturnsOk() throws Exception {
+    void postComentarioCreatesAndReturns() throws Exception {
         UUID ordenId = UUID.randomUUID();
-        when(ordenService.resolveOrdenId(ordenId.toString())).thenReturn(ordenId);
-        UUID productoId = UUID.randomUUID();
+        ComentarioResult result = ComentarioResult.builder()
+                .id(UUID.randomUUID())
+                .autor("Ana Gómez")
+                .texto("Repuesto solicitado")
+                .creadoEn(OffsetDateTime.now())
+                .build();
 
-        mockMvc.perform(delete("/ordenes/{id}/productos/{productoId}", ordenId, productoId))
-                .andExpect(status().isOk());
+        when(comentarioService.agregar(eq(ordenId), any())).thenReturn(result);
 
-        verify(ordenService).eliminarProducto(ordenId, productoId);
+        ComentarioRequest req = new ComentarioRequest();
+        req.setTexto("Repuesto solicitado");
+
+        mockMvc.perform(post("/ordenes/{id}/comentarios", ordenId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.autor").value("Ana Gómez"));
     }
 }

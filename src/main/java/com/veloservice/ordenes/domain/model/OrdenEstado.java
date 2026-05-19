@@ -44,13 +44,11 @@ public class OrdenEstado {
     private UUID usuarioId;
 
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "estado_anterior", columnDefinition = "estado_orden_enum")
+    @Column(name = "estado_anterior")
     private EstadoOrdenEnum estadoAnterior;
 
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "estado_nuevo", nullable = false, columnDefinition = "estado_orden_enum")
+    @Column(name = "estado_nuevo", nullable = false)
     private EstadoOrdenEnum estadoNuevo;
 
     @Column(columnDefinition = "TEXT")
