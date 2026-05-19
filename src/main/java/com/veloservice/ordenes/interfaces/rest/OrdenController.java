@@ -146,10 +146,11 @@ public class OrdenController {
      */
     @PatchMapping("/{id}/estado")
     public ResponseEntity<OrdenResponse> cambiarEstado(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @Valid @RequestBody EstadoChangeRequest request) {
+        UUID ordenId = ordenService.resolveOrdenId(id);
         return ResponseEntity.ok(OrdenMapper.toResponse(
-                ordenService.cambiarEstado(id, OrdenMapper.toEstadoChangeCommand(request))
+                ordenService.cambiarEstado(ordenId, OrdenMapper.toEstadoChangeCommand(request))
         ));
     }
  
@@ -158,10 +159,11 @@ public class OrdenController {
      */
     @PostMapping("/{id}/servicios")
     public ResponseEntity<OrdenResponse> agregarServicio(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @Valid @RequestBody OrdenServicioRequest request) {
+                UUID ordenId = ordenService.resolveOrdenId(id);
         return ResponseEntity.ok(OrdenMapper.toResponse(
-                ordenService.agregarServicio(id, OrdenMapper.toServicioCommand(request))
+                ordenService.agregarServicio(ordenId, OrdenMapper.toServicioCommand(request))
         ));
     }
  
@@ -170,10 +172,11 @@ public class OrdenController {
      */
     @PostMapping("/{id}/productos")
     public ResponseEntity<OrdenResponse> agregarProducto(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @Valid @RequestBody OrdenProductoRequest request) {
+                UUID ordenId = ordenService.resolveOrdenId(id);
         return ResponseEntity.ok(OrdenMapper.toResponse(
-            ordenService.agregarProducto(id, com.veloservice.ordenes.interfaces.mapper.OrdenMapper.toProductoCommand(request))
+            ordenService.agregarProducto(ordenId, com.veloservice.ordenes.interfaces.mapper.OrdenMapper.toProductoCommand(request))
         ));
     }
  

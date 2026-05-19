@@ -43,11 +43,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.stream.Collectors;
 import java.util.UUID;
-import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Handles work order lifecycle operations.
@@ -56,24 +52,6 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class OrdenService {
 
-    private static final Map<EstadoOrdenEnum, Set<EstadoOrdenEnum>> TRANSICIONES_VALIDAS;
-
-    static {
-        Map<EstadoOrdenEnum, Set<EstadoOrdenEnum>> transiciones = new EnumMap<>(EstadoOrdenEnum.class);
-        transiciones.put(EstadoOrdenEnum.recibida,
-                EnumSet.of(EstadoOrdenEnum.en_diagnostico));
-        transiciones.put(EstadoOrdenEnum.en_diagnostico,
-                EnumSet.of(EstadoOrdenEnum.esperando_repuestos));
-        transiciones.put(EstadoOrdenEnum.esperando_repuestos,
-                EnumSet.of(EstadoOrdenEnum.en_reparacion));
-        transiciones.put(EstadoOrdenEnum.en_reparacion,
-                EnumSet.of(EstadoOrdenEnum.control_calidad));
-        transiciones.put(EstadoOrdenEnum.control_calidad,
-                EnumSet.of(EstadoOrdenEnum.lista_para_entrega));
-        transiciones.put(EstadoOrdenEnum.lista_para_entrega,
-                EnumSet.of(EstadoOrdenEnum.entregada));
-        TRANSICIONES_VALIDAS = Map.copyOf(transiciones);
-    }
 
     private final OrdenRepository ordenRepository;
     private final OrdenEstadoRepository ordenEstadoRepository;
@@ -130,11 +108,6 @@ public class OrdenService {
 
         EstadoOrdenEnum estadoActual = orden.getEstado();
         EstadoOrdenEnum estadoNuevo = command.getNuevoEstado();
-
-        Set<EstadoOrdenEnum> permitidos = TRANSICIONES_VALIDAS.getOrDefault(estadoActual, Set.of());
-        if (!permitidos.contains(estadoNuevo)) {
-            throw new IllegalArgumentException("Transicion no permitida: " + estadoActual + "->" + estadoNuevo);
-        }
 
         if (EstadoOrdenEnum.lista_para_entrega.equals(estadoNuevo)) {
             boolean tieneEvidenciaTecnica = multimediaRepository.existsByOrdenIdAndEtapa(

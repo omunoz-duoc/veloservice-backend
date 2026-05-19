@@ -1,0 +1,2 @@
+ALTER TABLE ordenes
+    ALTER COLUMN tipo TYPE VARCHAR(50) USING tipo::TEXT;
