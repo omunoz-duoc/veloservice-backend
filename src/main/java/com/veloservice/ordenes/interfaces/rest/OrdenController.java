@@ -144,7 +144,6 @@ public class OrdenController {
     /**
      * Changes the state of a work order.
      */
-    @PutMapping("/{id}/estado")
     @PatchMapping("/{id}/estado")
     public ResponseEntity<OrdenResponse> cambiarEstado(
             @PathVariable UUID id,
@@ -238,36 +237,10 @@ public class OrdenController {
     /**
      * Lists comments for a work order.
      */
-    @GetMapping("/{id}/comentarios")
-    public ResponseEntity<Map<String, Object>> listarComentarios(@PathVariable String id) {
-        UUID ordenId = ordenService.resolveOrdenId(id);
-        var comentarios = comentarioService.listarPorOrden(ordenId).stream()
-                .map(c -> ComentarioResponse.builder()
-                        .id(c.getId())
-                        .autor(c.getAutor())
-                        .texto(c.getTexto())
-                        .creadoEn(c.getCreadoEn())
-                        .build())
-                .collect(java.util.stream.Collectors.toList());
-        return ResponseEntity.ok(Map.of("comentarios", comentarios));
-    }
 
     /**
      * Adds a comment to a work order.
      */
-    @PostMapping("/{id}/comentarios")
-    public ResponseEntity<ComentarioResponse> agregarComentario(
-            @PathVariable String id,
-            @Valid @RequestBody ComentarioRequest request) {
-        UUID ordenId = ordenService.resolveOrdenId(id);
-        var result = comentarioService.agregar(ordenId, request.getTexto());
-        return ResponseEntity.ok(ComentarioResponse.builder()
-                .id(result.getId())
-                .autor(result.getAutor())
-                .texto(result.getTexto())
-                .creadoEn(result.getCreadoEn())
-                .build());
-    }
 
     /**
      * Lists multimedia for a work order.

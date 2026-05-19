@@ -3,6 +3,8 @@ package com.veloservice.administracion.application.usecase;
 import com.veloservice.administracion.domain.model.Usuario;
 import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.administracion.interfaces.rest.MecanicoResponse;
+import com.veloservice.administracion.interfaces.rest.MecanicoPerfilResponse;
+import java.time.Duration;
 import com.veloservice.config.enums.EstadoOrdenEnum;
 import com.veloservice.config.security.SucursalContext;
 import com.veloservice.config.tenant.TenantOperation;
@@ -81,6 +83,47 @@ public class MecanicoService {
                 .nombre(usuario.getNombre())
                 .apellido(usuario.getApellido())
                 .ordenesEnCurso(ordenesEnCurso)
+                .build();
+    }
+
+    /**
+     * Obtiene el perfil técnico del mecánico: métricas, órdenes completadas y datos relevantes
+     */
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public MecanicoPerfilResponse obtenerPerfilTecnico(UUID mecanicoId) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        Usuario usuario = usuarioRepository.findById(mecanicoId)
+                .filter(u -> u.getSucursal().getId().equals(sucursalId))
+                .orElseThrow(() -> new IllegalArgumentException("Mecánico no encontrado"));
+
+        var ordenes = ordenRepository.findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId);
+        int totalOrdenes = ordenes.size();
+        var completadas = ordenes.stream().filter(o -> o.getEstado() == EstadoOrdenEnum.entregada).collect(Collectors.toList());
+        int ordenesCompletadas = completadas.size();
+        double tiempoPromedioDias = completadas.stream()
+                .filter(o -> o.getFechaIngreso() != null && o.getFechaEntrega() != null)
+                .mapToLong(o -> Duration.between(o.getFechaIngreso(), o.getFechaEntrega()).toDays())
+                .average().orElse(0);
+        var ordenesRecientes = ordenes.stream().limit(5)
+                .map(o -> MecanicoPerfilResponse.OrdenResumenDTO.builder()
+                        .id(o.getId())
+                        .descripcion(o.getDescripcionTrabajo())
+                        .estado(o.getEstado() != null ? o.getEstado().name() : null)
+                        .cliente("") // Completar con nombre cliente si es necesario
+                        .build())
+                .collect(Collectors.toList());
+        String nivelTecnico = ordenesCompletadas > 20 ? "Experto" : (ordenesCompletadas > 5 ? "Intermedio" : "Inicial");
+
+        return MecanicoPerfilResponse.builder()
+                .mecanicoId(usuario.getId())
+                .nombre(usuario.getNombre())
+                .apellido(usuario.getApellido())
+                .totalOrdenes(totalOrdenes)
+                .ordenesCompletadas(ordenesCompletadas)
+                .tiempoPromedioDias(tiempoPromedioDias)
+                .ordenesRecientes(ordenesRecientes)
+                .nivelTecnico(nivelTecnico)
                 .build();
     }
 }
