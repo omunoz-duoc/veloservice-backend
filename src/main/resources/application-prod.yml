@@ -29,3 +29,11 @@ spring:
     baseline-version: 0
     locations: classpath:db/migration
     validate-on-migrate: false
+
+r2:
+  account-id: ${R2_ACCOUNT_ID}
+  access-key: ${R2_ACCESS_KEY}
+  secret-key: ${R2_SECRET_KEY}
+  bucket: ${R2_BUCKET}
+  public-domain: ${R2_PUBLIC_DOMAIN}
+  presign-expiry-minutes: 10
