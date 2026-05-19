@@ -307,10 +307,30 @@ public class OrdenService {
 
     @TenantOperation
     @Transactional(readOnly = true)
-    public OrdenResult obtener(UUID id) {
+    public OrdenResult obtener(String id) {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
-        Orden orden = ordenRepository.findByIdAndSucursalId(id, sucursalId)
-                .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+        Orden orden;
+        
+        // Try to parse as UUID first
+        try {
+            UUID uuidId = UUID.fromString(id);
+            orden = ordenRepository.findByIdAndSucursalId(uuidId, sucursalId)
+                    .orElse(null);
+        } catch (IllegalArgumentException e) {
+            // Not a valid UUID, treat as external_id
+            orden = null;
+        }
+        
+        // If not found by UUID, try by external_id
+        if (orden == null) {
+            orden = ordenRepository.findByExternalIdAndSucursalId(id, sucursalId)
+                    .orElse(null);
+        }
+        
+        if (orden == null) {
+            throw new IllegalArgumentException("Orden no encontrada");
+        }
+        
         return toResult(orden);
     }
 
@@ -409,10 +429,43 @@ public class OrdenService {
         return new String[] {marca, modelo};
     }
 
+    /**
+     * Resolves an order identifier (UUID or external_id) to UUID.
+     * Tries UUID first, then falls back to external_id lookup.
+     *
+     * @param id order identifier (UUID or external_id)
+     * @return order UUID
+     * @throws IllegalArgumentException if order not found
+     */
+    @TenantOperation
+    public UUID resolveOrdenId(String id) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        Orden orden;
+        
+        // Try to parse as UUID first
+        try {
+            UUID uuidId = UUID.fromString(id);
+            orden = ordenRepository.findByIdAndSucursalId(uuidId, sucursalId).orElse(null);
+            if (orden != null) {
+                return uuidId;
+            }
+        } catch (IllegalArgumentException e) {
+            // Not a valid UUID, treat as external_id
+        }
+        
+        // If not found by UUID, try by external_id
+        orden = ordenRepository.findByExternalIdAndSucursalId(id, sucursalId).orElse(null);
+        if (orden != null) {
+            return orden.getId();
+        }
+        
+        throw new IllegalArgumentException("Orden no encontrada");
+    }
+
     private OrdenResult toResult(Orden orden) {
         OrdenResult.OrdenResultBuilder builder = OrdenResult.builder()
                 .id(orden.getId())
-                .numeroOrden(orden.getNumeroOrden())
+                .externalId(orden.getExternalId())
                 .estado(orden.getEstado())
                 .tipo(orden.getTipo())
                 .diagnosticoInicial(orden.getDiagnosticoInicial())

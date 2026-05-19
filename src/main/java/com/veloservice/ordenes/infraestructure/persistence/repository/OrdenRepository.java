@@ -13,6 +13,8 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
 
     Optional<Orden> findByIdAndSucursalId(UUID id, UUID sucursalId);
 
+    Optional<Orden> findByExternalIdAndSucursalId(String externalId, UUID sucursalId);
+
     List<Orden> findAllBySucursalIdOrderByFechaIngresoDesc(UUID sucursalId);
 
     List<Orden> findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(UUID sucursalId, UUID mecanicoId);

@@ -92,7 +92,7 @@ public final class OrdenMapper {
         }
 
         return OrdenResponse.builder()
-                .id(result.getNumeroOrden())  // ← OT-123
+                .id(result.getExternalId())  // ← OT-123
                 .estado(result.getEstado())
                 .tipo(result.getTipo())
                 .descripcion(result.getDiagnosticoInicial())

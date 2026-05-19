@@ -14,7 +14,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class OrdenResult {
     private UUID id;
-    private String numeroOrden;
+    private String externalId;
     private EstadoOrdenEnum estado;
     private TipoOrdenEnum tipo;
     private String diagnosticoInicial;

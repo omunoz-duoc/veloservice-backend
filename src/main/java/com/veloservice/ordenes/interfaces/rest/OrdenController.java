@@ -134,10 +134,10 @@ public class OrdenController {
     }
  
     /**
-     * Retrieves a work order by identifier.
+     * Retrieves a work order by identifier (UUID or external_id).
      */
     @GetMapping("/{id}")
-    public ResponseEntity<OrdenResponse> obtener(@PathVariable UUID id) {
+    public ResponseEntity<OrdenResponse> obtener(@PathVariable String id) {
         return ResponseEntity.ok(OrdenMapper.toResponse(ordenService.obtener(id)));
     }
  
@@ -239,8 +239,9 @@ public class OrdenController {
      * Lists comments for a work order.
      */
     @GetMapping("/{id}/comentarios")
-    public ResponseEntity<Map<String, Object>> listarComentarios(@PathVariable UUID id) {
-        var comentarios = comentarioService.listarPorOrden(id).stream()
+    public ResponseEntity<Map<String, Object>> listarComentarios(@PathVariable String id) {
+        UUID ordenId = ordenService.resolveOrdenId(id);
+        var comentarios = comentarioService.listarPorOrden(ordenId).stream()
                 .map(c -> ComentarioResponse.builder()
                         .id(c.getId())
                         .autor(c.getAutor())
@@ -256,9 +257,10 @@ public class OrdenController {
      */
     @PostMapping("/{id}/comentarios")
     public ResponseEntity<ComentarioResponse> agregarComentario(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @Valid @RequestBody ComentarioRequest request) {
-        var result = comentarioService.agregar(id, request.getTexto());
+        UUID ordenId = ordenService.resolveOrdenId(id);
+        var result = comentarioService.agregar(ordenId, request.getTexto());
         return ResponseEntity.ok(ComentarioResponse.builder()
                 .id(result.getId())
                 .autor(result.getAutor())
@@ -271,8 +273,9 @@ public class OrdenController {
      * Lists multimedia for a work order.
      */
     @GetMapping("/{id}/multimedia")
-    public ResponseEntity<Map<String, Object>> listarMultimedia(@PathVariable UUID id) {
-        var multimedia = multimediaService.listarPorOrden(id).stream()
+    public ResponseEntity<Map<String, Object>> listarMultimedia(@PathVariable String id) {
+        UUID ordenId = ordenService.resolveOrdenId(id);
+        var multimedia = multimediaService.listarPorOrden(ordenId).stream()
                 .map(m -> MultimediaResponse.builder()
                         .id(m.getId())
                         .ordenId(m.getOrdenId())
@@ -292,10 +295,11 @@ public class OrdenController {
      */
     @PostMapping("/{id}/multimedia")
     public ResponseEntity<MultimediaResponse> subirMultimedia(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @RequestParam String etapa,
             @Valid @RequestBody MultimediaRequest request) {
-        var result = multimediaService.subir(id, etapa, MultimediaMapper.toCommand(request));
+        UUID ordenId = ordenService.resolveOrdenId(id);
+        var result = multimediaService.subir(ordenId, etapa, MultimediaMapper.toCommand(request));
         return ResponseEntity.ok(MultimediaResponse.builder()
                 .id(result.getId())
                 .ordenId(result.getOrdenId())
@@ -313,8 +317,9 @@ public class OrdenController {
      */
     @DeleteMapping("/{id}/multimedia/{mediaId}")
     public ResponseEntity<Map<String, Object>> eliminarMultimedia(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @PathVariable UUID mediaId) {
+        UUID ordenId = ordenService.resolveOrdenId(id);
         multimediaService.eliminar(mediaId);
         return ResponseEntity.ok(Map.of());
     }
@@ -323,8 +328,9 @@ public class OrdenController {
      * Lists products for a work order.
      */
     @GetMapping("/{id}/productos")
-    public ResponseEntity<Map<String, Object>> listarProductos(@PathVariable UUID id) {
-        var productos = ordenService.listarProductosPorOrden(id).stream()
+    public ResponseEntity<Map<String, Object>> listarProductos(@PathVariable String id) {
+        UUID ordenId = ordenService.resolveOrdenId(id);
+        var productos = ordenService.listarProductosPorOrden(ordenId).stream()
                 .map(r -> OrdenProductoResponse.builder()
                         .id(r.getId())
                         .productoId(r.getProductoId())
@@ -339,9 +345,10 @@ public class OrdenController {
 
     @DeleteMapping("/{id}/productos/{productoId}")
     public ResponseEntity<Map<String, Object>> eliminarProducto(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @PathVariable UUID productoId) {
-        ordenService.eliminarProducto(id, productoId);
+        UUID ordenId = ordenService.resolveOrdenId(id);
+        ordenService.eliminarProducto(ordenId, productoId);
         return ResponseEntity.ok(Map.of());
     }
 }
