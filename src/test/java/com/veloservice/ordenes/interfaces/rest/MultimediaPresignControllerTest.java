@@ -98,6 +98,9 @@ class MultimediaPresignControllerTest {
                                 "tipoArchivo", "imagen"
                         ))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.url").value(publicUrl));
+                .andExpect(jsonPath("$.url").value(publicUrl))
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.ordenId").value(ordenId.toString()))
+                .andExpect(jsonPath("$.tipoArchivo").value("imagen"));
     }
 }
