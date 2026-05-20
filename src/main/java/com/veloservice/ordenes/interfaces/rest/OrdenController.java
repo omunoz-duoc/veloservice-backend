@@ -3,6 +3,7 @@ package com.veloservice.ordenes.interfaces.rest;
 import com.veloservice.config.security.SucursalContext;
 import com.veloservice.config.security.UsuarioContext;
 import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
+import com.veloservice.ordenes.application.dto.PresignResult;
 import com.veloservice.ordenes.application.usecase.ComentarioService;
 import com.veloservice.ordenes.application.usecase.MultimediaService;
 import com.veloservice.ordenes.application.usecase.OrdenService;
@@ -298,6 +299,43 @@ public class OrdenController {
         UUID ordenId = ordenService.resolveOrdenId(id);
         multimediaService.eliminar(mediaId);
         return ResponseEntity.ok(Map.of());
+    }
+
+    /**
+     * Generates a presigned R2 PUT URL for direct photo upload.
+     */
+    @PostMapping("/{id}/multimedia/presign")
+    public ResponseEntity<PresignResponse> presignMultimedia(
+            @PathVariable String id,
+            @Valid @RequestBody PresignRequest request) {
+        UUID ordenId = ordenService.resolveOrdenId(id);
+        PresignResult result = multimediaService.generarPresign(
+                ordenId, request.getFileName(), request.getContentType(), request.getFileSize());
+        return ResponseEntity.ok(new PresignResponse(result.getUploadUrl(), result.getFileKey()));
+    }
+
+    /**
+     * Confirms an upload by saving the R2 object URL to the multimedia table.
+     */
+    @PostMapping("/{id}/multimedia/confirm")
+    public ResponseEntity<MultimediaResponse> confirmMultimedia(
+            @PathVariable String id,
+            @RequestParam String etapa,
+            @Valid @RequestBody ConfirmRequest request) {
+        UUID ordenId = ordenService.resolveOrdenId(id);
+        var result = multimediaService.confirmar(
+                ordenId, etapa, request.getFileKey(),
+                request.getTipoArchivo(), request.getDescripcion());
+        return ResponseEntity.ok(MultimediaResponse.builder()
+                .id(result.getId())
+                .ordenId(result.getOrdenId())
+                .usuarioId(result.getUsuarioId())
+                .url(result.getUrl())
+                .tipoArchivo(result.getTipoArchivo())
+                .etapa(result.getEtapa())
+                .descripcion(result.getDescripcion())
+                .createdAt(result.getCreatedAt())
+                .build());
     }
 
     /**
