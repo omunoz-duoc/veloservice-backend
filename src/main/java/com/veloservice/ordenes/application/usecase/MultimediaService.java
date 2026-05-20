@@ -1,6 +1,7 @@
 package com.veloservice.ordenes.application.usecase;
 
 import com.veloservice.config.enums.EtapaMultimediaEnum;
+import com.veloservice.config.enums.TipoArchivoEnum;
 import com.veloservice.config.security.UsuarioContext;
 import com.veloservice.ordenes.application.dto.MultimediaCreateCommand;
 import com.veloservice.ordenes.application.dto.MultimediaResult;
@@ -65,6 +66,12 @@ public class MultimediaService {
         String fileKey = "ordenes/" + ordenId + "/" + UUID.randomUUID() + "." + ext;
         String uploadUrl = storageService.presign(fileKey, contentType, 10);
         return new PresignResult(uploadUrl, fileKey);
+    }
+
+    public MultimediaResult confirmar(UUID ordenId, String etapa, String fileKey,
+                                      TipoArchivoEnum tipoArchivo, String descripcion) {
+        String publicUrl = storageService.publicUrl(fileKey);
+        return subir(ordenId, etapa, new MultimediaCreateCommand(publicUrl, tipoArchivo, descripcion));
     }
 
     private MultimediaResult toResult(Multimedia m) {

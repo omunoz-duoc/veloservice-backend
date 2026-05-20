@@ -12,6 +12,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -70,5 +71,38 @@ class MultimediaServicePresignTest {
         PresignResult result = service.generarPresign(ordenId, "foto.png", "image/png", 512L);
 
         assertThat(result.getFileKey()).endsWith(".png");
+    }
+
+    @Test
+    void confirmarBuildsPublicUrlAndSavesMultimedia() {
+        UUID ordenId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        String fileKey = "ordenes/" + ordenId + "/abc.jpg";
+        String publicUrl = "https://media.example.com/" + fileKey;
+
+        com.veloservice.ordenes.domain.model.Multimedia saved =
+                com.veloservice.ordenes.domain.model.Multimedia.builder()
+                        .id(UUID.randomUUID())
+                        .ordenId(ordenId)
+                        .usuarioId(userId)
+                        .url(publicUrl)
+                        .tipoArchivo(com.veloservice.config.enums.TipoArchivoEnum.imagen)
+                        .etapa(com.veloservice.config.enums.EtapaMultimediaEnum.ingreso)
+                        .createdAt(java.time.OffsetDateTime.now())
+                        .build();
+
+        when(storageService.publicUrl(fileKey)).thenReturn(publicUrl);
+        when(multimediaRepository.save(any())).thenReturn(saved);
+
+        try (org.mockito.MockedStatic<com.veloservice.config.security.UsuarioContext> ctx =
+                     org.mockito.Mockito.mockStatic(com.veloservice.config.security.UsuarioContext.class)) {
+            ctx.when(com.veloservice.config.security.UsuarioContext::getCurrentUser).thenReturn(userId);
+
+            com.veloservice.ordenes.application.dto.MultimediaResult result =
+                    service.confirmar(ordenId, "ingreso", fileKey,
+                            com.veloservice.config.enums.TipoArchivoEnum.imagen, null);
+
+            assertThat(result.getUrl()).isEqualTo(publicUrl);
+        }
     }
 }
