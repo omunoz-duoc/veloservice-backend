@@ -56,11 +56,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(auth);
                 SucursalContext.setCurrentSucursal(sucursalId);
                 UsuarioContext.setCurrentUser(userId);
+                UUID tallerId = tokenProvider.getTallerId(jwt);
+                if (tallerId != null) {
+                    TallerContext.setCurrentTaller(tallerId);
+                }
             }
         } catch (Exception e) {
             log.error("Error procesando JWT", e);
         }
         filterChain.doFilter(request, response);
+        TallerContext.clear();
+        SucursalContext.clear();
+        UsuarioContext.clear();
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {
