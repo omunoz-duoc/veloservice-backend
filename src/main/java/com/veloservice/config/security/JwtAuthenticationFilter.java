@@ -63,11 +63,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         } catch (Exception e) {
             log.error("Error procesando JWT", e);
+        } finally {
+            try {
+                filterChain.doFilter(request, response);
+            } finally {
+                TallerContext.clear();
+                SucursalContext.clear();
+                UsuarioContext.clear();
+            }
         }
-        filterChain.doFilter(request, response);
-        TallerContext.clear();
-        SucursalContext.clear();
-        UsuarioContext.clear();
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {
