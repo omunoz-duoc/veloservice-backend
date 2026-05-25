@@ -8,6 +8,7 @@ import com.veloservice.config.enums.EstadoOrdenEnum;
 import com.veloservice.config.enums.EtapaMultimediaEnum;
 import com.veloservice.config.enums.TipoMovimientoEnum;
 import com.veloservice.config.security.SucursalContext;
+import com.veloservice.config.security.TallerContext;
 import com.veloservice.config.security.UsuarioContext;
 import com.veloservice.config.tenant.TenantOperation;
 import com.veloservice.inventario.infraestructure.persistence.repository.MovimientoStockRepository;
@@ -291,6 +292,12 @@ public class OrdenService {
     @TenantOperation
     @Transactional(readOnly = true)
     public List<OrdenResult> listar() {
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId != null) {
+            return ordenRepository.findAllByTallerIdOrderByFechaIngresoDesc(tallerId).stream()
+                    .map(this::toResult)
+                    .collect(Collectors.toList());
+        }
         UUID sucursalId = SucursalContext.getCurrentSucursal();
         UUID mecanicoId = UsuarioContext.getCurrentUser();
         return ordenRepository.findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId).stream()
@@ -337,12 +344,18 @@ public class OrdenService {
     @TenantOperation
     @Transactional(readOnly = true)
     public List<OrdenResult> listarUrgentes() {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        return ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId).stream()
+        UUID tallerId = TallerContext.getCurrentTaller();
+        List<Orden> ordenes;
+        if (tallerId != null) {
+            ordenes = ordenRepository.findAllByTallerIdOrderByFechaIngresoDesc(tallerId);
+        } else {
+            UUID sucursalId = SucursalContext.getCurrentSucursal();
+            ordenes = ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId);
+        }
+        return ordenes.stream()
                 .filter(o -> o.getFechaPrometida() != null
                         && o.getFechaPrometida().isBefore(OffsetDateTime.now())
-                        && !o.getEstado().equals(EstadoOrdenEnum.entregada)
-)
+                        && !o.getEstado().equals(EstadoOrdenEnum.entregada))
                 .map(this::toResult)
                 .collect(Collectors.toList());
     }
@@ -350,8 +363,14 @@ public class OrdenService {
     @TenantOperation
     @Transactional(readOnly = true)
     public OrdenMetricasResult metricas() {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        List<Orden> ordenes = ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId);
+        UUID tallerId = TallerContext.getCurrentTaller();
+        List<Orden> ordenes;
+        if (tallerId != null) {
+            ordenes = ordenRepository.findAllByTallerIdOrderByFechaIngresoDesc(tallerId);
+        } else {
+            UUID sucursalId = SucursalContext.getCurrentSucursal();
+            ordenes = ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId);
+        }
 
         long recibidas = ordenes.stream()
                 .filter(o -> o.getEstado().equals(EstadoOrdenEnum.recibida)).count();
