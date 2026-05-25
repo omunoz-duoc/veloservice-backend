@@ -88,8 +88,16 @@ public class AuthService {
         if (sucursalId == null) {
             throw new IllegalStateException("Usuario sin sucursal asignada");
         }
+
+        UUID tallerId = null;
+        if ("ADMIN_TALLER".equals(usuario.getRol().getNombre())) {
+            Sucursal sucursalConTaller = sucursalRepository.findByIdWithTaller(sucursalId)
+                    .orElseThrow(() -> new IllegalStateException("Sucursal no encontrada"));
+            tallerId = sucursalConTaller.getTaller().getId();
+        }
+
         String token = jwtProvider.generateToken(
-                usuario.getId(), usuario.getEmail(), usuario.getRol().getNombre(), sucursalId, null
+                usuario.getId(), usuario.getEmail(), usuario.getRol().getNombre(), sucursalId, tallerId
         );
         return new AuthLoginResult(usuario.getNombre(), usuario.getApellido(), token, usuario.getRol().getNombre());
     }
@@ -125,8 +133,16 @@ public class AuthService {
                 .build();
 
         Usuario saved = usuarioRepository.save(usuario);
+
+        UUID tallerId = null;
+        if ("ADMIN_TALLER".equals(rol.getNombre())) {
+            Sucursal sucursalConTaller = sucursalRepository.findByIdWithTaller(sucursal.getId())
+                    .orElseThrow(() -> new IllegalStateException("Sucursal no encontrada"));
+            tallerId = sucursalConTaller.getTaller().getId();
+        }
+
         String token = jwtProvider.generateToken(
-                saved.getId(), saved.getEmail(), rol.getNombre(), sucursal.getId(), null
+                saved.getId(), saved.getEmail(), rol.getNombre(), sucursal.getId(), tallerId
         );
         return new AuthLoginResult(usuario.getNombre(), usuario.getApellido(), token, rol.getNombre());
     }

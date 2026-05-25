@@ -95,6 +95,19 @@ class AuthControllerTest {
     }
 
     @Test
+    void loginAdminTallerReturns200WithRole() throws Exception {
+        AuthLoginResult result = new AuthLoginResult("Admin", "Taller",
+                "eyJhbGciOiJIUzI1NiJ9.fake.sig", "ADMIN_TALLER");
+        when(authService.login(ArgumentMatchers.any(AuthLoginCommand.class))).thenReturn(result);
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"admin@taller.com\",\"password\":\"Password1!\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rol").value("ADMIN_TALLER"));
+    }
+
+    @Test
     void registerWithInvalidRolReturnsBadRequest() throws Exception {
         AuthRegisterRequest request = new AuthRegisterRequest();
         request.setNombre("Ana");
