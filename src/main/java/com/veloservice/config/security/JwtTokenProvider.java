@@ -45,9 +45,10 @@ public class JwtTokenProvider {
      * @param email user email
      * @param rol role name
      * @param sucursalId branch identifier
+     * @param tallerId optional tenant identifier; when non-null, embedded as "tallerId" claim
      * @return signed JWT
      */
-    public String generateToken(UUID userId, String email, String rol, UUID sucursalId) {
+    public String generateToken(UUID userId, String email, String rol, UUID sucursalId, UUID tallerId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtExpirationMs);
         JwtBuilder builder = Jwts.builder()
@@ -58,6 +59,9 @@ public class JwtTokenProvider {
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(jwtSecret, Jwts.SIG.HS256);
+        if (tallerId != null) {
+            builder.claim("tallerId", tallerId.toString());
+        }
         return builder.compact();
     }
 

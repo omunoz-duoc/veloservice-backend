@@ -89,7 +89,7 @@ public class AuthService {
             throw new IllegalStateException("Usuario sin sucursal asignada");
         }
         String token = jwtProvider.generateToken(
-                usuario.getId(), usuario.getEmail(), usuario.getRol().getNombre(), sucursalId
+                usuario.getId(), usuario.getEmail(), usuario.getRol().getNombre(), sucursalId, null
         );
         return new AuthLoginResult(usuario.getNombre(), usuario.getApellido(), token, usuario.getRol().getNombre());
     }
@@ -126,7 +126,7 @@ public class AuthService {
 
         Usuario saved = usuarioRepository.save(usuario);
         String token = jwtProvider.generateToken(
-                saved.getId(), saved.getEmail(), rol.getNombre(), sucursal.getId()
+                saved.getId(), saved.getEmail(), rol.getNombre(), sucursal.getId(), null
         );
         return new AuthLoginResult(usuario.getNombre(), usuario.getApellido(), token, rol.getNombre());
     }
