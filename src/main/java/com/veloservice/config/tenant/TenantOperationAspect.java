@@ -1,6 +1,7 @@
 package com.veloservice.config.tenant;
 
 import com.veloservice.config.security.SucursalContext;
+import com.veloservice.config.security.TallerContext;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -31,11 +32,18 @@ public class TenantOperationAspect {
      */
     @Around("@annotation(com.veloservice.config.tenant.TenantOperation)")
     public Object applySucursalContext(ProceedingJoinPoint joinPoint) throws Throwable {
-        UUID tenantId = SucursalContext.getCurrentSucursal();
-        if (tenantId != null) {
-            entityManager.createNativeQuery("SELECT set_config('app.current_sucursal_id', ?, false)")
-                .setParameter(1, tenantId.toString())
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId != null) {
+            entityManager.createNativeQuery("SELECT set_config('app.current_taller_id', ?, false)")
+                    .setParameter(1, tallerId.toString())
                     .getSingleResult();
+        } else {
+            UUID sucursalId = SucursalContext.getCurrentSucursal();
+            if (sucursalId != null) {
+                entityManager.createNativeQuery("SELECT set_config('app.current_sucursal_id', ?, false)")
+                        .setParameter(1, sucursalId.toString())
+                        .getSingleResult();
+            }
         }
         return joinPoint.proceed();
     }
