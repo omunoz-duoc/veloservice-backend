@@ -1,9 +1,9 @@
 package com.veloservice.ordenes.domain.model;
 
-import com.veloservice.config.enums.EstadoOrdenEnum;
-import com.veloservice.config.enums.PrioridadOrdenEnum;
-import com.veloservice.config.enums.TipoOrdenEnumConverter;
-import com.veloservice.config.enums.TipoOrdenEnum;
+import com.veloservice.ordenes.domain.EstadoOrdenEnum;
+import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
+import com.veloservice.ordenes.domain.TipoOrdenEnumConverter;
+import com.veloservice.ordenes.domain.TipoOrdenEnum;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;

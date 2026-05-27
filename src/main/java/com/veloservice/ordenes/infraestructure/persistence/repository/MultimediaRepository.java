@@ -1,6 +1,6 @@
 package com.veloservice.ordenes.infraestructure.persistence.repository;
 
-import com.veloservice.config.enums.EtapaMultimediaEnum;
+import com.veloservice.ordenes.domain.EtapaMultimediaEnum;
 import com.veloservice.ordenes.domain.model.Multimedia;
 
 import org.springframework.data.jpa.repository.JpaRepository;

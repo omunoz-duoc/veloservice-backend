@@ -1,10 +1,13 @@
 package com.veloservice.administracion.interfaces.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.veloservice.administracion.application.dto.AuthLoginCommand;
-import com.veloservice.administracion.application.dto.AuthLoginResult;
-import com.veloservice.administracion.application.dto.AuthRegisterCommand;
-import com.veloservice.administracion.application.usecase.AuthService;
+import com.veloservice.auth.application.dto.AuthLoginCommand;
+import com.veloservice.auth.application.dto.AuthLoginResult;
+import com.veloservice.auth.application.dto.AuthRegisterCommand;
+import com.veloservice.auth.application.usecase.AuthService;
+import com.veloservice.auth.interfaces.rest.AuthController;
+import com.veloservice.auth.interfaces.rest.AuthRegisterRequest;
+import com.veloservice.auth.interfaces.rest.AuthRequest;
 import com.veloservice.config.security.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;

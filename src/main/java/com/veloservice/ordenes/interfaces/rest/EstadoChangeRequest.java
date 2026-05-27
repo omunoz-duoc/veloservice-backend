@@ -1,6 +1,6 @@
 package com.veloservice.ordenes.interfaces.rest;
 
-import com.veloservice.config.enums.EstadoOrdenEnum;
+import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;

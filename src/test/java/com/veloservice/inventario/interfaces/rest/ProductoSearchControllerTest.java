@@ -1,6 +1,6 @@
 package com.veloservice.inventario.interfaces.rest;
 
-import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.config.security.JwtTokenProvider;
 import com.veloservice.inventario.application.dto.ProductoResult;
 import com.veloservice.inventario.application.usecase.ProductoService;

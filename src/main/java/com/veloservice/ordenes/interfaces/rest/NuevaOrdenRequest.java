@@ -1,7 +1,7 @@
 package com.veloservice.ordenes.interfaces.rest;
 
-import com.veloservice.config.enums.PrioridadOrdenEnum;
-import com.veloservice.config.enums.TipoOrdenEnum;
+import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
+import com.veloservice.ordenes.domain.TipoOrdenEnum;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

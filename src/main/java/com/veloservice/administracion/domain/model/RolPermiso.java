@@ -18,7 +18,7 @@ import lombok.Setter;
 
 import java.util.UUID;
 
-import com.veloservice.administracion.domain.model.Rol;
+import com.veloservice.auth.domain.model.Rol;
 
 @Entity
 @Table(name = "rol_permisos", uniqueConstraints = {

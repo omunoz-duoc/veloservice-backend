@@ -1,7 +1,7 @@
 package com.veloservice.ordenes.application.usecase;
 
-import com.veloservice.administracion.domain.model.Usuario;
-import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
+import com.veloservice.auth.domain.model.Usuario;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.ordenes.application.dto.ComentarioResult;
 import com.veloservice.ordenes.domain.model.Comentario;

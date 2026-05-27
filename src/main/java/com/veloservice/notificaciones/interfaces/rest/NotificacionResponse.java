@@ -1,8 +1,8 @@
 package com.veloservice.notificaciones.interfaces.rest;
 
-import com.veloservice.config.enums.CanalNotificacionEnum;
-import com.veloservice.config.enums.EstadoNotificacionEnum;
-import com.veloservice.config.enums.TipoNotificacionEnum;
+import com.veloservice.notificaciones.domain.CanalNotificacionEnum;
+import com.veloservice.notificaciones.domain.EstadoNotificacionEnum;
+import com.veloservice.notificaciones.domain.TipoNotificacionEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

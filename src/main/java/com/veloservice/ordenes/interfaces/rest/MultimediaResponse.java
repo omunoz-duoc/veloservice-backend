@@ -1,7 +1,7 @@
 package com.veloservice.ordenes.interfaces.rest;
 
-import com.veloservice.config.enums.EtapaMultimediaEnum;
-import com.veloservice.config.enums.TipoArchivoEnum;
+import com.veloservice.ordenes.domain.EtapaMultimediaEnum;
+import com.veloservice.ordenes.domain.TipoArchivoEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

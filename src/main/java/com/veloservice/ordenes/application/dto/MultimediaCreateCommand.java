@@ -1,6 +1,6 @@
 package com.veloservice.ordenes.application.dto;
 
-import com.veloservice.config.enums.TipoArchivoEnum;
+import com.veloservice.ordenes.domain.TipoArchivoEnum;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 

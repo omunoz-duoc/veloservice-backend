@@ -1,6 +1,6 @@
 package com.veloservice.inventario.domain.model;
 
-import com.veloservice.config.enums.TipoMovimientoEnum;
+import com.veloservice.inventario.domain.TipoMovimientoEnum;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

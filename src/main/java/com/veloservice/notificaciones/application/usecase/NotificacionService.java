@@ -1,6 +1,6 @@
 package com.veloservice.notificaciones.application.usecase;
 
-import com.veloservice.config.enums.EstadoNotificacionEnum;
+import com.veloservice.notificaciones.domain.EstadoNotificacionEnum;
 import com.veloservice.notificaciones.application.dto.NotificacionCreateCommand;
 import com.veloservice.notificaciones.application.dto.NotificacionResult;
 import com.veloservice.notificaciones.domain.model.Notificacion;

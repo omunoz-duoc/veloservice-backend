@@ -1,6 +1,6 @@
 package com.veloservice.administracion.domain.model;
 
-import com.veloservice.config.enums.PlanSaasEnum;
+import com.veloservice.administracion.domain.PlanSaasEnum;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

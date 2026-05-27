@@ -1,6 +1,6 @@
 package com.veloservice.config.web;
 
-import com.veloservice.administracion.application.exception.AuthException;
+import com.veloservice.auth.application.exception.AuthException;
 import com.veloservice.inventario.application.exception.ProductoException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;

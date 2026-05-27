@@ -1,9 +1,9 @@
 package com.veloservice.finanzas.interfaces.rest;
 
-import com.veloservice.config.enums.EstadoCobroEnum;
-import com.veloservice.config.enums.EstadoSIIEnum;
-import com.veloservice.config.enums.MetodoPagoEnum;
-import com.veloservice.config.enums.TipoDocumentoEnum;
+import com.veloservice.finanzas.domain.EstadoCobroEnum;
+import com.veloservice.finanzas.domain.EstadoSIIEnum;
+import com.veloservice.finanzas.domain.MetodoPagoEnum;
+import com.veloservice.finanzas.domain.TipoDocumentoEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

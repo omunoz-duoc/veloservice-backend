@@ -1,9 +1,9 @@
 package com.veloservice.finanzas.domain.model;
 
-import com.veloservice.config.enums.EstadoCobroEnum;
-import com.veloservice.config.enums.EstadoSIIEnum;
-import com.veloservice.config.enums.MetodoPagoEnum;
-import com.veloservice.config.enums.TipoDocumentoEnum;
+import com.veloservice.finanzas.domain.EstadoCobroEnum;
+import com.veloservice.finanzas.domain.EstadoSIIEnum;
+import com.veloservice.finanzas.domain.MetodoPagoEnum;
+import com.veloservice.finanzas.domain.TipoDocumentoEnum;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

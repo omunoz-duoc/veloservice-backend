@@ -1,6 +1,6 @@
 package com.veloservice.ordenes.interfaces.rest;
 
-import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.config.security.JwtTokenProvider;
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.UsuarioContext;

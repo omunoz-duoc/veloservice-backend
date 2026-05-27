@@ -1,6 +1,6 @@
 package com.veloservice.proveedores_compras.domain.model;
 
-import com.veloservice.config.enums.EstadoCompraEnum;
+import com.veloservice.proveedores_compras.domain.EstadoCompraEnum;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

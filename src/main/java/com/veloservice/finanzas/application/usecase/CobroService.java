@@ -14,8 +14,8 @@ import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenServi
 import com.veloservice.clientes.infraestructure.persistence.repository.BicicletaRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.MembresiaRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.SucursalClienteRepository;
-import com.veloservice.config.enums.EstadoCobroEnum;
-import com.veloservice.config.enums.EstadoOrdenEnum;
+import com.veloservice.finanzas.domain.EstadoCobroEnum;
+import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.UsuarioContext;
 import lombok.RequiredArgsConstructor;

@@ -1,7 +1,7 @@
 package com.veloservice.ordenes.domain.model;
 
-import com.veloservice.config.enums.EtapaMultimediaEnum;
-import com.veloservice.config.enums.TipoArchivoEnum;
+import com.veloservice.ordenes.domain.EtapaMultimediaEnum;
+import com.veloservice.ordenes.domain.TipoArchivoEnum;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

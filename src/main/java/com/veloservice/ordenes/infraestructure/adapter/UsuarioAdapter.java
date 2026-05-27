@@ -1,6 +1,6 @@
 package com.veloservice.ordenes.infraestructure.adapter;
 
-import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.ordenes.application.port.UsuarioPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

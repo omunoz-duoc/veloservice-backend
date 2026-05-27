@@ -2,9 +2,9 @@ package com.veloservice.ordenes.application.usecase;
 
 import com.veloservice.ordenes.application.port.BicicletaPort;
 import com.veloservice.ordenes.application.port.UsuarioPort;
-import com.veloservice.config.enums.EstadoOrdenEnum;
-import com.veloservice.config.enums.EtapaMultimediaEnum;
-import com.veloservice.config.enums.TipoMovimientoEnum;
+import com.veloservice.ordenes.domain.EstadoOrdenEnum;
+import com.veloservice.ordenes.domain.EtapaMultimediaEnum;
+import com.veloservice.inventario.domain.TipoMovimientoEnum;
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.UsuarioContext;

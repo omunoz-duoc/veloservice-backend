@@ -1,7 +1,7 @@
 package com.veloservice.notificaciones.interfaces.rest;
 
-import com.veloservice.config.enums.CanalNotificacionEnum;
-import com.veloservice.config.enums.TipoNotificacionEnum;
+import com.veloservice.notificaciones.domain.CanalNotificacionEnum;
+import com.veloservice.notificaciones.domain.TipoNotificacionEnum;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;

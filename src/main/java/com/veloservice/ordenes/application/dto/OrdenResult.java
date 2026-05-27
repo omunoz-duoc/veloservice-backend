@@ -1,8 +1,8 @@
 package com.veloservice.ordenes.application.dto;
 
-import com.veloservice.config.enums.EstadoOrdenEnum;
-import com.veloservice.config.enums.PrioridadOrdenEnum;
-import com.veloservice.config.enums.TipoOrdenEnum;
+import com.veloservice.ordenes.domain.EstadoOrdenEnum;
+import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
+import com.veloservice.ordenes.domain.TipoOrdenEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

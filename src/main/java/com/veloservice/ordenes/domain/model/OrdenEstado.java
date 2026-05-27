@@ -1,6 +1,6 @@
 package com.veloservice.ordenes.domain.model;
 
-import com.veloservice.config.enums.EstadoOrdenEnum;
+import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

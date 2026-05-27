@@ -1,6 +1,6 @@
 package com.veloservice.ordenes.application.dto;
 
-import com.veloservice.config.enums.EstadoOrdenEnum;
+import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;

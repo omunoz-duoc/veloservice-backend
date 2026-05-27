@@ -1,6 +1,6 @@
 package com.veloservice.ordenes.application.dto;
 
-import com.veloservice.config.enums.EstadoGarantiaEnum;
+import com.veloservice.ordenes.domain.EstadoGarantiaEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

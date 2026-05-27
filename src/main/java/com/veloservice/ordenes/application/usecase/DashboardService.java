@@ -5,7 +5,7 @@ import com.veloservice.ordenes.application.dto.DashboardAlertasResult;
 import com.veloservice.ordenes.application.dto.DashboardHoyResult;
 import com.veloservice.ordenes.domain.model.Orden;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
-import com.veloservice.config.enums.EstadoOrdenEnum;
+import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 import com.veloservice.config.tenant.SucursalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

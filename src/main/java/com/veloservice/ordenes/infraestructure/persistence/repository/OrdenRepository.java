@@ -6,7 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import com.veloservice.administracion.domain.model.Sucursal;
 import com.veloservice.ordenes.domain.model.Orden;
-import com.veloservice.config.enums.EstadoOrdenEnum;
+import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

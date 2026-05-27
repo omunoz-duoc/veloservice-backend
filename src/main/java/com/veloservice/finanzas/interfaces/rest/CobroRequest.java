@@ -1,8 +1,8 @@
 package com.veloservice.finanzas.interfaces.rest;
 
 import jakarta.validation.constraints.DecimalMin;
-import com.veloservice.config.enums.MetodoPagoEnum;
-import com.veloservice.config.enums.TipoDocumentoEnum;
+import com.veloservice.finanzas.domain.MetodoPagoEnum;
+import com.veloservice.finanzas.domain.TipoDocumentoEnum;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;

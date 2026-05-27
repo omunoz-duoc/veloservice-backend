@@ -1,8 +1,8 @@
 package com.veloservice.notificaciones.domain.model;
 
-import com.veloservice.config.enums.CanalNotificacionEnum;
-import com.veloservice.config.enums.EstadoNotificacionEnum;
-import com.veloservice.config.enums.TipoNotificacionEnum;
+import com.veloservice.notificaciones.domain.CanalNotificacionEnum;
+import com.veloservice.notificaciones.domain.EstadoNotificacionEnum;
+import com.veloservice.notificaciones.domain.TipoNotificacionEnum;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

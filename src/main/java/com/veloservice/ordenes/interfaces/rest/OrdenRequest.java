@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import com.veloservice.config.enums.TipoOrdenEnum;
+import com.veloservice.ordenes.domain.TipoOrdenEnum;
 
 import java.util.List;
 import java.util.UUID;

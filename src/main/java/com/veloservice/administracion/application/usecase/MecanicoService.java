@@ -1,11 +1,11 @@
 package com.veloservice.administracion.application.usecase;
 
-import com.veloservice.administracion.domain.model.Usuario;
-import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.administracion.interfaces.rest.MecanicoResponse;
+import com.veloservice.auth.domain.model.Usuario;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.administracion.interfaces.rest.MecanicoPerfilResponse;
 import java.time.Duration;
-import com.veloservice.config.enums.EstadoOrdenEnum;
+import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TenantOperation;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
