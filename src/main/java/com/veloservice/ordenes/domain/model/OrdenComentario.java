@@ -13,18 +13,18 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * Servicio cobrado o aplicado dentro de una orden de trabajo.
+ * Comentario libre agregado por un usuario a una orden de trabajo.
  */
 @Entity
 @Table(
-    name = "orden_servicios",
+    name = "orden_comentarios",
     indexes = {
-        @Index(name = "idx_orden_servicios_orden", columnList = "orden_id")
+        @Index(name = "idx_orden_comentarios_orden", columnList = "orden_id"),
+        @Index(name = "idx_orden_comentarios_usuario", columnList = "usuario_id")
 }
 )
 @Getter
@@ -32,7 +32,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OrdenServicio {
+public class OrdenComentario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -42,20 +42,11 @@ public class OrdenServicio {
     @Column(name = "orden_id", nullable = false)
     private UUID ordenId;
 
-    @Column(name = "servicio_id", nullable = false)
-    private UUID servicioId;
+    @Column(name = "usuario_id", nullable = false)
+    private UUID usuarioId;
 
-    @Column(name = "precio_base_snapshot", nullable = false, precision = 12, scale = 2)
-    private BigDecimal precioBaseSnapshot;
-
-    @Column(name = "precio_aplicado", nullable = false, precision = 12, scale = 2)
-    private BigDecimal precioAplicado;
-
-    @Column(name = "descuento_aplicado", nullable = false, precision = 12, scale = 2)
-    private BigDecimal descuentoAplicado;
-
-    @Column(name = "notas", columnDefinition = "TEXT")
-    private String notas;
+    @Column(name = "texto", nullable = false, columnDefinition = "TEXT")
+    private String texto;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;

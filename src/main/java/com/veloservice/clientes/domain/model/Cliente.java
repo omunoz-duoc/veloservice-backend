@@ -1,32 +1,37 @@
 package com.veloservice.clientes.domain.model;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.OneToMany;
+import java.util.ArrayList;
+import java.util.List;
 /**
- * Represents a tenant customer.
+ * Cliente perteneciente a un taller, visible por todas sus sucursales.
  */
 @Entity
-@Table(name = "clientes")
+@Table(
+    name = "clientes",
+    indexes = {
+        @Index(name = "idx_clientes_taller", columnList = "taller_id"),
+        @Index(name = "idx_clientes_membresia", columnList = "membresia_id"),
+        @Index(name = "idx_clientes_taller_rut", columnList = "taller_id, rut", unique = true)
+}
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -36,36 +41,46 @@ public class Cliente {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
     private UUID id;
 
-    @Column(name = "external_id", nullable = false, unique = true)
-    private String externalId;
+    @Column(name = "taller_id", nullable = false)
+    private UUID tallerId;
 
-    @Column(nullable = false)
+    @Column(name = "membresia_id")
+    private UUID membresiaId;
+
+    @Column(name = "nombre", nullable = false)
     private String nombre;
 
-    @Column(nullable = false)
+    @Column(name = "apellido", nullable = false)
     private String apellido;
 
-    @Column(length = 20)
+    @Column(name = "rut")
     private String rut;
 
-    @Column(length = 20)
+    @Column(name = "telefono")
     private String telefono;
 
+    @Column(name = "email")
     private String email;
 
+    @Column(name = "direccion")
     private String direccion;
 
-    @CreationTimestamp
+    @Column(name = "notas", columnDefinition = "TEXT")
+    private String notas;
+
+    @Column(name = "membresia_desde")
+    private OffsetDateTime membresiaDesde;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
-    @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
-    @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL)
     @Builder.Default
     private List<Bicicleta> bicicletas = new ArrayList<>();
 }

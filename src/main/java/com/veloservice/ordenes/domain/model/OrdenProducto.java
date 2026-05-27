@@ -5,31 +5,39 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * Represents a product line within a work order.
+ * Producto utilizado o registrado dentro de una orden de trabajo.
  */
 @Entity
-@Table(name = "orden_productos")
+@Table(
+    name = "orden_productos",
+    indexes = {
+        @Index(name = "idx_orden_productos_orden", columnList = "orden_id"),
+        @Index(name = "idx_orden_productos_producto", columnList = "producto_id")
+}
+)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class OrdenProducto {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
     private UUID id;
 
     @Column(name = "orden_id", nullable = false)
@@ -38,7 +46,7 @@ public class OrdenProducto {
     @Column(name = "producto_id", nullable = false)
     private UUID productoId;
 
-    @Column(nullable = false)
+    @Column(name = "cantidad", nullable = false)
     private Integer cantidad;
 
     @Column(name = "precio_costo_snapshot", nullable = false, precision = 12, scale = 2)
@@ -51,13 +59,11 @@ public class OrdenProducto {
     private BigDecimal precioAplicado;
 
     @Column(name = "proporcionado_por_cliente", nullable = false)
-    @Builder.Default
-    private Boolean proporcionadoPorCliente = false;
+    private Boolean proporcionadoPorCliente;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "notas", columnDefinition = "TEXT")
     private String notas;
 
-    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 }

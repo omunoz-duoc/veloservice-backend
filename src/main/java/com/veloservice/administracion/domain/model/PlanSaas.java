@@ -1,4 +1,4 @@
-package com.veloservice.auth.domain.model;
+package com.veloservice.administracion.domain.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,13 +16,13 @@ import lombok.Setter;
 import java.util.UUID;
 
 /**
- * Rol global del producto que define el ámbito funcional de los usuarios operativos.
+ * Plan comercial del SaaS que define las condiciones disponibles para un taller.
  */
 @Entity
 @Table(
-    name = "roles",
+    name = "planes_saas",
     uniqueConstraints = {
-        @UniqueConstraint(name = "nombre", columnNames = {"nombre"})
+        @UniqueConstraint(name = "codigo", columnNames = {"codigo"})
 }
 )
 @Getter
@@ -30,12 +30,15 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Rol {
+public class PlanSaas {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id")
     private UUID id;
+
+    @Column(name = "codigo", nullable = false)
+    private String codigo;
 
     @Column(name = "nombre", nullable = false)
     private String nombre;
@@ -43,8 +46,8 @@ public class Rol {
     @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
 
-    @Column(name = "ambito", nullable = false)
-    private String ambito;
+    @Column(name = "orden", nullable = false)
+    private Integer orden;
 
     @Column(name = "activo", nullable = false)
     private Boolean activo;

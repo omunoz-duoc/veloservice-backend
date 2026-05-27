@@ -1,4 +1,4 @@
-package com.veloservice.auth.domain.model;
+package com.veloservice.inventario.domain.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,13 +16,14 @@ import lombok.Setter;
 import java.util.UUID;
 
 /**
- * Rol global del producto que define el ámbito funcional de los usuarios operativos.
+ * Producto y cantidad incluidos en un traslado de stock.
  */
 @Entity
 @Table(
-    name = "roles",
-    uniqueConstraints = {
-        @UniqueConstraint(name = "nombre", columnNames = {"nombre"})
+    name = "traslado_productos",
+    indexes = {
+        @Index(name = "idx_traslado_productos_traslado", columnList = "traslado_id"),
+        @Index(name = "idx_traslado_productos_producto", columnList = "producto_id")
 }
 )
 @Getter
@@ -30,22 +31,19 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Rol {
+public class TrasladoProducto {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id")
     private UUID id;
 
-    @Column(name = "nombre", nullable = false)
-    private String nombre;
+    @Column(name = "traslado_id", nullable = false)
+    private UUID trasladoId;
 
-    @Column(name = "descripcion", columnDefinition = "TEXT")
-    private String descripcion;
+    @Column(name = "producto_id", nullable = false)
+    private UUID productoId;
 
-    @Column(name = "ambito", nullable = false)
-    private String ambito;
-
-    @Column(name = "activo", nullable = false)
-    private Boolean activo;
+    @Column(name = "cantidad", nullable = false)
+    private Integer cantidad;
 }

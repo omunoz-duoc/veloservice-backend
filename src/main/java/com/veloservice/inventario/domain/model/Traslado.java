@@ -1,4 +1,4 @@
-package com.veloservice.ordenes.domain.model;
+package com.veloservice.inventario.domain.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,50 +13,47 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * Servicio cobrado o aplicado dentro de una orden de trabajo.
+ * Traslado de stock entre sucursales de un mismo taller.
  */
 @Entity
-@Table(
-    name = "orden_servicios",
-    indexes = {
-        @Index(name = "idx_orden_servicios_orden", columnList = "orden_id")
-}
-)
+@Table(name = "traslados")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OrdenServicio {
+public class Traslado {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id")
     private UUID id;
 
-    @Column(name = "orden_id", nullable = false)
-    private UUID ordenId;
+    @Column(name = "taller_id", nullable = false)
+    private UUID tallerId;
 
-    @Column(name = "servicio_id", nullable = false)
-    private UUID servicioId;
+    @Column(name = "sucursal_origen", nullable = false)
+    private UUID sucursalOrigen;
 
-    @Column(name = "precio_base_snapshot", nullable = false, precision = 12, scale = 2)
-    private BigDecimal precioBaseSnapshot;
+    @Column(name = "sucursal_destino", nullable = false)
+    private UUID sucursalDestino;
 
-    @Column(name = "precio_aplicado", nullable = false, precision = 12, scale = 2)
-    private BigDecimal precioAplicado;
+    @Column(name = "usuario_id", nullable = false)
+    private UUID usuarioId;
 
-    @Column(name = "descuento_aplicado", nullable = false, precision = 12, scale = 2)
-    private BigDecimal descuentoAplicado;
+    @Column(name = "estado", nullable = false)
+    private String estado;
 
     @Column(name = "notas", columnDefinition = "TEXT")
     private String notas;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
 }

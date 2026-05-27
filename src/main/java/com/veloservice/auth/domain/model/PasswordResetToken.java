@@ -2,34 +2,36 @@ package com.veloservice.auth.domain.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 /**
- * Tracks password reset tokens for users.
+ * Token hasheado para recuperar la contraseña de un usuario operativo.
  */
 @Entity
 @Table(
-        name = "password_reset_tokens",
-        indexes = {
-                @Index(name = "idx_password_reset_tokens_user", columnList = "user_id"),
-                @Index(name = "idx_password_reset_tokens_token_hash", columnList = "token_hash")
-        }
+    name = "password_reset_tokens",
+    indexes = {
+        @Index(name = "idx_password_reset_tokens_user", columnList = "user_id"),
+        @Index(name = "idx_password_reset_tokens_token_hash", columnList = "token_hash")
+},
+    uniqueConstraints = {
+        @UniqueConstraint(name = "token_hash", columnNames = {"token_hash"})
+}
 )
 @Getter
 @Setter
@@ -37,25 +39,28 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class PasswordResetToken {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private Usuario usuario;
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
-    @Column(name = "token_hash", nullable = false, length = 64, unique = true)
+    @Column(name = "token_hash", nullable = false)
     private String tokenHash;
 
     @Column(name = "expires_at", nullable = false)
     private OffsetDateTime expiresAt;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private Boolean used = false;
+    @Column(name = "used", nullable = false)
+    private Boolean used;
 
-    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
+    private Usuario usuario;
 }

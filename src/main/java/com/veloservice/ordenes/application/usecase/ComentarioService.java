@@ -3,7 +3,7 @@ package com.veloservice.ordenes.application.usecase;
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.ordenes.application.dto.ComentarioResult;
-import com.veloservice.ordenes.domain.model.Comentario;
+import com.veloservice.ordenes.domain.model.OrdenComentario;
 import com.veloservice.ordenes.infraestructure.persistence.repository.ComentarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,7 +38,7 @@ public class ComentarioService {
         UUID usuarioId = UsuarioContext.getCurrentUser();
         if (usuarioId == null) throw new IllegalStateException("Usuario no presente en contexto");
 
-        Comentario comentario = Comentario.builder()
+        OrdenComentario comentario = OrdenComentario.builder()
                 .ordenId(ordenId)
                 .usuarioId(usuarioId)
                 .texto(texto)
@@ -51,7 +51,7 @@ public class ComentarioService {
         return agregar(ordenId, request.getTexto());
     }
 
-    private ComentarioResult toResult(Comentario c) {
+    private ComentarioResult toResult(OrdenComentario c) {
         String autor = usuarioRepository.findById(c.getUsuarioId())
                 .map(u -> u.getNombre() + " " + u.getApellido())
                 .orElse("Desconocido");

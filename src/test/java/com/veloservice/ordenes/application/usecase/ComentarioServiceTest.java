@@ -4,7 +4,7 @@ import com.veloservice.auth.domain.model.Usuario;
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.ordenes.application.dto.ComentarioResult;
-import com.veloservice.ordenes.domain.model.Comentario;
+import com.veloservice.ordenes.domain.model.OrdenComentario;
 import com.veloservice.ordenes.infraestructure.persistence.repository.ComentarioRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,7 +34,7 @@ class ComentarioServiceTest {
         UUID ordenId = UUID.randomUUID();
         UUID usuarioId = UUID.randomUUID();
 
-        Comentario comentario = Comentario.builder()
+        OrdenComentario comentario = OrdenComentario.builder()
                 .id(UUID.randomUUID())
                 .ordenId(ordenId)
                 .usuarioId(usuarioId)
@@ -67,7 +67,7 @@ class ComentarioServiceTest {
         usuario.setNombre("Ana");
         usuario.setApellido("Gómez");
 
-        Comentario saved = Comentario.builder()
+        OrdenComentario saved = OrdenComentario.builder()
                 .id(UUID.randomUUID())
                 .ordenId(ordenId)
                 .usuarioId(usuarioId)
@@ -75,7 +75,7 @@ class ComentarioServiceTest {
                 .createdAt(OffsetDateTime.now())
                 .build();
 
-        when(comentarioRepository.save(any(Comentario.class))).thenReturn(saved);
+        when(comentarioRepository.save(any(OrdenComentario.class))).thenReturn(saved);
         when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.of(usuario));
 
         try (MockedStatic<UsuarioContext> ctx = mockStatic(UsuarioContext.class)) {
@@ -84,7 +84,7 @@ class ComentarioServiceTest {
             ComentarioResult result = comentarioService.agregar(ordenId, "Texto de prueba");
 
             assertThat(result.getAutor()).isEqualTo("Ana Gómez");
-            verify(comentarioRepository).save(any(Comentario.class));
+            verify(comentarioRepository).save(any(OrdenComentario.class));
         }
     }
 }

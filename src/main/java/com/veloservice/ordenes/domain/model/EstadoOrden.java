@@ -1,4 +1,4 @@
-package com.veloservice.auth.domain.model;
+package com.veloservice.ordenes.domain.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,13 +16,13 @@ import lombok.Setter;
 import java.util.UUID;
 
 /**
- * Rol global del producto que define el ámbito funcional de los usuarios operativos.
+ * Estado de flujo por el que puede pasar una orden de trabajo.
  */
 @Entity
 @Table(
-    name = "roles",
+    name = "estados_orden",
     uniqueConstraints = {
-        @UniqueConstraint(name = "nombre", columnNames = {"nombre"})
+        @UniqueConstraint(name = "codigo", columnNames = {"codigo"})
 }
 )
 @Getter
@@ -30,22 +30,22 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Rol {
+public class EstadoOrden {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id")
     private UUID id;
 
+    @Column(name = "codigo", nullable = false)
+    private String codigo;
+
     @Column(name = "nombre", nullable = false)
     private String nombre;
 
-    @Column(name = "descripcion", columnDefinition = "TEXT")
-    private String descripcion;
+    @Column(name = "orden", nullable = false)
+    private Integer orden;
 
-    @Column(name = "ambito", nullable = false)
-    private String ambito;
-
-    @Column(name = "activo", nullable = false)
-    private Boolean activo;
+    @Column(name = "es_final", nullable = false)
+    private Boolean esFinal;
 }

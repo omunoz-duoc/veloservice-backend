@@ -2,63 +2,94 @@ package com.veloservice.auth.domain.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-
-import com.veloservice.administracion.domain.model.Sucursal;
-
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import com.veloservice.administracion.domain.model.Sucursal;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Transient;
 /**
- * Represents a user belonging to a workshop branch.
+ * Usuario operativo que pertenece a un taller y accede según su rol y sucursales asignadas.
  */
 @Entity
-@Table(name = "usuarios")
+@Table(
+    name = "usuarios",
+    indexes = {
+        @Index(name = "idx_usuarios_taller", columnList = "taller_id"),
+        @Index(name = "idx_usuarios_rol", columnList = "rol_id")
+},
+    uniqueConstraints = {
+        @UniqueConstraint(name = "email", columnNames = {"email"})
+}
+)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Usuario {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
     private UUID id;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "sucursal_id", nullable = false)
-    private Sucursal sucursal;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "rol_id", nullable = false)
-    private Rol rol;
-    @Column(nullable = false, length = 100)
+
+    @Column(name = "taller_id", nullable = false)
+    private UUID tallerId;
+
+    @Column(name = "rol_id", nullable = false)
+    private UUID rolId;
+
+    @Column(name = "nombre", nullable = false)
     private String nombre;
-    @Column(nullable = false, length = 100)
+
+    @Column(name = "apellido", nullable = false)
     private String apellido;
-    @Column(length = 20)
+
+    @Column(name = "rut")
     private String rut;
-    @Column(nullable = false, length = 100, unique = true)
+
+    @Column(name = "email", nullable = false)
     private String email;
-    @Column(length = 20)
+
+    @Column(name = "telefono")
     private String telefono;
-    @Column(name = "password_hash", nullable = false, length = 255)
+
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
-    @Column(nullable = false)
-    @Builder.Default
-    private Boolean activo = false;
+
+    @Column(name = "activo", nullable = false)
+    private Boolean activo;
+
     @Column(name = "last_login")
     private OffsetDateTime lastLogin;
-    @CreationTimestamp
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rol_id", insertable = false, updatable = false)
+    private Rol rol;
+
+    @Transient
+    private UUID sucursalId;
+
+    @Transient
+    private Sucursal sucursal;
 }

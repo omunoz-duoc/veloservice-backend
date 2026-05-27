@@ -1,36 +1,41 @@
 package com.veloservice.ordenes.domain.model;
 
-import com.veloservice.ordenes.domain.EstadoOrdenEnum;
-import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
-import com.veloservice.ordenes.domain.TipoOrdenEnumConverter;
-import com.veloservice.ordenes.domain.TipoOrdenEnum;
 import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import com.veloservice.ordenes.domain.EstadoOrdenEnum;
+import com.veloservice.ordenes.domain.TipoOrdenEnum;
+import jakarta.persistence.Transient;
 /**
- * Represents a work order within a tenant.
+ * Orden de trabajo de una bicicleta, asociada a taller, sucursal, estado y tipo.
  */
 @Entity
-@Table(name = "ordenes")
+@Table(
+    name = "ordenes",
+    indexes = {
+        @Index(name = "idx_ordenes_taller", columnList = "taller_id"),
+        @Index(name = "idx_ordenes_sucursal", columnList = "sucursal_id"),
+        @Index(name = "idx_ordenes_bicicleta", columnList = "bicicleta_id"),
+        @Index(name = "idx_ordenes_mecanico", columnList = "mecanico_id"),
+        @Index(name = "idx_ordenes_estado", columnList = "estado_id"),
+        @Index(name = "idx_ordenes_tipo", columnList = "tipo_id"),
+        @Index(name = "idx_ordenes_taller_numero", columnList = "taller_id, numero_orden", unique = true)
+}
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -40,10 +45,11 @@ public class Orden {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
     private UUID id;
 
-    @Column(name = "external_id", nullable = false, unique = true)
-    private String externalId;
+    @Column(name = "taller_id", nullable = false)
+    private UUID tallerId;
 
     @Column(name = "sucursal_id", nullable = false)
     private UUID sucursalId;
@@ -54,35 +60,14 @@ public class Orden {
     @Column(name = "mecanico_id")
     private UUID mecanicoId;
 
-    @Column(name = "mecanico_asignado_id")
-    private UUID mecanicoAsignadoId;
+    @Column(name = "estado_id", nullable = false)
+    private UUID estadoId;
 
-    @Column(name = "numero_orden", nullable = false, unique = true)
+    @Column(name = "tipo_id", nullable = false)
+    private UUID tipoId;
+
+    @Column(name = "numero_orden", nullable = false)
     private String numeroOrden;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    @Builder.Default
-    private EstadoOrdenEnum estado = EstadoOrdenEnum.recibida;
-
-    @Convert(converter = TipoOrdenEnumConverter.class)
-    @Column(nullable = false)
-    @Builder.Default
-    private TipoOrdenEnum tipo = TipoOrdenEnum.MANTENCION;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "prioridad", nullable = false, length = 50)
-    @Builder.Default
-    private PrioridadOrdenEnum prioridad = PrioridadOrdenEnum.MEDIA;
-
-    @Column(name = "fecha_estimada_entrega")
-    private LocalDate fechaEstimadaEntrega;
-
-    @Column(name = "descripcion_trabajo", nullable = false, columnDefinition = "TEXT")
-    private String descripcionTrabajo;
-
-    @Column(name = "notas_internas", columnDefinition = "TEXT")
-    private String notasInternas;
 
     @Column(name = "diagnostico_inicial", columnDefinition = "TEXT")
     private String diagnosticoInicial;
@@ -94,12 +79,10 @@ public class Orden {
     private String observacionesCliente;
 
     @Column(name = "descuento_manual", nullable = false, precision = 12, scale = 2)
-    @Builder.Default
-    private BigDecimal descuentoManual = BigDecimal.ZERO;
+    private BigDecimal descuentoManual;
 
     @Column(name = "porcentaje_descuento_membresia", nullable = false, precision = 5, scale = 2)
-    @Builder.Default
-    private BigDecimal porcentajeDescuentoMembresia = BigDecimal.ZERO;
+    private BigDecimal porcentajeDescuentoMembresia;
 
     @Column(name = "fecha_ingreso", nullable = false)
     private OffsetDateTime fechaIngreso;
@@ -110,11 +93,24 @@ public class Orden {
     @Column(name = "fecha_entrega")
     private OffsetDateTime fechaEntrega;
 
-    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
-    @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
+
+    @Transient
+    private String externalId;
+
+    @Transient
+    private UUID mecanicoAsignadoId;
+
+    @Transient
+    private EstadoOrdenEnum estado;
+
+    @Transient
+    private TipoOrdenEnum tipo;
+
+    @Transient
+    private String descripcionTrabajo;
 }
