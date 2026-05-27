@@ -384,6 +384,34 @@ public class OrdenService {
         return new OrdenMetricasResult(recibidas, enProceso, listas, entregadas);
     }
 
+    private static final Set<EstadoOrdenEnum> EN_PROCESO_ESTADOS = EnumSet.of(
+            EstadoOrdenEnum.en_diagnostico,
+            EstadoOrdenEnum.esperando_repuestos,
+            EstadoOrdenEnum.en_reparacion,
+            EstadoOrdenEnum.control_calidad
+    );
+
+    public Map<String, Long> contarPorEstado() {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        UUID mecanicoId = UsuarioContext.getCurrentUser();
+        if (sucursalId == null || mecanicoId == null) {
+            return Map.of();
+        }
+        return ordenRepository
+                .findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId)
+                .stream()
+                .filter(o -> o.getEstado() != EstadoOrdenEnum.cancelada)
+                .collect(Collectors.groupingBy(
+                        o -> toGrupoEstado(o.getEstado()),
+                        Collectors.counting()
+                ));
+    }
+
+    private static String toGrupoEstado(EstadoOrdenEnum estado) {
+        if (EN_PROCESO_ESTADOS.contains(estado)) return "en_proceso";
+        return estado.name();
+    }
+
     private void registrarEstado(UUID ordenId, UUID sucursalId, UUID usuarioId,
                                  EstadoOrdenEnum anterior, EstadoOrdenEnum nuevo, String observacion) {
         OrdenEstado auditoria = OrdenEstado.builder()

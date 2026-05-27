@@ -1,14 +1,10 @@
 package com.veloservice.ordenes.interfaces.rest;
  
-import com.veloservice.config.security.SucursalContext;
-import com.veloservice.config.security.UsuarioContext;
 import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
 import com.veloservice.ordenes.application.usecase.ComentarioService;
 import com.veloservice.ordenes.application.usecase.MultimediaService;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.ordenes.interfaces.mapper.MultimediaMapper;
-import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
-import com.veloservice.config.enums.EstadoOrdenEnum;
 import com.veloservice.ordenes.interfaces.mapper.OrdenMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,13 +15,11 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
  
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,7 +34,6 @@ import java.util.stream.Collectors;
 public class OrdenController {
  
     private final OrdenService ordenService;
-    private final OrdenRepository ordenRepository;
     private final ComentarioService comentarioService;
     private final MultimediaService multimediaService;
  
@@ -66,37 +59,12 @@ public class OrdenController {
         ));
     }
  
-    private static final java.util.Set<EstadoOrdenEnum> EN_PROCESO_ESTADOS = EnumSet.of(
-        EstadoOrdenEnum.en_diagnostico,
-        EstadoOrdenEnum.esperando_repuestos,
-        EstadoOrdenEnum.en_reparacion,
-        EstadoOrdenEnum.control_calidad
-    );
-
     /**
      * Returns order count grouped by status for the authenticated mechanic.
      */
     @GetMapping("/estados")
     public ResponseEntity<Map<String, Long>> estados() {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        UUID mecanicoId = UsuarioContext.getCurrentUser();
-        if (sucursalId == null || mecanicoId == null) {
-            return ResponseEntity.ok(Map.of());
-        }
-        Map<String, Long> estados = ordenRepository
-                .findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId)
-                .stream()
-                .filter(o -> o.getEstado() != EstadoOrdenEnum.cancelada)
-                .collect(Collectors.groupingBy(
-                    o -> toGrupoEstado(o.getEstado()),
-                    Collectors.counting()
-                ));
-        return ResponseEntity.ok(estados);
-    }
-
-    private static String toGrupoEstado(EstadoOrdenEnum estado) {
-        if (EN_PROCESO_ESTADOS.contains(estado)) return "en_proceso";
-        return estado.name();
+        return ResponseEntity.ok(ordenService.contarPorEstado());
     }
  
     /**
