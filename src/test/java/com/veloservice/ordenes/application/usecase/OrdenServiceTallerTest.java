@@ -1,7 +1,7 @@
 package com.veloservice.ordenes.application.usecase;
 
-import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
-import com.veloservice.clientes.infraestructure.persistence.repository.BicicletaRepository;
+import com.veloservice.ordenes.application.port.BicicletaPort;
+import com.veloservice.ordenes.application.port.UsuarioPort;
 import com.veloservice.config.enums.EstadoOrdenEnum;
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
@@ -45,8 +45,8 @@ class OrdenServiceTallerTest {
     @Mock private OrdenProductoRepository ordenProductoRepository;
     @Mock private MovimientoStockRepository movimientoStockRepository;
     @Mock private SecuenciaService secuenciaService;
-    @Mock private BicicletaRepository bicicletaRepository;
-    @Mock private UsuarioRepository usuarioRepository;
+    @Mock private BicicletaPort bicicletaPort;
+    @Mock private UsuarioPort usuarioPort;
 
     private OrdenService ordenService;
 
@@ -65,8 +65,8 @@ class OrdenServiceTallerTest {
                 ordenProductoRepository,
                 movimientoStockRepository,
                 secuenciaService,
-                bicicletaRepository,
-                usuarioRepository
+                bicicletaPort,
+                usuarioPort
         );
     }
 

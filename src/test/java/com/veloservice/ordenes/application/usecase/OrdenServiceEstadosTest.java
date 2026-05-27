@@ -32,8 +32,8 @@ class OrdenServiceEstadosTest {
     @Mock com.veloservice.ordenes.infraestructure.persistence.repository.OrdenProductoRepository ordenProductoRepository;
     @Mock com.veloservice.inventario.infraestructure.persistence.repository.MovimientoStockRepository movimientoStockRepository;
     @Mock com.veloservice.ordenes.application.usecase.SecuenciaService secuenciaService;
-    @Mock com.veloservice.clientes.infraestructure.persistence.repository.BicicletaRepository bicicletaRepository;
-    @Mock com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository usuarioRepository;
+    @Mock com.veloservice.ordenes.application.port.BicicletaPort bicicletaPort;
+    @Mock com.veloservice.ordenes.application.port.UsuarioPort usuarioPort;
 
     @InjectMocks OrdenService ordenService;
 

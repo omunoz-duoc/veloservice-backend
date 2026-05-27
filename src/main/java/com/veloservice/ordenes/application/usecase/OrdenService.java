@@ -1,9 +1,7 @@
 package com.veloservice.ordenes.application.usecase;
 
-import com.veloservice.administracion.domain.model.Usuario;
-import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
-import com.veloservice.clientes.domain.model.Bicicleta;
-import com.veloservice.clientes.infraestructure.persistence.repository.BicicletaRepository;
+import com.veloservice.ordenes.application.port.BicicletaPort;
+import com.veloservice.ordenes.application.port.UsuarioPort;
 import com.veloservice.config.enums.EstadoOrdenEnum;
 import com.veloservice.config.enums.EtapaMultimediaEnum;
 import com.veloservice.config.enums.TipoMovimientoEnum;
@@ -85,8 +83,8 @@ public class OrdenService {
     private final OrdenProductoRepository ordenProductoRepository;
     private final MovimientoStockRepository movimientoStockRepository;
     private final SecuenciaService secuenciaService;
-    private final BicicletaRepository bicicletaRepository;
-    private final UsuarioRepository usuarioRepository;
+    private final BicicletaPort bicicletaPort;
+    private final UsuarioPort usuarioPort;
 
     @TenantOperation
     @Transactional
@@ -433,11 +431,10 @@ public class OrdenService {
     }
 
     private UUID resolveBicicleta(NuevaOrdenCommand command, UUID clienteId, UUID sucursalId) {
-        // TODO: reimplementar resolución de bicicleta (requiere ClienteRepository)
         if (command.getBicicletaId() != null) {
-            Bicicleta bicicleta = bicicletaRepository.findById(command.getBicicletaId())
+            bicicletaPort.findById(command.getBicicletaId())
                     .orElseThrow(() -> new IllegalArgumentException("Bicicleta no encontrada"));
-            return bicicleta.getId();
+            return command.getBicicletaId();
         }
         throw new UnsupportedOperationException("resolveBicicleta no implementado");
     }
@@ -446,8 +443,7 @@ public class OrdenService {
         if (mecanicoAsignadoId == null) {
             return null;
         }
-        boolean exists = usuarioRepository.existsByIdAndSucursalIdAndRolNombreAndActivoTrue(
-                mecanicoAsignadoId, sucursalId, "MECANICO");
+        boolean exists = usuarioPort.existsMecanicoEnSucursal(mecanicoAsignadoId, sucursalId);
         if (!exists) {
             throw new IllegalArgumentException("Mecanico asignado no valido");
         }
@@ -520,25 +516,25 @@ public class OrdenService {
                 .fechaPrometida(orden.getFechaPrometida());
 
         if (orden.getBicicletaId() != null) {
-            bicicletaRepository.findById(orden.getBicicletaId()).ifPresent(bicicleta -> {
-                builder.bicicletaMarca(bicicleta.getMarca());
-                builder.bicicletaModelo(bicicleta.getModelo());
-                builder.bicicletaTipo(bicicleta.getTipo());
-                builder.bicicletaColor(bicicleta.getColor());
-                builder.bicicletaTalla(bicicleta.getAro());
+            bicicletaPort.findById(orden.getBicicletaId()).ifPresent(bicicleta -> {
+                builder.bicicletaMarca(bicicleta.marca());
+                builder.bicicletaModelo(bicicleta.modelo());
+                builder.bicicletaTipo(bicicleta.tipo());
+                builder.bicicletaColor(bicicleta.color());
+                builder.bicicletaTalla(bicicleta.aro());
 
-                if (bicicleta.getCliente() != null) {
-                    builder.clienteNombre(bicicleta.getCliente().getNombre());
-                    builder.clienteApellido(bicicleta.getCliente().getApellido());
-                    builder.clienteTelefono(bicicleta.getCliente().getTelefono());
+                if (bicicleta.cliente() != null) {
+                    builder.clienteNombre(bicicleta.cliente().nombre());
+                    builder.clienteApellido(bicicleta.cliente().apellido());
+                    builder.clienteTelefono(bicicleta.cliente().telefono());
                 }
             });
         }
 
         if (orden.getMecanicoId() != null) {
-            usuarioRepository.findById(orden.getMecanicoId()).ifPresent(mecanico -> {
-                builder.mecanicoNombre(mecanico.getNombre());
-                builder.mecanicoApellido(mecanico.getApellido());
+            usuarioPort.findById(orden.getMecanicoId()).ifPresent(mecanico -> {
+                builder.mecanicoNombre(mecanico.nombre());
+                builder.mecanicoApellido(mecanico.apellido());
             });
         }
 
