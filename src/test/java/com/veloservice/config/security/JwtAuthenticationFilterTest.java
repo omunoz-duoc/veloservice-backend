@@ -1,5 +1,8 @@
 package com.veloservice.config.security;
 
+import com.veloservice.config.tenant.SucursalContext;
+import com.veloservice.config.tenant.TallerContext;
+import com.veloservice.config.tenant.UsuarioContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

@@ -1,7 +1,7 @@
 package com.veloservice.config.tenant;
 
-import com.veloservice.config.security.SucursalContext;
-import com.veloservice.config.security.TallerContext;
+import com.veloservice.config.tenant.SucursalContext;
+import com.veloservice.config.tenant.TallerContext;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;

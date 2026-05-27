@@ -16,8 +16,8 @@ import com.veloservice.clientes.infraestructure.persistence.repository.Membresia
 import com.veloservice.clientes.infraestructure.persistence.repository.SucursalClienteRepository;
 import com.veloservice.config.enums.EstadoCobroEnum;
 import com.veloservice.config.enums.EstadoOrdenEnum;
-import com.veloservice.config.security.SucursalContext;
-import com.veloservice.config.security.UsuarioContext;
+import com.veloservice.config.tenant.SucursalContext;
+import com.veloservice.config.tenant.UsuarioContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

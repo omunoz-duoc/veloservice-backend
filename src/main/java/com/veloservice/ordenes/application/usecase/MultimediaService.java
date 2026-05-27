@@ -1,7 +1,7 @@
 package com.veloservice.ordenes.application.usecase;
 
 import com.veloservice.config.enums.EtapaMultimediaEnum;
-import com.veloservice.config.security.UsuarioContext;
+import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.ordenes.application.dto.MultimediaCreateCommand;
 import com.veloservice.ordenes.application.dto.MultimediaResult;
 import com.veloservice.ordenes.domain.model.Multimedia;

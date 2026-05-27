@@ -10,7 +10,7 @@ import com.veloservice.inventario.infraestructure.persistence.repository.Movimie
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import com.veloservice.inventario.interfaces.mapper.ProductoMapper;
 import com.veloservice.config.tenant.TenantOperation;
-import com.veloservice.config.security.SucursalContext;
+import com.veloservice.config.tenant.SucursalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

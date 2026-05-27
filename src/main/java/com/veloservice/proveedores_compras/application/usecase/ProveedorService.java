@@ -9,7 +9,7 @@ import com.veloservice.proveedores_compras.domain.model.SucursalProveedor;
 import com.veloservice.proveedores_compras.infraestructure.persistence.repository.ProveedorRepository;
 import com.veloservice.proveedores_compras.infraestructure.persistence.repository.SucursalProveedorRepository;
 import com.veloservice.config.tenant.TenantOperation;
-import com.veloservice.config.security.SucursalContext;
+import com.veloservice.config.tenant.SucursalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

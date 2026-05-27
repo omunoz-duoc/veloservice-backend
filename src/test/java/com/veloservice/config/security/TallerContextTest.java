@@ -1,5 +1,6 @@
 package com.veloservice.config.security;
 
+import com.veloservice.config.tenant.TallerContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import java.util.UUID;

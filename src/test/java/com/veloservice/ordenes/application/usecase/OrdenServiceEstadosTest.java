@@ -1,8 +1,8 @@
 package com.veloservice.ordenes.application.usecase;
 
 import com.veloservice.config.enums.EstadoOrdenEnum;
-import com.veloservice.config.security.SucursalContext;
-import com.veloservice.config.security.UsuarioContext;
+import com.veloservice.config.tenant.SucursalContext;
+import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.ordenes.domain.model.Orden;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import org.junit.jupiter.api.AfterEach;

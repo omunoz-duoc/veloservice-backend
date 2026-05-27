@@ -12,7 +12,7 @@ import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRe
 import com.veloservice.clientes.infraestructure.persistence.repository.MembresiaRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.SucursalClienteRepository;
 import com.veloservice.clientes.interfaces.mapper.ClienteMapper;
-import com.veloservice.config.security.SucursalContext;
+import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.finanzas.infraestructure.persistence.repository.CobroRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import lombok.RequiredArgsConstructor;

@@ -6,7 +6,7 @@ import com.veloservice.administracion.interfaces.rest.MecanicoResponse;
 import com.veloservice.administracion.interfaces.rest.MecanicoPerfilResponse;
 import java.time.Duration;
 import com.veloservice.config.enums.EstadoOrdenEnum;
-import com.veloservice.config.security.SucursalContext;
+import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TenantOperation;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import java.util.List;

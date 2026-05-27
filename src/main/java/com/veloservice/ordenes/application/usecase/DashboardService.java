@@ -6,7 +6,7 @@ import com.veloservice.ordenes.application.dto.DashboardHoyResult;
 import com.veloservice.ordenes.domain.model.Orden;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import com.veloservice.config.enums.EstadoOrdenEnum;
-import com.veloservice.config.security.SucursalContext;
+import com.veloservice.config.tenant.SucursalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +38,7 @@ public class DashboardService {
         }
 
         LocalDate hoy = LocalDate.now();
-        UUID mecanicoId = com.veloservice.config.security.UsuarioContext.getCurrentUser();
+        UUID mecanicoId = com.veloservice.config.tenant.UsuarioContext.getCurrentUser();
         List<Orden> ordenes = ordenRepository.findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId);
 
         long recibidas = ordenes.stream()
@@ -62,7 +62,7 @@ public class DashboardService {
         if (sucursalId == null) {
             return Map.of();
         }
-        UUID mecanicoId = com.veloservice.config.security.UsuarioContext.getCurrentUser();
+        UUID mecanicoId = com.veloservice.config.tenant.UsuarioContext.getCurrentUser();
         return ordenRepository.findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId).stream()
                 .collect(Collectors.groupingBy(o -> o.getEstado().name(), Collectors.counting()));
     }
@@ -88,7 +88,7 @@ public class DashboardService {
                 .toList();
 
         OffsetDateTime ahora = OffsetDateTime.now();
-        UUID mecanicoId = com.veloservice.config.security.UsuarioContext.getCurrentUser();
+        UUID mecanicoId = com.veloservice.config.tenant.UsuarioContext.getCurrentUser();
         var ordenesAtrasadas = ordenRepository.findAllBySucursalIdAndMecanicoIdOrderByFechaIngresoDesc(sucursalId, mecanicoId).stream()
                 .filter(o -> o.getFechaPrometida() != null && o.getFechaPrometida().isBefore(ahora))
                 .filter(o -> !EstadoOrdenEnum.entregada.equals(o.getEstado()))

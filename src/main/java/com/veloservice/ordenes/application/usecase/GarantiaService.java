@@ -2,7 +2,7 @@ package com.veloservice.ordenes.application.usecase;
 
 import com.veloservice.config.enums.EstadoGarantiaEnum;
 import com.veloservice.config.enums.EstadoOrdenEnum;
-import com.veloservice.config.security.SucursalContext;
+import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.ordenes.application.dto.GarantiaCreateCommand;
 import com.veloservice.ordenes.application.dto.GarantiaResult;
 import com.veloservice.ordenes.domain.model.Garantia;

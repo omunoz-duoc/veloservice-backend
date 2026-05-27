@@ -7,9 +7,9 @@ import com.veloservice.clientes.infraestructure.persistence.repository.Bicicleta
 import com.veloservice.config.enums.EstadoOrdenEnum;
 import com.veloservice.config.enums.EtapaMultimediaEnum;
 import com.veloservice.config.enums.TipoMovimientoEnum;
-import com.veloservice.config.security.SucursalContext;
-import com.veloservice.config.security.TallerContext;
-import com.veloservice.config.security.UsuarioContext;
+import com.veloservice.config.tenant.SucursalContext;
+import com.veloservice.config.tenant.TallerContext;
+import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.config.tenant.TenantOperation;
 import com.veloservice.inventario.infraestructure.persistence.repository.MovimientoStockRepository;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;

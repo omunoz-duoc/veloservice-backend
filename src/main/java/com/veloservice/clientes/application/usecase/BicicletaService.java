@@ -8,7 +8,7 @@ import com.veloservice.clientes.domain.model.Cliente;
 import com.veloservice.clientes.infraestructure.persistence.repository.BicicletaRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.SucursalClienteRepository;
-import com.veloservice.config.security.SucursalContext;
+import com.veloservice.config.tenant.SucursalContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

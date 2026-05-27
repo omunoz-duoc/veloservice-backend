@@ -1,4 +1,4 @@
-package com.veloservice.config.security;
+package com.veloservice.config.tenant;
 
 import java.util.UUID;
 
