@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.veloservice.clientes.application.usecase.BicicletaService;
 import com.veloservice.clientes.interfaces.mapper.BicicletaMapper;
+import com.veloservice.clientes.interfaces.rest.dto.BicicletaRequest;
+import com.veloservice.clientes.interfaces.rest.dto.BicicletaResponse;
+import com.veloservice.clientes.interfaces.rest.dto.HojaVidaBicicletaResponse;
 
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenProductoRepository;

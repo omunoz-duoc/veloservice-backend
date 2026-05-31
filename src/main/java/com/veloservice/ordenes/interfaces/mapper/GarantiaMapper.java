@@ -2,8 +2,8 @@ package com.veloservice.ordenes.interfaces.mapper;
 
 import com.veloservice.ordenes.application.dto.GarantiaCreateCommand;
 import com.veloservice.ordenes.application.dto.GarantiaResult;
-import com.veloservice.ordenes.interfaces.rest.GarantiaRequest;
-import com.veloservice.ordenes.interfaces.rest.GarantiaResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.GarantiaRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.GarantiaResponse;
 
 import java.util.List;
 import java.util.stream.Collectors;

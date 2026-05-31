@@ -9,7 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.veloservice.ordenes.interfaces.rest.ComentarioRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.ComentarioRequest;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -42,6 +43,7 @@ public class ComentarioService {
                 .ordenId(ordenId)
                 .usuarioId(usuarioId)
                 .texto(texto)
+                .createdAt(OffsetDateTime.now())
                 .build();
 
         return toResult(comentarioRepository.save(comentario));

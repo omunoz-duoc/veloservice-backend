@@ -22,16 +22,16 @@ public class SecuenciaService {
      * @param sucursalId branch identifier
      * @return formatted work order number
      */
-    public String generarNumeroOrden(UUID sucursalId) {
+    public String generarNumeroOrden(UUID tallerId) {
         String numeroOrden;
         int intentos = 0;
         do {
             int numero = ThreadLocalRandom.current().nextInt(0, 100000);
             numeroOrden = String.format("OT-%05d", numero);
             intentos++;
-        } while (ordenRepository.existsByNumeroOrdenAndSucursalId(numeroOrden, sucursalId) && intentos < 20);
+        } while (ordenRepository.existsByNumeroOrdenAndTallerId(numeroOrden, tallerId) && intentos < 20);
 
-        if (ordenRepository.existsByNumeroOrdenAndSucursalId(numeroOrden, sucursalId)) {
+        if (ordenRepository.existsByNumeroOrdenAndTallerId(numeroOrden, tallerId)) {
             throw new IllegalStateException("No se pudo generar numero de orden unico");
         }
         return numeroOrden;

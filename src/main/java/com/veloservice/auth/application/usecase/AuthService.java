@@ -1,8 +1,9 @@
 package com.veloservice.auth.application.usecase;
 
-import com.veloservice.administracion.domain.model.Sucursal;
-import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
+import com.veloservice.administracion.domain.model.UsuarioSucursal;
+import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioSucursalRepository;
 import com.veloservice.auth.application.dto.AuthLoginCommand;
+import com.veloservice.auth.application.port.SucursalPort;
 import com.veloservice.auth.application.dto.AuthLoginResult;
 import com.veloservice.auth.application.dto.AuthRegisterCommand;
 import com.veloservice.auth.application.exception.AuthErrorCode;
@@ -14,6 +15,7 @@ import com.veloservice.auth.domain.model.Usuario;
 import com.veloservice.auth.infraestructure.email.ResendEmailService;
 import com.veloservice.auth.infraestructure.persistence.repository.PasswordResetTokenRepository;
 import com.veloservice.auth.infraestructure.persistence.repository.RolRepository;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioPlataformaRepository;
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.auth.infraestructure.ratelimit.PasswordResetRateLimiter;
 import com.veloservice.config.security.JwtTokenProvider;
@@ -41,10 +43,12 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthService {
     private final UsuarioRepository usuarioRepository;
+    private final UsuarioPlataformaRepository usuarioPlataformaRepository;
+    private final UsuarioSucursalRepository usuarioSucursalRepository;
         private final PasswordResetTokenRepository passwordResetTokenRepository;
         private final PasswordResetRateLimiter passwordResetRateLimiter;
     private final RolRepository rolRepository;
-    private final SucursalRepository sucursalRepository;
+    private final SucursalPort sucursalPort;
     private final JwtTokenProvider jwtProvider;
     private final PasswordEncoder passwordEncoder;
     private final LoginAttemptService loginAttemptService;
@@ -82,24 +86,44 @@ public class AuthService {
         usuario.setLastLogin(OffsetDateTime.now());
         usuarioRepository.save(usuario);
 
-        UUID sucursalId = usuario.getSucursal() != null
-                ? usuario.getSucursal().getId()
-                : null;
-        if (sucursalId == null) {
-            throw new IllegalStateException("Usuario sin sucursal asignada");
-        }
-
-        UUID tallerId = null;
-        if ("ADMIN_TALLER".equals(usuario.getRol().getNombre())) {
-            Sucursal sucursalConTaller = sucursalRepository.findByIdWithTaller(sucursalId)
-                    .orElseThrow(() -> new IllegalStateException("Sucursal no encontrada"));
-            tallerId = sucursalConTaller.getTaller().getId();
-        }
+        Scope scope = resolveScope(usuario);
 
         String token = jwtProvider.generateToken(
-                usuario.getId(), usuario.getEmail(), usuario.getRol().getNombre(), sucursalId, tallerId
+                usuario.getId(), usuario.getEmail(), usuario.getRol().getNombre(), scope.sucursalId(), scope.tallerId()
         );
-        return new AuthLoginResult(usuario.getNombre(), usuario.getApellido(), token, usuario.getRol().getNombre());
+        return new AuthLoginResult(
+                usuario.getNombre(),
+                usuario.getApellido(),
+                token,
+                usuario.getRol().getNombre(),
+                scope.ambito(),
+                scope.tallerId(),
+                scope.sucursalId()
+        );
+    }
+
+    @Transactional
+    public AuthLoginResult loginPlataforma(AuthLoginCommand command) {
+        String email = command.getEmail();
+        if (loginAttemptService.isBlocked(email)) {
+            throw new AuthException(AuthErrorCode.TOO_MANY_ATTEMPTS);
+        }
+
+        com.veloservice.auth.domain.model.UsuarioPlataforma usuario =
+                usuarioPlataformaRepository.findByEmailAndActivoTrue(email)
+                        .orElseThrow(() -> new AuthException(AuthErrorCode.USER_NOT_FOUND));
+
+        if (!passwordEncoder.matches(command.getPassword(), usuario.getPasswordHash())) {
+            loginAttemptService.recordFailedAttempt(email);
+            throw new AuthException(AuthErrorCode.INVALID_PASSWORD);
+        }
+        loginAttemptService.resetAttempts(email);
+
+        usuario.setLastLogin(OffsetDateTime.now());
+        usuarioPlataformaRepository.save(usuario);
+
+        String token = jwtProvider.generatePlatformToken(usuario.getId(), usuario.getEmail());
+        return new AuthLoginResult(usuario.getNombre(), usuario.getApellido(), token, "plataforma", "plataforma", null, null);
     }
 
     /**
@@ -110,7 +134,7 @@ public class AuthService {
      */
     @Transactional
     public AuthLoginResult register(AuthRegisterCommand command) {
-        Sucursal sucursal = validateSucursal(command.getSucursalId());
+        SucursalPort.SucursalRef sucursal = validateSucursal(command.getSucursalId());
         Rol rol = validateRol(command.getRol());
         validatePassword(command.getPassword());
         validateEmail(command.getEmail());
@@ -120,8 +144,12 @@ public class AuthService {
         validateNombre(command.getNombre());
 
         validateEmailUnique(command.getEmail());
+        UUID tallerId = sucursalPort.findTallerIdBySucursalId(sucursal.id())
+                .orElseThrow(() -> new IllegalArgumentException("INVALID_SUCURSAL"));
 
         Usuario usuario = Usuario.builder()
+                .tallerId(tallerId)
+                .rolId(rol.getId())
                 .nombre(command.getNombre())
                 .apellido(command.getApellido())
                 .rut(command.getRut())
@@ -129,22 +157,53 @@ public class AuthService {
                 .email(command.getEmail())
                 .passwordHash(passwordEncoder.encode(command.getPassword()))
                 .rol(rol)
-                .sucursal(sucursal)
+                .sucursalId(sucursal.id())
                 .build();
 
         Usuario saved = usuarioRepository.save(usuario);
 
-        UUID tallerId = null;
-        if ("ADMIN_TALLER".equals(rol.getNombre())) {
-            Sucursal sucursalConTaller = sucursalRepository.findByIdWithTaller(sucursal.getId())
-                    .orElseThrow(() -> new IllegalStateException("Sucursal no encontrada"));
-            tallerId = sucursalConTaller.getTaller().getId();
-        }
+        UUID tokenSucursalId = "taller".equals(normalizeAmbito(rol.getAmbito())) ? null : sucursal.id();
 
         String token = jwtProvider.generateToken(
-                saved.getId(), saved.getEmail(), rol.getNombre(), sucursal.getId(), tallerId
+                saved.getId(), saved.getEmail(), rol.getNombre(), tokenSucursalId, tallerId
         );
-        return new AuthLoginResult(usuario.getNombre(), usuario.getApellido(), token, rol.getNombre());
+        return new AuthLoginResult(
+                usuario.getNombre(),
+                usuario.getApellido(),
+                token,
+                rol.getNombre(),
+                normalizeAmbito(rol.getAmbito()),
+                tallerId,
+                tokenSucursalId
+        );
+    }
+
+    private Scope resolveScope(Usuario usuario) {
+        String ambito = normalizeAmbito(usuario.getRol().getAmbito());
+        UUID tallerId = usuario.getTallerId();
+        if ("taller".equals(ambito)) {
+            return new Scope(ambito, tallerId, null);
+        }
+        if (!"sucursal".equals(ambito)) {
+            throw new AuthException(AuthErrorCode.AMBITO_ROL_INVALIDO);
+        }
+
+        UsuarioSucursal principal = usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(usuario.getId())
+                .orElseThrow(() -> new AuthException(AuthErrorCode.USUARIO_SIN_SUCURSAL_PRINCIPAL));
+        UUID sucursalTallerId = sucursalPort.findTallerIdBySucursalId(principal.getSucursalId())
+                .orElseThrow(() -> new AuthException(AuthErrorCode.USUARIO_SIN_SUCURSAL_PRINCIPAL));
+        if (!sucursalTallerId.equals(tallerId)) {
+            throw new AuthException(AuthErrorCode.SUCURSAL_NO_PERTENECE_TALLER);
+        }
+
+        return new Scope(ambito, tallerId, principal.getSucursalId());
+    }
+
+    private String normalizeAmbito(String ambito) {
+        return StringUtils.hasText(ambito) ? ambito.trim().toLowerCase(Locale.ROOT) : "";
+    }
+
+    private record Scope(String ambito, UUID tallerId, UUID sucursalId) {
     }
 
     /**
@@ -223,11 +282,11 @@ public class AuthService {
         }
     }
 
-    private Sucursal validateSucursal(UUID sucursalId) {
+    private SucursalPort.SucursalRef validateSucursal(UUID sucursalId) {
         if (sucursalId == null) {
             throw new IllegalArgumentException("INVALID_SUCURSAL");
         }
-        return sucursalRepository.findById(sucursalId)
+        return sucursalPort.findById(sucursalId)
                 .orElseThrow(() -> new IllegalArgumentException("INVALID_SUCURSAL"));
     }
 

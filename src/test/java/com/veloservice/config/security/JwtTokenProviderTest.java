@@ -19,22 +19,22 @@ class JwtTokenProviderTest {
     }
 
     @Test
-    void generateTokenWithoutTallerIdEmbedsSucursal() {
-        String token = provider.generateToken(userId, "a@b.com", "MECANICO", sucursalId, null);
-        assertThat(provider.getSucursalId(token)).isEqualTo(sucursalId);
-        assertThat(provider.getTallerId(token)).isNull();
-    }
-
-    @Test
-    void generateTokenWithTallerIdEmbedsBothClaims() {
-        String token = provider.generateToken(userId, "a@b.com", "ADMIN_TALLER", sucursalId, tallerId);
+    void generateTokenWithSucursalAndTallerEmbedsBothClaims() {
+        String token = provider.generateToken(userId, "a@b.com", "mecanico", sucursalId, tallerId);
         assertThat(provider.getSucursalId(token)).isEqualTo(sucursalId);
         assertThat(provider.getTallerId(token)).isEqualTo(tallerId);
     }
 
     @Test
+    void generateTokenWithNullSucursalOmitsSucursalClaim() {
+        String token = provider.generateToken(userId, "a@b.com", "admin_taller", null, tallerId);
+        assertThat(provider.getSucursalId(token)).isNull();
+        assertThat(provider.getTallerId(token)).isEqualTo(tallerId);
+    }
+
+    @Test
     void getRolReturnsEmbeddedRole() {
-        String token = provider.generateToken(userId, "a@b.com", "ADMIN_TALLER", sucursalId, tallerId);
-        assertThat(provider.getRol(token)).isEqualTo("ADMIN_TALLER");
+        String token = provider.generateToken(userId, "a@b.com", "admin_taller", null, tallerId);
+        assertThat(provider.getRol(token)).isEqualTo("admin_taller");
     }
 }

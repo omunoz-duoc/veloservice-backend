@@ -39,7 +39,7 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void setsTallerContextWhenTallerIdPresentInToken() throws Exception {
+    void tallerOnlyTokenSetsTallerAndUserContextsWithoutSucursal() throws Exception {
         HttpServletRequest request = mock(HttpServletRequest.class);
         HttpServletResponse response = mock(HttpServletResponse.class);
         FilterChain chain = mock(FilterChain.class);
@@ -47,15 +47,49 @@ class JwtAuthenticationFilterTest {
         given(request.getHeader("Authorization")).willReturn("Bearer valid.token.here");
         given(tokenProvider.validateToken("valid.token.here")).willReturn(true);
         given(tokenProvider.getUserId("valid.token.here")).willReturn(userId);
-        given(tokenProvider.getRol("valid.token.here")).willReturn("ADMIN_TALLER");
-        given(tokenProvider.getSucursalId("valid.token.here")).willReturn(sucursalId);
+        given(tokenProvider.getRol("valid.token.here")).willReturn("admin_taller");
+        given(tokenProvider.getSucursalId("valid.token.here")).willReturn(null);
         given(tokenProvider.getTallerId("valid.token.here")).willReturn(tallerId);
+        given(tokenProvider.getUserType("valid.token.here")).willReturn(null);
 
         UUID[] capturedTaller = new UUID[1];
         UUID[] capturedSucursal = new UUID[1];
+        UUID[] capturedUser = new UUID[1];
         doAnswer(invocation -> {
             capturedTaller[0] = TallerContext.getCurrentTaller();
             capturedSucursal[0] = SucursalContext.getCurrentSucursal();
+            capturedUser[0] = UsuarioContext.getCurrentUser();
+            return null;
+        }).when(chain).doFilter(request, response);
+
+        filter.doFilterInternal(request, response, chain);
+
+        assertThat(capturedTaller[0]).isEqualTo(tallerId);
+        assertThat(capturedSucursal[0]).isNull();
+        assertThat(capturedUser[0]).isEqualTo(userId);
+    }
+
+    @Test
+    void sucursalTokenSetsTallerSucursalAndUserContexts() throws Exception {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+
+        given(request.getHeader("Authorization")).willReturn("Bearer valid.token.here");
+        given(tokenProvider.validateToken("valid.token.here")).willReturn(true);
+        given(tokenProvider.getUserId("valid.token.here")).willReturn(userId);
+        given(tokenProvider.getRol("valid.token.here")).willReturn("mecanico");
+        given(tokenProvider.getSucursalId("valid.token.here")).willReturn(sucursalId);
+        given(tokenProvider.getTallerId("valid.token.here")).willReturn(tallerId);
+        given(tokenProvider.getUserType("valid.token.here")).willReturn(null);
+
+        UUID[] capturedTaller = new UUID[1];
+        UUID[] capturedSucursal = new UUID[1];
+        UUID[] capturedUser = new UUID[1];
+        doAnswer(invocation -> {
+            capturedTaller[0] = TallerContext.getCurrentTaller();
+            capturedSucursal[0] = SucursalContext.getCurrentSucursal();
+            capturedUser[0] = UsuarioContext.getCurrentUser();
             return null;
         }).when(chain).doFilter(request, response);
 
@@ -63,32 +97,6 @@ class JwtAuthenticationFilterTest {
 
         assertThat(capturedTaller[0]).isEqualTo(tallerId);
         assertThat(capturedSucursal[0]).isEqualTo(sucursalId);
-    }
-
-    @Test
-    void doesNotSetTallerContextWhenTallerIdAbsent() throws Exception {
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        HttpServletResponse response = mock(HttpServletResponse.class);
-        FilterChain chain = mock(FilterChain.class);
-
-        given(request.getHeader("Authorization")).willReturn("Bearer valid.token.here");
-        given(tokenProvider.validateToken("valid.token.here")).willReturn(true);
-        given(tokenProvider.getUserId("valid.token.here")).willReturn(userId);
-        given(tokenProvider.getRol("valid.token.here")).willReturn("MECANICO");
-        given(tokenProvider.getSucursalId("valid.token.here")).willReturn(sucursalId);
-        given(tokenProvider.getTallerId("valid.token.here")).willReturn(null);
-
-        UUID[] capturedTaller = new UUID[1];
-        UUID[] capturedSucursal = new UUID[1];
-        doAnswer(invocation -> {
-            capturedTaller[0] = TallerContext.getCurrentTaller();
-            capturedSucursal[0] = SucursalContext.getCurrentSucursal();
-            return null;
-        }).when(chain).doFilter(request, response);
-
-        filter.doFilterInternal(request, response, chain);
-
-        assertThat(capturedTaller[0]).isNull();
-        assertThat(capturedSucursal[0]).isEqualTo(sucursalId);
+        assertThat(capturedUser[0]).isEqualTo(userId);
     }
 }

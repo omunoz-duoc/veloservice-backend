@@ -42,6 +42,12 @@ public class AuthController {
      * @param request registration request payload
      * @return authentication response
      */
+    @PostMapping("/login_admin")
+    public ResponseEntity<AuthResponse> loginAdmin(@Valid @RequestBody AuthRequest request) {
+        AuthLoginResult result = authService.loginPlataforma(AuthMapper.toCommand(request));
+        return ResponseEntity.ok(AuthMapper.toResponse(result));
+    }
+
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthRegisterRequest request) {
         AuthLoginResult result = authService.register(AuthMapper.toCommand(request));

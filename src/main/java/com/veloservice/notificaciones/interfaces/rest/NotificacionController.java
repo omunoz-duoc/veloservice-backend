@@ -3,6 +3,8 @@ package com.veloservice.notificaciones.interfaces.rest;
 import com.veloservice.notificaciones.application.dto.NotificacionResult;
 import com.veloservice.notificaciones.application.usecase.NotificacionService;
 import com.veloservice.notificaciones.interfaces.mapper.NotificacionMapper;
+import com.veloservice.notificaciones.interfaces.rest.dto.NotificacionRequest;
+import com.veloservice.notificaciones.interfaces.rest.dto.NotificacionResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

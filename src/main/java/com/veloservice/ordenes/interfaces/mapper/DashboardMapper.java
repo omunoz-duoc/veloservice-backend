@@ -2,8 +2,8 @@ package com.veloservice.ordenes.interfaces.mapper;
 
 import com.veloservice.ordenes.application.dto.DashboardAlertasResult;
 import com.veloservice.ordenes.application.dto.DashboardHoyResult;
-import com.veloservice.ordenes.interfaces.rest.DashboardAlertasResponse;
-import com.veloservice.ordenes.interfaces.rest.DashboardHoyResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.DashboardAlertasResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.DashboardHoyResponse;
 
 import java.util.List;
 import java.util.stream.Collectors;

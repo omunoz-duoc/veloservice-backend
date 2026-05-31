@@ -1,73 +1,37 @@
 package com.veloservice.ordenes.application.usecase;
 
-import com.veloservice.ordenes.application.port.BicicletaPort;
-import com.veloservice.ordenes.application.port.UsuarioPort;
-import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
-import com.veloservice.config.tenant.UsuarioContext;
-import com.veloservice.inventario.infraestructure.persistence.repository.MovimientoStockRepository;
-import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
-import com.veloservice.ordenes.domain.model.Orden;
-import com.veloservice.ordenes.infraestructure.persistence.repository.MultimediaRepository;
-import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenEstadoRepository;
-import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenProductoRepository;
+import com.veloservice.ordenes.application.dto.OrdenReadResult;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
-import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenServicioRepository;
-import com.veloservice.servicios.infraestructure.persistence.repository.ServicioRepository;
-import com.veloservice.ordenes.application.usecase.SecuenciaService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class OrdenServiceTallerTest {
 
     @Mock private OrdenRepository ordenRepository;
-    @Mock private OrdenEstadoRepository ordenEstadoRepository;
-    @Mock private MultimediaRepository multimediaRepository;
-    @Mock private ServicioRepository servicioRepository;
-    @Mock private OrdenServicioRepository ordenServicioRepository;
-    @Mock private ProductoRepository productoRepository;
-    @Mock private OrdenProductoRepository ordenProductoRepository;
-    @Mock private MovimientoStockRepository movimientoStockRepository;
-    @Mock private SecuenciaService secuenciaService;
-    @Mock private BicicletaPort bicicletaPort;
-    @Mock private UsuarioPort usuarioPort;
 
     private OrdenService ordenService;
 
-    private final UUID tallerId = UUID.randomUUID();
-    private final UUID sucursalId = UUID.randomUUID();
-
     @BeforeEach
     void setUp() {
-        ordenService = new OrdenService(
-                ordenRepository,
-                ordenEstadoRepository,
-                multimediaRepository,
-                servicioRepository,
-                ordenServicioRepository,
-                productoRepository,
-                ordenProductoRepository,
-                movimientoStockRepository,
-                secuenciaService,
-                bicicletaPort,
-                usuarioPort
-        );
+        ordenService = new OrdenService(ordenRepository);
     }
 
     @AfterEach
@@ -77,67 +41,122 @@ class OrdenServiceTallerTest {
     }
 
     @Test
-    void listarUrgentesUsesTallerRepoWhenTallerContextSet() {
+    void listarUsesTallerScopeWhenTallerContextExists() {
+        UUID tallerId = UUID.randomUUID();
+        OrdenReadResult orden = orden("OT-1");
         TallerContext.setCurrentTaller(tallerId);
-        Orden urgente = Orden.builder()
-                .sucursalId(sucursalId)
-                .numeroOrden("U1")
-                .estado(EstadoOrdenEnum.en_reparacion)
-                .fechaPrometida(OffsetDateTime.now().minusDays(1))
-                .build();
-        given(ordenRepository.findAllByTallerIdOrderByFechaIngresoDesc(tallerId))
-                .willReturn(List.of(urgente));
+        given(ordenRepository.findReadByTallerId(tallerId)).willReturn(List.of(orden));
 
-        List<?> result = ordenService.listarUrgentes();
+        List<OrdenReadResult> result = ordenService.listar();
 
-        assertThat(result).hasSize(1);
-        verify(ordenRepository).findAllByTallerIdOrderByFechaIngresoDesc(tallerId);
+        assertThat(result).containsExactly(orden);
+        verify(ordenRepository).findReadByTallerId(tallerId);
     }
 
     @Test
-    void listarUrgentesFallsBackToSucursalRepoWhenNoTallerContext() {
-        given(ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId))
-                .willReturn(List.of());
+    void listarFallsBackToSucursalScope() {
+        UUID sucursalId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(ordenRepository.findReadBySucursalId(sucursalId)).willReturn(List.of());
 
-        try (MockedStatic<SucursalContext> ctx = mockStatic(SucursalContext.class)) {
-            ctx.when(SucursalContext::getCurrentSucursal).thenReturn(sucursalId);
+        List<OrdenReadResult> result = ordenService.listar();
 
-            ordenService.listarUrgentes();
-        }
-
-        verify(ordenRepository).findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId);
+        assertThat(result).isEmpty();
+        verify(ordenRepository).findReadBySucursalId(sucursalId);
     }
 
     @Test
-    void listarUsesTallerRepoWhenTallerContextSet() {
+    void listarPrefersSucursalScopeWhenBothContextsExist() {
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
         TallerContext.setCurrentTaller(tallerId);
-        Orden orden = Orden.builder()
-                .sucursalId(sucursalId)
-                .numeroOrden("O1")
-                .estado(EstadoOrdenEnum.recibida)
-                .build();
-        given(ordenRepository.findAllByTallerIdOrderByFechaIngresoDesc(tallerId))
-                .willReturn(List.of(orden));
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(ordenRepository.findReadBySucursalId(sucursalId)).willReturn(List.of());
 
-        List<?> result = ordenService.listar();
+        List<OrdenReadResult> result = ordenService.listar();
 
-        assertThat(result).hasSize(1);
-        verify(ordenRepository).findAllByTallerIdOrderByFechaIngresoDesc(tallerId);
+        assertThat(result).isEmpty();
+        verify(ordenRepository).findReadBySucursalId(sucursalId);
     }
 
     @Test
-    void metricasUsesTallerRepoWhenTallerContextSet() {
+    void obtenerTriesUuidThenNumeroOrdenWithinTaller() {
+        UUID tallerId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        OrdenReadResult orden = orden("OT-2");
         TallerContext.setCurrentTaller(tallerId);
-        Orden orden = Orden.builder()
-                .sucursalId(sucursalId)
-                .numeroOrden("M1")
-                .estado(EstadoOrdenEnum.recibida)
-                .build();
-        given(ordenRepository.findAllByTallerIdOrderByFechaIngresoDesc(tallerId))
-                .willReturn(List.of(orden));
+        given(ordenRepository.findReadByIdAndTallerId(ordenId, tallerId)).willReturn(Optional.empty());
+        given(ordenRepository.findReadByNumeroOrdenAndTallerId(ordenId.toString(), tallerId))
+                .willReturn(Optional.of(orden));
 
-        ordenService.metricas();
+        OrdenReadResult result = ordenService.obtener(ordenId.toString());
 
-        verify(ordenRepository).findAllByTallerIdOrderByFechaIngresoDesc(tallerId);
+        assertThat(result).isEqualTo(orden);
+        verify(ordenRepository).findReadByIdAndTallerId(ordenId, tallerId);
+        verify(ordenRepository).findReadByNumeroOrdenAndTallerId(ordenId.toString(), tallerId);
+    }
+
+    @Test
+    void obtenerUsesSucursalScopeForNumeroOrden() {
+        UUID sucursalId = UUID.randomUUID();
+        OrdenReadResult orden = orden("OT-3");
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(ordenRepository.findReadByNumeroOrdenAndSucursalId("OT-3", sucursalId)).willReturn(Optional.of(orden));
+
+        OrdenReadResult result = ordenService.obtener("OT-3");
+
+        assertThat(result).isEqualTo(orden);
+        verify(ordenRepository).findReadByNumeroOrdenAndSucursalId("OT-3", sucursalId);
+    }
+
+    @Test
+    void listarRequiresTenantContext() {
+        assertThatThrownBy(ordenService::listar)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Contexto de taller o sucursal requerido");
+        verifyNoInteractions(ordenRepository);
+    }
+
+    private OrdenReadResult orden(String numeroOrden) {
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        UUID estadoId = UUID.randomUUID();
+        UUID tipoId = UUID.randomUUID();
+        UUID bicicletaId = UUID.randomUUID();
+        UUID clienteId = UUID.randomUUID();
+        return new OrdenReadResult(
+                UUID.randomUUID(),
+                numeroOrden,
+                tallerId,
+                sucursalId,
+                estadoId,
+                "recibida",
+                "Recibida",
+                tipoId,
+                "reparacion",
+                "Reparacion",
+                OffsetDateTime.now(),
+                null,
+                null,
+                "Diagnostico",
+                null,
+                null,
+                bicicletaId,
+                "Trek",
+                "Marlin",
+                "MTB",
+                "29",
+                "Negro",
+                "SN-1",
+                clienteId,
+                "Ana",
+                "Perez",
+                "+569",
+                "ana@example.com",
+                "11111111-1",
+                null,
+                null,
+                null
+        );
     }
 }

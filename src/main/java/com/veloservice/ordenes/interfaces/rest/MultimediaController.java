@@ -1,5 +1,8 @@
 package com.veloservice.ordenes.interfaces.rest;
 
+import com.veloservice.ordenes.interfaces.rest.dto.MultimediaRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.MultimediaResponse;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

@@ -1,5 +1,10 @@
 package com.veloservice.servicios.interfaces.rest;
 
+import com.veloservice.servicios.interfaces.rest.dto.ServicioRequest;
+import com.veloservice.servicios.interfaces.rest.dto.ServicioResponse;
+import com.veloservice.servicios.interfaces.rest.dto.SucursalServicioRequest;
+import com.veloservice.servicios.interfaces.rest.dto.SucursalServicioResponse;
+
 import com.veloservice.servicios.application.usecase.ServicioService;
 import com.veloservice.servicios.interfaces.mapper.ServicioMapper;
 

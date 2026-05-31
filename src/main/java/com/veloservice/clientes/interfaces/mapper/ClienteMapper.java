@@ -4,11 +4,11 @@ import com.veloservice.clientes.application.dto.ClienteCreateCommand;
 import com.veloservice.clientes.application.dto.ClienteResult;
 import com.veloservice.clientes.application.dto.ClienteResumenResult;
 import com.veloservice.clientes.application.dto.MembresiaActualResult;
-import com.veloservice.clientes.interfaces.rest.ClienteBusquedaResponse;
-import com.veloservice.clientes.interfaces.rest.ClienteRequest;
-import com.veloservice.clientes.interfaces.rest.ClienteResponse;
-import com.veloservice.clientes.interfaces.rest.ClienteResumenResponse;
-import com.veloservice.clientes.interfaces.rest.MembresiaActualResponse;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteBusquedaResponse;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteRequest;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteResponse;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteResumenResponse;
+import com.veloservice.clientes.interfaces.rest.dto.MembresiaActualResponse;
 
 import java.math.BigDecimal;
 import java.util.List;

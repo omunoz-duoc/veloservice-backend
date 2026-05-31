@@ -4,10 +4,10 @@ import com.veloservice.proveedores_compras.application.dto.CompraCreateCommand;
 import com.veloservice.proveedores_compras.application.dto.CompraLineaCommand;
 import com.veloservice.proveedores_compras.application.dto.CompraLineaResult;
 import com.veloservice.proveedores_compras.application.dto.CompraResult;
-import com.veloservice.proveedores_compras.interfaces.rest.CompraLineaRequest;
-import com.veloservice.proveedores_compras.interfaces.rest.CompraLineaResponse;
-import com.veloservice.proveedores_compras.interfaces.rest.CompraRequest;
-import com.veloservice.proveedores_compras.interfaces.rest.CompraResponse;
+import com.veloservice.proveedores_compras.interfaces.rest.dto.CompraLineaRequest;
+import com.veloservice.proveedores_compras.interfaces.rest.dto.CompraLineaResponse;
+import com.veloservice.proveedores_compras.interfaces.rest.dto.CompraRequest;
+import com.veloservice.proveedores_compras.interfaces.rest.dto.CompraResponse;
 
 import java.util.List;
 import java.util.stream.Collectors;

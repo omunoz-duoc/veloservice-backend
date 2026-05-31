@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import com.veloservice.administracion.domain.model.Sucursal;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,6 +16,15 @@ import java.util.UUID;
  */
 @Repository
 public interface SucursalRepository extends JpaRepository<Sucursal, UUID> {
+
+	/**
+	 * Encuentra todas las sucursales asociadas a un taller específico.
+	 * @param tallerId
+	 * @return
+	 */
+	List<Sucursal> findAllByTallerId(UUID tallerId);
+
+
 	/**
 	 * Finds a branch by workshop identifier.
 	 *

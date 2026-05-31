@@ -2,8 +2,8 @@ package com.veloservice.ordenes.interfaces.mapper;
 
 import com.veloservice.ordenes.application.dto.MultimediaCreateCommand;
 import com.veloservice.ordenes.application.dto.MultimediaResult;
-import com.veloservice.ordenes.interfaces.rest.MultimediaRequest;
-import com.veloservice.ordenes.interfaces.rest.MultimediaResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.MultimediaRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.MultimediaResponse;
 
 import java.util.List;
 import java.util.stream.Collectors;

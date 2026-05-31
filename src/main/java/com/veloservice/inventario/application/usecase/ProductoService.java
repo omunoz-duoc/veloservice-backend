@@ -102,10 +102,10 @@ public class ProductoService {
 
         @TenantOperation
         @Transactional(readOnly = true)
-        public com.veloservice.inventario.interfaces.rest.InventarioMetricasResponse metricas() {
+        public com.veloservice.inventario.interfaces.rest.dto.InventarioMetricasResponse metricas() {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
         if (sucursalId == null) {
-            return com.veloservice.inventario.interfaces.rest.InventarioMetricasResponse.builder()
+            return com.veloservice.inventario.interfaces.rest.dto.InventarioMetricasResponse.builder()
                 .valorInventario(0)
                 .enStock(0)
                 .stockBajo(0)
@@ -132,7 +132,7 @@ public class ProductoService {
             })
             .sum();
 
-        return com.veloservice.inventario.interfaces.rest.InventarioMetricasResponse.builder()
+        return com.veloservice.inventario.interfaces.rest.dto.InventarioMetricasResponse.builder()
             .valorInventario(valorInventario)
             .enStock(enStock)
             .stockBajo(stockBajo)

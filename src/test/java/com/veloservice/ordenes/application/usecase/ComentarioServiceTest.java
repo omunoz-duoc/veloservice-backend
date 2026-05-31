@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.OffsetDateTime;
@@ -78,13 +77,15 @@ class ComentarioServiceTest {
         when(comentarioRepository.save(any(OrdenComentario.class))).thenReturn(saved);
         when(usuarioRepository.findById(usuarioId)).thenReturn(Optional.of(usuario));
 
-        try (MockedStatic<UsuarioContext> ctx = mockStatic(UsuarioContext.class)) {
-            ctx.when(UsuarioContext::getCurrentUser).thenReturn(usuarioId);
+        UsuarioContext.setCurrentUser(usuarioId);
+        try {
 
             ComentarioResult result = comentarioService.agregar(ordenId, "Texto de prueba");
 
             assertThat(result.getAutor()).isEqualTo("Ana Gómez");
             verify(comentarioRepository).save(any(OrdenComentario.class));
+        } finally {
+            UsuarioContext.clear();
         }
     }
 }

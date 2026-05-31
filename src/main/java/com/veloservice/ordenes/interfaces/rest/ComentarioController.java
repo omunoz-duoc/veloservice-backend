@@ -1,5 +1,7 @@
 package com.veloservice.ordenes.interfaces.rest;
 
+import com.veloservice.ordenes.interfaces.rest.dto.ComentarioRequest;
+
 import com.veloservice.ordenes.application.dto.ComentarioResult;
 import com.veloservice.ordenes.application.usecase.ComentarioService;
 import org.springframework.http.ResponseEntity;

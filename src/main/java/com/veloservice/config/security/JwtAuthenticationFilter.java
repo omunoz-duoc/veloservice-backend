@@ -44,6 +44,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UUID userId = tokenProvider.getUserId(jwt);
                 String rol = tokenProvider.getRol(jwt);
                 UUID sucursalId = tokenProvider.getSucursalId(jwt);
+                UUID tallerId = tokenProvider.getTallerId(jwt);
 
                 UserDetails userDetails = User.builder()
                         .username(userId.toString())
@@ -57,11 +58,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(auth);
-                SucursalContext.setCurrentSucursal(sucursalId);
-                UsuarioContext.setCurrentUser(userId);
-                UUID tallerId = tokenProvider.getTallerId(jwt);
+                if (!"plataforma".equals(tokenProvider.getUserType(jwt))) {
+                    UsuarioContext.setCurrentUser(userId);
+                }
                 if (tallerId != null) {
                     TallerContext.setCurrentTaller(tallerId);
+                }
+                if (sucursalId != null) {
+                    SucursalContext.setCurrentSucursal(sucursalId);
                 }
             }
         } catch (Exception e) {

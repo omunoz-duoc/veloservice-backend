@@ -2,8 +2,8 @@ package com.veloservice.notificaciones.interfaces.mapper;
 
 import com.veloservice.notificaciones.application.dto.NotificacionCreateCommand;
 import com.veloservice.notificaciones.application.dto.NotificacionResult;
-import com.veloservice.notificaciones.interfaces.rest.NotificacionRequest;
-import com.veloservice.notificaciones.interfaces.rest.NotificacionResponse;
+import com.veloservice.notificaciones.interfaces.rest.dto.NotificacionRequest;
+import com.veloservice.notificaciones.interfaces.rest.dto.NotificacionResponse;
 
 import java.util.List;
 import java.util.stream.Collectors;

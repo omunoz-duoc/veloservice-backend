@@ -1,8 +1,8 @@
 package com.veloservice.auth.domain;
 
 public enum RolEnum {
-    ADMIN_TALLER,
-    JEFE_TALLER,
-    MECANICO,
-    RECEPCIONISTA,
+    admin_taller,
+    jefe_taller,
+    mecanico,
+    recepcionista,
 }

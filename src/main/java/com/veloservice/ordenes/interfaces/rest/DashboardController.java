@@ -1,5 +1,8 @@
 package com.veloservice.ordenes.interfaces.rest;
 
+import com.veloservice.ordenes.interfaces.rest.dto.DashboardHoyResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.DashboardAlertasResponse;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -1,5 +1,8 @@
 package com.veloservice.ordenes.interfaces.rest;
 
+import com.veloservice.ordenes.interfaces.rest.dto.GarantiaRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.GarantiaResponse;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

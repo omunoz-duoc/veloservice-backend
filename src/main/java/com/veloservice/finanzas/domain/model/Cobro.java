@@ -33,7 +33,7 @@ import jakarta.persistence.Enumerated;
         @Index(name = "idx_cobros_orden", columnList = "orden_id")
 },
     uniqueConstraints = {
-        @UniqueConstraint(name = "orden_id", columnNames = {"orden_id"})
+        @UniqueConstraint(name = "uk_cobros_orden", columnNames = {"orden_id"})
 }
 )
 @Getter

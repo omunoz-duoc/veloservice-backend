@@ -1,296 +1,88 @@
 package com.veloservice.ordenes.interfaces.rest;
- 
-import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
-import com.veloservice.ordenes.application.usecase.ComentarioService;
-import com.veloservice.ordenes.application.usecase.MultimediaService;
+
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenReadListResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenReadResponse;
+
+import com.veloservice.ordenes.application.dto.OrdenReadResult;
 import com.veloservice.ordenes.application.usecase.OrdenService;
-import com.veloservice.ordenes.interfaces.mapper.MultimediaMapper;
-import com.veloservice.ordenes.interfaces.mapper.OrdenMapper;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
- 
+
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
- 
-/**
- * REST endpoints for work orders.
- */
+
 @RestController
 @RequestMapping("/ordenes")
 @RequiredArgsConstructor
 public class OrdenController {
- 
+
     private final OrdenService ordenService;
-    private final ComentarioService comentarioService;
-    private final MultimediaService multimediaService;
- 
-    /**
-     * Creates a new work order.
-     */
-    @PostMapping
-    public ResponseEntity<OrdenResponse> crear(@Valid @RequestBody NuevaOrdenRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(
-                OrdenMapper.toResponse(ordenService.crearNuevaOrden(OrdenMapper.toCommand(request)))
+
+    @GetMapping
+    public ResponseEntity<OrdenReadListResponse> listar() {
+        List<OrdenReadResponse> ordenes = ordenService.listar().stream()
+                .map(this::toResponse)
+                .toList();
+        return ResponseEntity.ok(new OrdenReadListResponse(ordenes.size(), ordenes));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<OrdenReadResponse> obtener(@PathVariable String id) {
+        return ResponseEntity.ok(toResponse(ordenService.obtener(id)));
+    }
+
+    private OrdenReadResponse toResponse(OrdenReadResult result) {
+        OrdenReadResponse.MecanicoResponse mecanico = null;
+        if (result.mecanicoId() != null) {
+            mecanico = new OrdenReadResponse.MecanicoResponse(
+                    result.mecanicoId(),
+                    result.mecanicoNombre(),
+                    result.mecanicoApellido()
+            );
+        }
+
+        return new OrdenReadResponse(
+                result.id(),
+                result.numeroOrden(),
+                result.tallerId(),
+                result.sucursalId(),
+                new OrdenReadResponse.CatalogoResponse(
+                        result.estadoId(),
+                        result.estadoCodigo(),
+                        result.estadoNombre()
+                ),
+                new OrdenReadResponse.CatalogoResponse(
+                        result.tipoId(),
+                        result.tipoCodigo(),
+                        result.tipoNombre()
+                ),
+                result.fechaIngreso(),
+                result.fechaPrometida(),
+                result.fechaEntrega(),
+                result.diagnosticoInicial(),
+                result.diagnosticoFinal(),
+                result.observacionesCliente(),
+                new OrdenReadResponse.BicicletaResponse(
+                        result.bicicletaId(),
+                        result.bicicletaMarca(),
+                        result.bicicletaModelo(),
+                        result.bicicletaTipo(),
+                        result.bicicletaAro(),
+                        result.bicicletaColor(),
+                        result.bicicletaNumeroSerie()
+                ),
+                new OrdenReadResponse.ClienteResponse(
+                        result.clienteId(),
+                        result.clienteNombre(),
+                        result.clienteApellido(),
+                        result.clienteTelefono(),
+                        result.clienteEmail(),
+                        result.clienteRut()
+                ),
+                mecanico
         );
     }
- 
-    /**
-     * Lists all work orders for the authenticated mechanic.
-     */
-    @GetMapping
-    public ResponseEntity<Map<String, Object>> listar() {
-        List<OrdenResponse> ordenes = OrdenMapper.toResponseList(ordenService.listar());
-        return ResponseEntity.ok(Map.of(
-                "total", ordenes.size(),
-                "ordenes", ordenes
-        ));
-    }
- 
-    /**
-     * Returns order count grouped by status for the authenticated mechanic.
-     */
-    @GetMapping("/estados")
-    public ResponseEntity<Map<String, Long>> estados() {
-        return ResponseEntity.ok(ordenService.contarPorEstado());
-    }
- 
-    /**
-     * Lists urgent work orders.
-     */
-    @GetMapping("/urgentes")
-    public ResponseEntity<Map<String, Object>> listarUrgentes() {
-        List<OrdenResponse> ordenes = OrdenMapper.toResponseList(ordenService.listarUrgentes());
-        return ResponseEntity.ok(Map.of(
-                "total", ordenes.size(),
-                "ordenes", ordenes
-        ));
-    }
- 
-    /**
-     * Returns order metrics.
-     */
-    @GetMapping("/metricas")
-    public ResponseEntity<OrdenMetricasResponse> metricas() {
-        OrdenMetricasResult result = ordenService.metricas();
-        return ResponseEntity.ok(new OrdenMetricasResponse(
-                result.getRecibidas(),
-                result.getEnProceso(),
-                result.getListas(),
-                result.getEntregadas()
-        ));
-    }
- 
-    /**
-     * Lists orders ready for delivery.
-     */
-    @GetMapping("/lista-entrega")
-    public ResponseEntity<List<OrdenListaEntregaResponse>> listarListaEntrega() {
-        return ResponseEntity.ok(List.of()); // TODO: implementar listarListaEntrega en OrdenService
-    }
- 
-    /**
-     * Retrieves a work order by identifier (UUID or external_id).
-     */
-    @GetMapping("/{id}")
-    public ResponseEntity<OrdenResponse> obtener(@PathVariable String id) {
-        return ResponseEntity.ok(OrdenMapper.toResponse(ordenService.obtener(id)));
-    }
- 
-    /**
-     * Changes the state of a work order.
-     */
-    @PatchMapping("/{id}/estado")
-    public ResponseEntity<OrdenResponse> cambiarEstado(
-            @PathVariable UUID id,
-            @Valid @RequestBody EstadoChangeRequest request) {
-        return ResponseEntity.ok(OrdenMapper.toResponse(
-                ordenService.cambiarEstado(id, OrdenMapper.toEstadoChangeCommand(request))
-        ));
-    }
- 
-    /**
-     * Agrega un servicio a la orden.
-     */
-    @PostMapping("/{id}/servicios")
-    public ResponseEntity<OrdenResponse> agregarServicio(
-            @PathVariable UUID id,
-            @Valid @RequestBody OrdenServicioRequest request) {
-        return ResponseEntity.ok(OrdenMapper.toResponse(
-                ordenService.agregarServicio(id, OrdenMapper.toServicioCommand(request))
-        ));
-    }
- 
-    /**
-     * Agrega un producto a la orden.
-     */
-    @PostMapping("/{id}/productos")
-    public ResponseEntity<OrdenResponse> agregarProducto(
-            @PathVariable UUID id,
-            @Valid @RequestBody OrdenProductoRequest request) {
-        return ResponseEntity.ok(OrdenMapper.toResponse(
-            ordenService.agregarProducto(id, com.veloservice.ordenes.interfaces.mapper.OrdenMapper.toProductoCommand(request))
-        ));
-    }
- 
-    /**
-     * Exports work orders as CSV.
-     */
-    @GetMapping("/exportar-csv")
-    public ResponseEntity<byte[]> exportarCsv() {
-        List<OrdenResponse> ordenes = OrdenMapper.toResponseList(ordenService.listar());
- 
-        StringBuilder csv = new StringBuilder();
-        csv.append("id,tipo,estado,descripcion,mecanico,fecha_ingreso,fecha_estimada,")
-           .append("cliente_nombre,cliente_apellido,cliente_telefono,")
-           .append("bicicleta_marca,bicicleta_modelo,bicicleta_tipo,bicicleta_color,bicicleta_talla\n");
- 
-        for (OrdenResponse o : ordenes) {
-            csv.append(safe(o.getId())).append(",")
-               .append(safe(o.getTipo())).append(",")
-               .append(safe(o.getEstado())).append(",")
-               .append(safe(o.getDescripcion())).append(",")
-               .append(safe(o.getMecanico())).append(",")
-               .append(safe(o.getFechaIngreso())).append(",")
-               .append(safe(o.getFechaEstimada())).append(",");
- 
-            if (o.getCliente() != null) {
-                csv.append(safe(o.getCliente().getNombre())).append(",")
-                   .append(safe(o.getCliente().getApellido())).append(",")
-                   .append(safe(o.getCliente().getTelefono())).append(",");
-            } else {
-                csv.append(",,,");
-            }
- 
-            if (o.getBicicleta() != null) {
-                csv.append(safe(o.getBicicleta().getMarca())).append(",")
-                   .append(safe(o.getBicicleta().getModelo())).append(",")
-                   .append(safe(o.getBicicleta().getTipo())).append(",")
-                   .append(safe(o.getBicicleta().getColor())).append(",")
-                   .append(safe(o.getBicicleta().getTalla()));
-            } else {
-                csv.append(",,,,");
-            }
-            csv.append("\n");
-        }
- 
-        byte[] bytes = csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        return ResponseEntity.ok()
-                .header("Content-Disposition", "attachment; filename=\"ordenes.csv\"")
-                .contentType(org.springframework.http.MediaType.parseMediaType("text/csv"))
-                .body(bytes);
-    }
- 
-    private String safe(Object value) {
-        if (value == null) return "";
-        String str = value.toString().replace("\"", "\"\"");
-        if (str.contains(",") || str.contains("\n") || str.contains("\"")) {
-            return "\"" + str + "\"";
-        }
-        return str;
-    }
-
-    /**
-     * Lists comments for a work order.
-     */
-
-    /**
-     * Adds a comment to a work order.
-     */
-
-    /**
-     * Lists multimedia for a work order.
-     */
-    @GetMapping("/{id}/multimedia")
-    public ResponseEntity<Map<String, Object>> listarMultimedia(@PathVariable String id) {
-        UUID ordenId = ordenService.resolveOrdenId(id);
-        var multimedia = multimediaService.listarPorOrden(ordenId).stream()
-                .map(m -> MultimediaResponse.builder()
-                        .id(m.getId())
-                        .ordenId(m.getOrdenId())
-                        .usuarioId(m.getUsuarioId())
-                        .url(m.getUrl())
-                        .tipoArchivo(m.getTipoArchivo())
-                        .etapa(m.getEtapa())
-                        .descripcion(m.getDescripcion())
-                        .createdAt(m.getCreatedAt())
-                        .build())
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(Map.of("multimedia", multimedia));
-    }
-
-    /**
-     * Uploads multimedia for a work order.
-     */
-    @PostMapping("/{id}/multimedia")
-    public ResponseEntity<MultimediaResponse> subirMultimedia(
-            @PathVariable String id,
-            @RequestParam String etapa,
-            @Valid @RequestBody MultimediaRequest request) {
-        UUID ordenId = ordenService.resolveOrdenId(id);
-        var result = multimediaService.subir(ordenId, etapa, MultimediaMapper.toCommand(request));
-        return ResponseEntity.ok(MultimediaResponse.builder()
-                .id(result.getId())
-                .ordenId(result.getOrdenId())
-                .usuarioId(result.getUsuarioId())
-                .url(result.getUrl())
-                .tipoArchivo(result.getTipoArchivo())
-                .etapa(result.getEtapa())
-                .descripcion(result.getDescripcion())
-                .createdAt(result.getCreatedAt())
-                .build());
-    }
-
-    /**
-     * Deletes multimedia from a work order.
-     */
-    @DeleteMapping("/{id}/multimedia/{mediaId}")
-    public ResponseEntity<Map<String, Object>> eliminarMultimedia(
-            @PathVariable String id,
-            @PathVariable UUID mediaId) {
-        UUID ordenId = ordenService.resolveOrdenId(id);
-        multimediaService.eliminar(mediaId);
-        return ResponseEntity.ok(Map.of());
-    }
-
-    /**
-     * Lists products for a work order.
-     */
-    @GetMapping("/{id}/productos")
-    public ResponseEntity<Map<String, Object>> listarProductos(@PathVariable String id) {
-        UUID ordenId = ordenService.resolveOrdenId(id);
-        var productos = ordenService.listarProductosPorOrden(ordenId).stream()
-                .map(r -> OrdenProductoResponse.builder()
-                        .id(r.getId())
-                        .productoId(r.getProductoId())
-                        .nombre(r.getNombre())
-                        .sku(r.getSku())
-                        .cantidad(r.getCantidad())
-                        .precioVenta(r.getPrecioVenta())
-                        .build())
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(Map.of("productos", productos));
-    }
-
-    @DeleteMapping("/{id}/productos/{productoId}")
-    public ResponseEntity<Map<String, Object>> eliminarProducto(
-            @PathVariable String id,
-            @PathVariable UUID productoId) {
-        UUID ordenId = ordenService.resolveOrdenId(id);
-        ordenService.eliminarProducto(ordenId, productoId);
-        return ResponseEntity.ok(Map.of());
-    }
 }
- 

@@ -32,7 +32,7 @@ import jakarta.persistence.Transient;
         @Index(name = "idx_usuarios_rol", columnList = "rol_id")
 },
     uniqueConstraints = {
-        @UniqueConstraint(name = "email", columnNames = {"email"})
+        @UniqueConstraint(name = "uk_usuarios_email", columnNames = {"email"})
 }
 )
 @Getter

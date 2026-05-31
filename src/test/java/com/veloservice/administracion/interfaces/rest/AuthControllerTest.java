@@ -29,6 +29,9 @@ import java.util.UUID;
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class AuthControllerTest {
+    private static final UUID TALLER_ID = UUID.randomUUID();
+    private static final UUID SUCURSAL_ID = UUID.randomUUID();
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -47,7 +50,8 @@ class AuthControllerTest {
         request.setEmail("user@veloservice.com");
         request.setPassword("secret");
 
-        AuthLoginResult result = new AuthLoginResult("Nombre", "Apellido","jwt-token", "ADMIN");
+        AuthLoginResult result = new AuthLoginResult(
+                "Nombre", "Apellido", "jwt-token", "admin_taller", "taller", TALLER_ID, null);
         when(authService.login(ArgumentMatchers.any(AuthLoginCommand.class))).thenReturn(result);
 
         mockMvc.perform(post("/auth/login")
@@ -55,7 +59,10 @@ class AuthControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.token").value("jwt-token"))
-            .andExpect(jsonPath("$.rol").value("ADMIN"));
+            .andExpect(jsonPath("$.rol").value("admin_taller"))
+            .andExpect(jsonPath("$.ambito").value("taller"))
+            .andExpect(jsonPath("$.tallerId").value(TALLER_ID.toString()))
+            .andExpect(jsonPath("$.sucursalId").doesNotExist());
 
         verify(authService).login(ArgumentMatchers.any(AuthLoginCommand.class));
     }
@@ -72,7 +79,8 @@ class AuthControllerTest {
         request.setSucursalId(UUID.fromString("660e8400-e29b-41d4-a716-446655440001"));
         request.setRol("ADMIN_SUCURSAL");
 
-        AuthLoginResult result = new AuthLoginResult("Nombre", "Apellido", "jwt-token", "ADMIN_SUCURSAL");
+        AuthLoginResult result = new AuthLoginResult(
+                "Nombre", "Apellido", "jwt-token", "recepcionista", "sucursal", TALLER_ID, SUCURSAL_ID);
         when(authService.register(ArgumentMatchers.any(AuthRegisterCommand.class))).thenReturn(result);
 
         mockMvc.perform(post("/auth/register")
@@ -80,7 +88,10 @@ class AuthControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.token").value("jwt-token"))
-            .andExpect(jsonPath("$.rol").value("ADMIN_SUCURSAL"));
+            .andExpect(jsonPath("$.rol").value("recepcionista"))
+            .andExpect(jsonPath("$.ambito").value("sucursal"))
+            .andExpect(jsonPath("$.tallerId").value(TALLER_ID.toString()))
+            .andExpect(jsonPath("$.sucursalId").value(SUCURSAL_ID.toString()));
 
         verify(authService).register(ArgumentMatchers.any(AuthRegisterCommand.class));
     }
@@ -100,14 +111,17 @@ class AuthControllerTest {
     @Test
     void loginAdminTallerReturns200WithRole() throws Exception {
         AuthLoginResult result = new AuthLoginResult("Admin", "Taller",
-                "eyJhbGciOiJIUzI1NiJ9.fake.sig", "ADMIN_TALLER");
+                "eyJhbGciOiJIUzI1NiJ9.fake.sig", "admin_taller", "taller", TALLER_ID, null);
         when(authService.login(ArgumentMatchers.any(AuthLoginCommand.class))).thenReturn(result);
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"admin@taller.com\",\"password\":\"Password1!\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.rol").value("ADMIN_TALLER"));
+                .andExpect(jsonPath("$.rol").value("admin_taller"))
+                .andExpect(jsonPath("$.ambito").value("taller"))
+                .andExpect(jsonPath("$.tallerId").value(TALLER_ID.toString()))
+                .andExpect(jsonPath("$.sucursalId").doesNotExist());
     }
 
     @Test

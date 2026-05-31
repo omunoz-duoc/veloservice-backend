@@ -22,7 +22,7 @@ import java.util.UUID;
 @Table(
     name = "planes_saas",
     uniqueConstraints = {
-        @UniqueConstraint(name = "codigo", columnNames = {"codigo"})
+        @UniqueConstraint(name = "uk_planes_saas_codigo", columnNames = {"codigo"})
 }
 )
 @Getter

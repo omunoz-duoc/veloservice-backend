@@ -26,12 +26,12 @@ public interface OrdenEstadoRepository extends JpaRepository<OrdenEstado, UUID> 
      */
     List<OrdenEstado> findByOrdenIdOrderByCreatedAtAsc(UUID ordenId);
 
-    @Query("""
+            @Query("""
             select new com.veloservice.ordenes.application.dto.OrdenActividadRecienteResult(
                 o.id,
-                case when e.estadoAnterior is null then 'CREADA' else 'ESTADO_CAMBIADO' end,
+                case when e.estadoAnteriorId is null then 'CREADA' else 'ESTADO_CAMBIADO' end,
                 e.createdAt,
-                case when e.estadoAnterior is null
+                case when e.estadoAnteriorId is null
                     then concat('Orden creada: ', o.numeroOrden)
                     else concat('Estado cambiado en orden ', o.numeroOrden)
                 end,
@@ -41,7 +41,7 @@ public interface OrdenEstadoRepository extends JpaRepository<OrdenEstado, UUID> 
             join com.veloservice.ordenes.domain.model.Orden o on o.id = e.ordenId
             join com.veloservice.clientes.domain.model.Bicicleta b on b.id = o.bicicletaId
             join b.cliente cli
-            left join com.veloservice.administracion.domain.model.Usuario u on u.id = e.usuarioId
+            left join com.veloservice.auth.domain.model.Usuario u on u.id = e.usuarioId
             where o.sucursalId = :sucursalId
               and e.createdAt >= :since
             order by e.createdAt desc

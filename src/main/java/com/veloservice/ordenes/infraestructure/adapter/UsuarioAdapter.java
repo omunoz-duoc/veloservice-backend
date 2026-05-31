@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import java.util.Optional;
 import java.util.UUID;
 
-@Component
+@Component("ordenesUsuarioAdapter")
 @RequiredArgsConstructor
 public class UsuarioAdapter implements UsuarioPort {
 
@@ -20,9 +20,9 @@ public class UsuarioAdapter implements UsuarioPort {
                 .map(u -> new UsuarioRef(u.getId(), u.getNombre(), u.getApellido()));
     }
 
-    @Override
-    public boolean existsMecanicoEnSucursal(UUID mecanicoId, UUID sucursalId) {
-        return usuarioRepository.existsByIdAndSucursalIdAndRolNombreAndActivoTrue(
-                mecanicoId, sucursalId, "MECANICO");
-    }
+    // @Override
+    // public boolean existsMecanicoEnSucursal(UUID mecanicoId, UUID sucursalId) {
+    //     return usuarioRepository.existsByIdAndSucursalIdAndRolNombreAndActivoTrue(
+    //             mecanicoId, sucursalId, "MECANICO");
+    // }
 }

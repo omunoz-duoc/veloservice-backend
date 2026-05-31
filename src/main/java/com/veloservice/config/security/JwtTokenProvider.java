@@ -44,10 +44,24 @@ public class JwtTokenProvider {
      * @param userId user identifier
      * @param email user email
      * @param rol role name
-     * @param sucursalId branch identifier
+     * @param sucursalId optional branch identifier; when non-null, embedded as "sucursalId" claim
      * @param tallerId optional tenant identifier; when non-null, embedded as "tallerId" claim
      * @return signed JWT
      */
+    public String generatePlatformToken(UUID userId, String email) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + jwtExpirationMs);
+        return Jwts.builder()
+                .subject(email)
+                .claim("userId", userId.toString())
+                .claim("rol", "plataforma")
+                .claim("userType", "plataforma")
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(jwtSecret, Jwts.SIG.HS256)
+                .compact();
+    }
+
     public String generateToken(UUID userId, String email, String rol, UUID sucursalId, UUID tallerId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtExpirationMs);
@@ -55,10 +69,12 @@ public class JwtTokenProvider {
                 .subject(email)
                 .claim("userId", userId.toString())
                 .claim("rol", rol)
-                .claim("sucursalId", sucursalId.toString())
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(jwtSecret, Jwts.SIG.HS256);
+        if (sucursalId != null) {
+            builder.claim("sucursalId", sucursalId.toString());
+        }
         if (tallerId != null) {
             builder.claim("tallerId", tallerId.toString());
         }
@@ -132,6 +148,10 @@ public class JwtTokenProvider {
         return getClaims(token).get("rol", String.class);
     }
 
+    public String getUserType(String token) {
+        return getClaims(token).get("userType", String.class);
+    }
+
     /**
      * Gets the branch identifier from the JWT.
      *
@@ -139,7 +159,8 @@ public class JwtTokenProvider {
      * @return branch identifier
      */
     public UUID getSucursalId(String token) {
-        return UUID.fromString(getClaims(token).get("sucursalId", String.class));
+        String sid = getClaims(token).get("sucursalId", String.class);
+        return sid != null ? UUID.fromString(sid) : null;
     }
 
     /**

@@ -26,7 +26,7 @@ import java.util.UUID;
         @Index(name = "idx_talleres_plan", columnList = "plan_id")
 },
     uniqueConstraints = {
-        @UniqueConstraint(name = "rut", columnNames = {"rut"})
+        @UniqueConstraint(name = "uk_talleres_rut", columnNames = {"rut"})
 }
 )
 @Getter

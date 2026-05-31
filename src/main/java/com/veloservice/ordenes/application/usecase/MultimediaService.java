@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.time.OffsetDateTime;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,6 +36,7 @@ public class MultimediaService {
                 .tipoArchivo(command.getTipoArchivo())
             .etapa(etapaEnum)
                 .descripcion(command.getDescripcion())
+                .createdAt(OffsetDateTime.now())
                 .build();
 
         return toResult(multimediaRepository.save(m));

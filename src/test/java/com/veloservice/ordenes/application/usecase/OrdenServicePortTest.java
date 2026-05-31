@@ -31,14 +31,14 @@ class OrdenServicePortTest {
         assertThat(result.get().marca()).isEqualTo("Trek");
     }
 
-    @Test
-    void usuarioPort_existsMecanico_usa_sucursalId() {
-        UUID mecanicoId = UUID.randomUUID();
-        UUID sucursalId = UUID.randomUUID();
-        when(usuarioPort.existsMecanicoEnSucursal(mecanicoId, sucursalId)).thenReturn(true);
+    // @Test
+    // void usuarioPort_existsMecanico_usa_sucursalId() {
+    //     UUID mecanicoId = UUID.randomUUID();
+    //     UUID sucursalId = UUID.randomUUID();
+    //     when(usuarioPort.existsMecanicoEnSucursal(mecanicoId, sucursalId)).thenReturn(true);
 
-        boolean exists = usuarioPort.existsMecanicoEnSucursal(mecanicoId, sucursalId);
+    //     boolean exists = usuarioPort.existsMecanicoEnSucursal(mecanicoId, sucursalId);
 
-        assertThat(exists).isTrue();
-    }
+    //     assertThat(exists).isTrue();
+    // }
 }

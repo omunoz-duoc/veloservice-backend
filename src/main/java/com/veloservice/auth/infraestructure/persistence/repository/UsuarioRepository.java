@@ -20,26 +20,26 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
 
     boolean existsByEmail(String email);
 
-    List<Usuario> findBySucursalIdAndActivoTrue(UUID sucursalId);
+    // List<Usuario> findBySucursalIdAndActivoTrue(UUID sucursalId);
 
-    List<Usuario> findBySucursalIdAndRolNombre(UUID sucursalId, String rolNombre);
+    // List<Usuario> findBySucursalIdAndRolNombre(UUID sucursalId, String rolNombre);
 
-    List<Usuario> findBySucursalIdAndRolNombreAndActivo(UUID sucursalId, String rolNombre, Boolean activo);
+    // List<Usuario> findBySucursalIdAndRolNombreAndActivo(UUID sucursalId, String rolNombre, Boolean activo);
 
-    List<Usuario> findBySucursalIdAndRolNombreAndActivoTrue(UUID sucursalId, String rolNombre);
+    // List<Usuario> findBySucursalIdAndRolNombreAndActivoTrue(UUID sucursalId, String rolNombre);
 
-    boolean existsByIdAndSucursalIdAndRolNombreAndActivoTrue(UUID id, UUID sucursalId, String rolNombre);
+    // boolean existsByIdAndSucursalIdAndRolNombreAndActivoTrue(UUID id, UUID sucursalId, String rolNombre);
 
-    @Query("""
-            select u
-            from Usuario u
-            join fetch u.rol r
-            join fetch u.sucursal s
-            where upper(r.nombre) = 'MECANICO'
-                and s.id = :sucursalId
-                and (:activo is null or u.activo = :activo)
-            order by u.apellido asc, u.nombre asc
-            """)
-    List<Usuario> findMecanicosBySucursalIdAndActivo(@Param("sucursalId") UUID sucursalId,
-                                                     @Param("activo") Boolean activo);
+    // @Query("""
+    //         select u
+    //         from Usuario u
+    //         join fetch u.rol r
+    //         join fetch u.sucursal s
+    //         where upper(r.nombre) = 'MECANICO'
+    //             and s.id = :sucursalId
+    //             and (:activo is null or u.activo = :activo)
+    //         order by u.apellido asc, u.nombre asc
+    //         """)
+    // List<Usuario> findMecanicosBySucursalIdAndActivo(@Param("sucursalId") UUID sucursalId,
+    //                                                  @Param("activo") Boolean activo);
 }
