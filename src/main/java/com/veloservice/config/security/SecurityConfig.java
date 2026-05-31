@@ -51,7 +51,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Permitir preflight CORS
-                .requestMatchers("/auth/**", "/health", "/productos").permitAll()
+                .requestMatchers("/auth/login", "/auth/login_admin", "/auth/reset-password", "/auth/change-password", "/health", "/productos").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

@@ -7,6 +7,7 @@ import com.veloservice.ordenes.application.dto.OrdenReadResult;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/ordenes")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('mecanico') or hasRole('recepcionista') or hasRole('jefe_taller') or hasRole('admin_taller')")
 public class OrdenController {
 
     private final OrdenService ordenService;

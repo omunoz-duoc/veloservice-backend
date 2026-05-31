@@ -249,6 +249,7 @@ public class AuthService {
          */
     @Transactional
     public void changePassword(String token, String newPassword) {
+        validatePassword(newPassword);
         String tokenHash = hashToken(token);
         PasswordResetToken resetToken = passwordResetTokenRepository
                 .findByTokenHashAndUsedFalseAndExpiresAtAfter(tokenHash, OffsetDateTime.now())
