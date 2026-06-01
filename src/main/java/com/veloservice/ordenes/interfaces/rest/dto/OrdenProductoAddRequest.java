@@ -12,8 +12,6 @@ import java.util.UUID;
 @Data
 public class OrdenProductoAddRequest {
     @NotNull
-    private UUID ordenId;
-    @NotNull
     private UUID productoId;
     @NotNull
     @Min(1)

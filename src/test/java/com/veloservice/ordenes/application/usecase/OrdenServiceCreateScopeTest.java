@@ -9,12 +9,19 @@ import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRe
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.UsuarioContext;
+import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
+import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
+import com.veloservice.ordenes.application.dto.OrdenProductoResult;
+import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
+import com.veloservice.ordenes.application.dto.OrdenServicioResult;
 import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
 import com.veloservice.ordenes.domain.model.EstadoOrden;
 import com.veloservice.ordenes.domain.model.Orden;
 import com.veloservice.ordenes.domain.model.OrdenEstado;
+import com.veloservice.ordenes.domain.model.OrdenProducto;
+import com.veloservice.ordenes.domain.model.OrdenServicio;
 import com.veloservice.ordenes.domain.model.TipoOrden;
 import com.veloservice.ordenes.infraestructure.persistence.repository.ComentarioRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.EstadoOrdenCatalogRepository;
@@ -26,6 +33,9 @@ import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenServi
 import com.veloservice.ordenes.infraestructure.persistence.repository.TipoOrdenRepository;
 import com.veloservice.servicios.infraestructure.persistence.repository.ServicioRepository;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
+import com.veloservice.servicios.domain.model.Servicio;
+import com.veloservice.servicios.domain.model.SucursalServicio;
+import com.veloservice.servicios.infraestructure.persistence.repository.SucursalServicioRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,17 +44,21 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("unchecked")
 class OrdenServiceCreateScopeTest {
 
     @Mock private OrdenRepository ordenRepository;
@@ -54,6 +68,7 @@ class OrdenServiceCreateScopeTest {
     @Mock private OrdenEstadoRepository ordenEstadoRepository;
     @Mock private TipoOrdenRepository tipoOrdenRepository;
     @Mock private ServicioRepository servicioRepository;
+    @Mock private SucursalServicioRepository sucursalServicioRepository;
     @Mock private ProductoRepository productoRepository;
     @Mock private OrdenServicioRepository ordenServicioRepository;
     @Mock private OrdenProductoRepository ordenProductoRepository;
@@ -76,6 +91,7 @@ class OrdenServiceCreateScopeTest {
                 ordenEstadoRepository,
                 tipoOrdenRepository,
                 servicioRepository,
+                sucursalServicioRepository,
                 productoRepository,
                 ordenServicioRepository,
                 ordenProductoRepository,
@@ -209,6 +225,125 @@ class OrdenServiceCreateScopeTest {
                 .hasMessage("Estado de orden no encontrado: no_existe");
 
         verifyNoInteractions(ordenEstadoRepository);
+    }
+
+    @Test
+    void agregarProductosStoresSnapshotsAndReturnsCreatedRows() {
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID productoId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+        TallerContext.setCurrentTaller(tallerId);
+        Orden orden = Orden.builder().id(ordenId).tallerId(tallerId).sucursalId(sucursalId).build();
+        Producto producto = Producto.builder()
+                .id(productoId)
+                .sucursalId(sucursalId)
+                .precioCosto(new BigDecimal("7000.00"))
+                .precioVenta(new BigDecimal("12500.00"))
+                .build();
+        given(ordenRepository.findById(ordenId)).willReturn(Optional.of(orden));
+        given(productoRepository.findById(productoId)).willReturn(Optional.of(producto));
+        given(ordenProductoRepository.saveAll(anyList())).willAnswer(invocation -> {
+            List<OrdenProducto> saved = invocation.getArgument(0);
+            saved.getFirst().setId(lineId);
+            return saved;
+        });
+        given(ordenProductoRepository.findResultByIdIn(List.of(lineId))).willReturn(List.of(
+                new OrdenProductoResult(lineId, productoId, "Pastillas", "SKU-001", 2, new BigDecimal("12500.00"))
+        ));
+
+        List<OrdenProductoResult> result = ordenService.agregarProductos(ordenId, List.of(
+                new OrdenProductoAddCommand(productoId, 2, true, "Cliente trajo repuesto")
+        ));
+
+        assertThat(result).containsExactly(
+                new OrdenProductoResult(lineId, productoId, "Pastillas", "SKU-001", 2, new BigDecimal("12500.00"))
+        );
+        ArgumentCaptor<List<OrdenProducto>> captor = ArgumentCaptor.forClass(List.class);
+        verify(ordenProductoRepository).saveAll(captor.capture());
+        OrdenProducto saved = captor.getValue().getFirst();
+        assertThat(saved.getOrdenId()).isEqualTo(ordenId);
+        assertThat(saved.getProductoId()).isEqualTo(productoId);
+        assertThat(saved.getCantidad()).isEqualTo(2);
+        assertThat(saved.getPrecioCostoSnapshot()).isEqualByComparingTo("7000.00");
+        assertThat(saved.getPrecioVentaSnapshot()).isEqualByComparingTo("12500.00");
+        assertThat(saved.getPrecioAplicado()).isEqualByComparingTo("12500.00");
+        assertThat(saved.getProporcionadoPorCliente()).isTrue();
+        assertThat(saved.getNotas()).isEqualTo("Cliente trajo repuesto");
+        assertThat(saved.getCreatedAt()).isNotNull();
+    }
+
+    @Test
+    void agregarServiciosUsesSucursalPriceOverride() {
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID servicioId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+        TallerContext.setCurrentTaller(tallerId);
+        Orden orden = Orden.builder().id(ordenId).tallerId(tallerId).sucursalId(sucursalId).build();
+        Servicio servicio = Servicio.builder()
+                .id(servicioId)
+                .tallerId(tallerId)
+                .precioBase(new BigDecimal("8500.00"))
+                .build();
+        SucursalServicio override = SucursalServicio.builder()
+                .sucursalId(sucursalId)
+                .servicioId(servicioId)
+                .precioPersonalizado(new BigDecimal("9900.00"))
+                .build();
+        given(ordenRepository.findById(ordenId)).willReturn(Optional.of(orden));
+        given(servicioRepository.findById(servicioId)).willReturn(Optional.of(servicio));
+        given(sucursalServicioRepository.findBySucursalIdAndServicioId(sucursalId, servicioId))
+                .willReturn(Optional.of(override));
+        given(ordenServicioRepository.saveAll(anyList())).willAnswer(invocation -> {
+            List<OrdenServicio> saved = invocation.getArgument(0);
+            saved.getFirst().setId(lineId);
+            return saved;
+        });
+        given(ordenServicioRepository.findResultByIdIn(List.of(lineId))).willReturn(List.of(
+                new OrdenServicioResult(lineId, servicioId, "Ajuste de frenos", new BigDecimal("9900.00"))
+        ));
+
+        List<OrdenServicioResult> result = ordenService.agregarServicios(ordenId, List.of(
+                new OrdenServicioAddCommand(servicioId, "Ajustar delantero")
+        ));
+
+        assertThat(result).containsExactly(
+                new OrdenServicioResult(lineId, servicioId, "Ajuste de frenos", new BigDecimal("9900.00"))
+        );
+        ArgumentCaptor<List<OrdenServicio>> captor = ArgumentCaptor.forClass(List.class);
+        verify(ordenServicioRepository).saveAll(captor.capture());
+        OrdenServicio saved = captor.getValue().getFirst();
+        assertThat(saved.getOrdenId()).isEqualTo(ordenId);
+        assertThat(saved.getServicioId()).isEqualTo(servicioId);
+        assertThat(saved.getPrecioBaseSnapshot()).isEqualByComparingTo("9900.00");
+        assertThat(saved.getPrecioAplicado()).isEqualByComparingTo("9900.00");
+        assertThat(saved.getDescuentoAplicado()).isEqualByComparingTo("0.00");
+        assertThat(saved.getNotas()).isEqualTo("Ajustar delantero");
+        assertThat(saved.getCreatedAt()).isNotNull();
+    }
+
+    @Test
+    void agregarProductosRejectsProductFromDifferentSucursal() {
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID productoId = UUID.randomUUID();
+        TallerContext.setCurrentTaller(tallerId);
+        given(ordenRepository.findById(ordenId))
+                .willReturn(Optional.of(Orden.builder().id(ordenId).tallerId(tallerId).sucursalId(sucursalId).build()));
+        given(productoRepository.findById(productoId))
+                .willReturn(Optional.of(Producto.builder().id(productoId).sucursalId(UUID.randomUUID()).build()));
+
+        assertThatThrownBy(() -> ordenService.agregarProductos(ordenId, List.of(
+                new OrdenProductoAddCommand(productoId, 1, false, null)
+        )))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Producto " + productoId + " no pertenece a la sucursal de esta orden");
+
+        verifyNoInteractions(ordenProductoRepository);
     }
 
     private OrdenCreateCommand baseCommand(UUID clienteId, UUID bicicletaId, UUID sucursalId) {

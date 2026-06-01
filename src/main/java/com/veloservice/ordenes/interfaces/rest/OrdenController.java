@@ -6,17 +6,26 @@ import com.veloservice.ordenes.application.dto.OrdenCreateResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
+import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
+import com.veloservice.ordenes.application.dto.OrdenProductoResult;
 import com.veloservice.ordenes.application.dto.OrdenReadResult;
+import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
+import com.veloservice.ordenes.application.dto.OrdenServicioResult;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreateRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreateResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenDetalleResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenEstadoChangeRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenProductoAddRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenProductoResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenReadListResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenReadResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenResumenListResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenResumenResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenServicioAddRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenServicioResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +39,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -100,6 +110,34 @@ public class OrdenController {
         return ResponseEntity.ok(toDetalleResponse(ordenService.obtenerDetalle(id)));
     }
 
+    @PostMapping("/{id}/productos")
+    public ResponseEntity<List<OrdenProductoResponse>> agregarProductos(
+            @PathVariable UUID id,
+            @Valid @NotEmpty @RequestBody List<OrdenProductoAddRequest> items
+    ) {
+        List<OrdenProductoAddCommand> commands = items.stream()
+                .map(this::toProductoCommand)
+                .toList();
+        List<OrdenProductoResponse> response = ordenService.agregarProductos(id, commands).stream()
+                .map(this::toProductoResponse)
+                .toList();
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/{id}/servicios")
+    public ResponseEntity<List<OrdenServicioResponse>> agregarServicios(
+            @PathVariable UUID id,
+            @Valid @NotEmpty @RequestBody List<OrdenServicioAddRequest> items
+    ) {
+        List<OrdenServicioAddCommand> commands = items.stream()
+                .map(this::toServicioCommand)
+                .toList();
+        List<OrdenServicioResponse> response = ordenService.agregarServicios(id, commands).stream()
+                .map(this::toServicioResponse)
+                .toList();
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     /**
      * Convierte un OrdenReadResult a OrdenResumenResponse, mapeando solo los campos necesarios para el resumen. 
      * Este método se encarga de transformar la información del dominio al formato que se expondrá a través de la API REST en el endpoint de resumen.
@@ -158,7 +196,7 @@ public class OrdenController {
         List<OrdenDetalleResponse.ProductoResponse> productos = result.productos() != null
             ? result.productos().stream()
             .map(p -> new OrdenDetalleResponse.ProductoResponse(
-                p.getId(), p.getProductoId(), p.getNombre(), p.getSku(), p.getCantidad(), p.getPrecioVenta()
+                p.id(), p.productoId(), p.nombre(), p.sku(), p.cantidad(), p.precioVenta()
             ))
             .toList()
             : List.of();
@@ -166,7 +204,7 @@ public class OrdenController {
         List<OrdenDetalleResponse.ServicioResponse> servicios = result.servicios() != null
             ? result.servicios().stream()
             .map(s -> new OrdenDetalleResponse.ServicioResponse(
-                s.getId(), s.getServicioId(), s.getNombre(), s.getPrecioBase()
+                s.id(), s.servicioId(), s.nombre(), s.precioBase()
             ))
             .toList()
             : List.of();
@@ -259,6 +297,39 @@ public class OrdenController {
                 .servicios(servicios)
                 .productos(productos)
                 .build();
+    }
+
+    private OrdenProductoAddCommand toProductoCommand(OrdenProductoAddRequest request) {
+        return new OrdenProductoAddCommand(
+                request.getProductoId(),
+                request.getCantidad(),
+                request.getProporcionadoPorCliente(),
+                request.getNotas()
+        );
+    }
+
+    private OrdenServicioAddCommand toServicioCommand(OrdenServicioAddRequest request) {
+        return new OrdenServicioAddCommand(request.getServicioId(), request.getNotas());
+    }
+
+    private OrdenProductoResponse toProductoResponse(OrdenProductoResult result) {
+        return new OrdenProductoResponse(
+                result.id(),
+                result.productoId(),
+                result.nombre(),
+                result.sku(),
+                result.cantidad(),
+                result.precioVenta()
+        );
+    }
+
+    private OrdenServicioResponse toServicioResponse(OrdenServicioResult result) {
+        return new OrdenServicioResponse(
+                result.id(),
+                result.servicioId(),
+                result.nombre(),
+                result.precioBase()
+        );
     }
 
     /**

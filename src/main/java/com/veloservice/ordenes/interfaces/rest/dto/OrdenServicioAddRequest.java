@@ -11,8 +11,6 @@ import java.util.UUID;
 @Data
 public class OrdenServicioAddRequest {
     @NotNull
-    private UUID ordenId;
-    @NotNull
     private UUID servicioId;
     private String notas;
 }

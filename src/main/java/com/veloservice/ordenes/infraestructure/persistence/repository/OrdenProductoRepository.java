@@ -40,11 +40,11 @@ public interface OrdenProductoRepository extends JpaRepository<OrdenProducto, UU
     @Query("""
         SELECT new com.veloservice.ordenes.application.dto.OrdenProductoResult(
             op.id,
-            p.id,
+            op.productoId,
             p.nombre,
             p.sku,
             op.cantidad,
-            op.precioAplicado
+            op.precioVentaSnapshot
         )
         FROM OrdenProducto op
         JOIN com.veloservice.inventario.domain.model.Producto p ON p.id = op.productoId
@@ -52,4 +52,19 @@ public interface OrdenProductoRepository extends JpaRepository<OrdenProducto, UU
         ORDER BY op.createdAt ASC
         """)
     List<OrdenProductoResult> findResultByOrdenId(@Param("ordenId") UUID ordenId);
+
+    @Query("""
+        SELECT new com.veloservice.ordenes.application.dto.OrdenProductoResult(
+            op.id,
+            op.productoId,
+            p.nombre,
+            p.sku,
+            op.cantidad,
+            op.precioVentaSnapshot
+        )
+        FROM OrdenProducto op
+        JOIN com.veloservice.inventario.domain.model.Producto p ON p.id = op.productoId
+        WHERE op.id IN :ids
+        """)
+    List<OrdenProductoResult> findResultByIdIn(@Param("ids") List<UUID> ids);
 }

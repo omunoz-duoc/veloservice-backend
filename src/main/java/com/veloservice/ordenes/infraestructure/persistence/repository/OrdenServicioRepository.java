@@ -30,9 +30,9 @@ public interface OrdenServicioRepository extends JpaRepository<OrdenServicio, UU
     @Query("""
         SELECT new com.veloservice.ordenes.application.dto.OrdenServicioResult(
             os.id,
-            s.id,
+            os.servicioId,
             s.nombre,
-            s.precioBase
+            os.precioBaseSnapshot
         )
         FROM OrdenServicio os
         JOIN com.veloservice.servicios.domain.model.Servicio s ON s.id = os.servicioId
@@ -40,4 +40,17 @@ public interface OrdenServicioRepository extends JpaRepository<OrdenServicio, UU
         ORDER BY os.createdAt ASC
         """)
     List<OrdenServicioResult> findResultByOrdenId(@Param("ordenId") UUID ordenId);
+
+    @Query("""
+        SELECT new com.veloservice.ordenes.application.dto.OrdenServicioResult(
+            os.id,
+            os.servicioId,
+            s.nombre,
+            os.precioBaseSnapshot
+        )
+        FROM OrdenServicio os
+        JOIN com.veloservice.servicios.domain.model.Servicio s ON s.id = os.servicioId
+        WHERE os.id IN :ids
+        """)
+    List<OrdenServicioResult> findResultByIdIn(@Param("ids") List<UUID> ids);
 }
