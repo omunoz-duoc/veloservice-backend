@@ -7,12 +7,12 @@ import com.veloservice.clientes.domain.model.Bicicleta;
 import com.veloservice.clientes.domain.model.Cliente;
 import com.veloservice.clientes.infraestructure.persistence.repository.BicicletaRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRepository;
-import com.veloservice.clientes.infraestructure.persistence.repository.SucursalClienteRepository;
-import com.veloservice.config.tenant.SucursalContext;
+import com.veloservice.config.tenant.TallerContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -26,7 +26,6 @@ public class BicicletaService {
 
     private final BicicletaRepository bicicletaRepository;
     private final ClienteRepository clienteRepository;
-    private final SucursalClienteRepository sucursalClienteRepository;
 
     /**
      * Creates a bike for a customer in the current tenant.
@@ -38,27 +37,28 @@ public class BicicletaService {
     @TenantOperation
     @Transactional
     public BicicletaResult crear(UUID clienteId, BicicletaCreateCommand command) {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null) {
-            throw new IllegalStateException("Operacion requiere contexto de sucursal");
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            throw new IllegalStateException("Operacion requiere contexto de taller");
         }
 
-        sucursalClienteRepository.findBySucursalIdAndClienteId(sucursalId, clienteId)
-                .orElseThrow(() -> new IllegalArgumentException("Cliente no pertenece a la sucursal actual"));
-
-        Cliente cliente = clienteRepository.findById(clienteId)
+        Cliente cliente = clienteRepository.findByIdAndTallerId(clienteId, tallerId)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
 
+        OffsetDateTime now = OffsetDateTime.now();
         Bicicleta bicicleta = Bicicleta.builder()
+                .clienteId(cliente.getId())
                 .cliente(cliente)
-            .marca(command.getMarca())
-            .modelo(command.getModelo())
-            .tipo(command.getTipo())
-            .aro(command.getAro())
-            .color(command.getColor())
-            .numeroSerie(command.getNumeroSerie())
-            .anio(command.getAnio())
-            .notas(command.getNotas())
+                .marca(command.getMarca())
+                .modelo(command.getModelo())
+                .tipo(command.getTipo())
+                .aro(command.getAro())
+                .color(command.getColor())
+                .numeroSerie(command.getNumeroSerie())
+                .anio(command.getAnio())
+                .notas(command.getNotas())
+                .createdAt(now)
+                .updatedAt(now)
                 .build();
 
         bicicleta = bicicletaRepository.save(bicicleta);
@@ -74,12 +74,12 @@ public class BicicletaService {
     @TenantOperation
     @Transactional(readOnly = true)
     public List<BicicletaResult> listarPorCliente(UUID clienteId) {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null) {
-            return List.of();
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            throw new IllegalStateException("Operacion requiere contexto de taller");
         }
-        sucursalClienteRepository.findBySucursalIdAndClienteId(sucursalId, clienteId)
-                .orElseThrow(() -> new IllegalArgumentException("Cliente no pertenece a la sucursal actual"));
+        clienteRepository.findByIdAndTallerId(clienteId, tallerId)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
         return bicicletaRepository.findByClienteId(clienteId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -93,12 +93,11 @@ public class BicicletaService {
     @TenantOperation
     @Transactional(readOnly = true)
     public List<BicicletaResult> listarTodas() {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null) {
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
             return List.of();
         }
-        return sucursalClienteRepository.findAllBySucursalId(sucursalId).stream()
-                .flatMap(vinculo -> bicicletaRepository.findByClienteId(vinculo.getClienteId()).stream())
+        return bicicletaRepository.findAllByClienteTallerId(tallerId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -106,7 +105,7 @@ public class BicicletaService {
     private BicicletaResult toResponse(Bicicleta bicicleta) {
         return BicicletaResult.builder()
                 .id(bicicleta.getId())
-                .clienteId(bicicleta.getCliente().getId())
+                .clienteId(bicicleta.getClienteId())
                 .marca(bicicleta.getMarca())
                 .modelo(bicicleta.getModelo())
                 .tipo(bicicleta.getTipo())

@@ -48,7 +48,8 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
                 c.rut,
                 u.id,
                 u.nombre,
-                u.apellido
+                u.apellido,
+                o.prioridad
             )
             from Orden o
             join com.veloservice.ordenes.domain.model.EstadoOrden e on e.id = o.estadoId
@@ -221,4 +222,9 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
      * @return
      */
     boolean existsByNumeroOrdenAndTallerId(String numeroOrden, UUID tallerId);
+
+    Optional<Orden> findFirstByTallerIdOrderByCreatedAtDesc(UUID tallerId);
+
+    @Query("select o.numeroOrden from Orden o where o.tallerId = :tallerId")
+    List<String> findNumerosOrdenByTallerId(@Param("tallerId") UUID tallerId);
 }

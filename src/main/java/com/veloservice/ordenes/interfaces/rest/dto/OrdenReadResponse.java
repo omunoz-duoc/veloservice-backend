@@ -18,7 +18,8 @@ public record OrdenReadResponse(
         String observacionesCliente,
         BicicletaResponse bicicleta,
         ClienteResponse cliente,
-        MecanicoResponse mecanico
+        MecanicoResponse mecanico,
+        String prioridad
 ) {
     public record CatalogoResponse(UUID id, String codigo, String nombre) {
     }

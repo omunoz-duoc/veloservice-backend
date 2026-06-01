@@ -19,11 +19,7 @@ import com.veloservice.clientes.interfaces.rest.dto.HojaVidaBicicletaResponse;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenProductoRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.MultimediaRepository;
-import com.veloservice.ordenes.domain.model.Orden;
-import com.veloservice.ordenes.domain.model.OrdenProducto;
-import com.veloservice.ordenes.domain.model.Multimedia;
 import java.util.stream.Collectors;
-import java.util.Optional;
 
 import java.util.List;
 import java.util.UUID;

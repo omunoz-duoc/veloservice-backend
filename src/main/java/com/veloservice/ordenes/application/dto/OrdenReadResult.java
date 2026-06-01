@@ -35,6 +35,7 @@ public record OrdenReadResult(
         String clienteRut,
         UUID mecanicoId,
         String mecanicoNombre,
-        String mecanicoApellido
+        String mecanicoApellido,
+        String prioridad
 ) {
 }

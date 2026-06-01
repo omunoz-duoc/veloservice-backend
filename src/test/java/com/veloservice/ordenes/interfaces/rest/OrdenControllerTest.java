@@ -1,22 +1,32 @@
 package com.veloservice.ordenes.interfaces.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.config.security.JwtTokenProvider;
-import com.veloservice.ordenes.application.dto.OrdenReadResult;
+import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
+import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
-import static org.mockito.BDDMockito.given;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -25,70 +35,88 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class OrdenControllerTest {
 
     @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
     @MockBean private OrdenService ordenService;
     @MockBean private JwtTokenProvider jwtTokenProvider;
     @MockBean private UsuarioRepository usuarioRepository;
 
     @Test
-    void listarReturnsOrdenesWrapper() throws Exception {
-        given(ordenService.listar()).willReturn(List.of(orden("OT-100")));
+    @WithMockUser(roles = "mecanico")
+    void cambiarEstadoReturnsUpdatedDetalle() throws Exception {
+        String ordenId = UUID.randomUUID().toString();
+        UUID estadoId = UUID.randomUUID();
+        when(ordenService.obtenerDetalle(ordenId)).thenReturn(detalle(UUID.fromString(ordenId), estadoId));
 
-        mockMvc.perform(get("/ordenes"))
+        mockMvc.perform(patch("/ordenes/{id}/estado", ordenId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "codigo", "en_diagnostico",
+                                "observacion", "Diagnostico iniciado"
+                        ))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total").value(1))
-                .andExpect(jsonPath("$.ordenes[0].numeroOrden").value("OT-100"))
-                .andExpect(jsonPath("$.ordenes[0].estado.codigo").value("recibida"))
-                .andExpect(jsonPath("$.ordenes[0].tipo.codigo").value("reparacion"))
-                .andExpect(jsonPath("$.ordenes[0].bicicleta.marca").value("Trek"))
-                .andExpect(jsonPath("$.ordenes[0].cliente.nombre").value("Ana"));
+                .andExpect(jsonPath("$.id").value(ordenId))
+                .andExpect(jsonPath("$.estado.id").value(estadoId.toString()))
+                .andExpect(jsonPath("$.estado.codigo").value("en_diagnostico"))
+                .andExpect(jsonPath("$.estado.nombre").value("En diagnostico"));
+
+        ArgumentCaptor<OrdenEstadoChangeCommand> captor = ArgumentCaptor.forClass(OrdenEstadoChangeCommand.class);
+        verify(ordenService).cambiarEstado(eq(ordenId), captor.capture());
+        assertThat(captor.getValue().getCodigo()).isEqualTo("en_diagnostico");
+        assertThat(captor.getValue().getObservacion()).isEqualTo("Diagnostico iniciado");
+        verify(ordenService).obtenerDetalle(ordenId);
     }
 
     @Test
-    void obtenerReturnsOneOrden() throws Exception {
-        UUID ordenId = UUID.randomUUID();
-        given(ordenService.obtener(ordenId.toString())).willReturn(orden("OT-101"));
+    @WithMockUser(roles = "mecanico")
+    void cambiarEstadoRejectsBlankCodigo() throws Exception {
+        mockMvc.perform(patch("/ordenes/{id}/estado", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("codigo", " "))))
+                .andExpect(status().isBadRequest());
 
-        mockMvc.perform(get("/ordenes/{id}", ordenId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.numeroOrden").value("OT-101"))
-                .andExpect(jsonPath("$.mecanico.nombre").value("Luis"));
+        verifyNoInteractions(ordenService);
     }
 
-    private OrdenReadResult orden(String numeroOrden) {
-        return new OrdenReadResult(
+    private OrdenDetalleResult detalle(UUID ordenId, UUID estadoId) {
+        OffsetDateTime now = OffsetDateTime.now();
+        return new OrdenDetalleResult(
+                ordenId,
+                "OT-2026-001",
                 UUID.randomUUID(),
-                numeroOrden,
                 UUID.randomUUID(),
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                "recibida",
-                "Recibida",
+                estadoId,
+                "en_diagnostico",
+                "En diagnostico",
                 UUID.randomUUID(),
                 "reparacion",
                 "Reparacion",
-                OffsetDateTime.parse("2026-05-30T10:00:00Z"),
+                now,
                 null,
                 null,
-                "Revision inicial",
+                "Diagnostico inicial",
                 null,
-                "Cliente espera presupuesto",
+                null,
                 UUID.randomUUID(),
                 "Trek",
-                "Marlin",
-                "MTB",
-                "29",
-                "Negro",
-                "SN-100",
+                "Domane",
+                "Ruta",
+                "Rojo",
+                "SN123",
                 UUID.randomUUID(),
-                "Ana",
-                "Perez",
+                "Matias",
+                "Diaz",
                 "+56912345678",
-                "ana@example.com",
-                "11111111-1",
-                UUID.randomUUID(),
-                "Luis",
-                "Gomez"
+                "matias@email.com",
+                "13.456.789-0",
+                null,
+                null,
+                null,
+                "media",
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of()
         );
     }
 }

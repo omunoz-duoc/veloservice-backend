@@ -24,6 +24,8 @@ public interface SucursalRepository extends JpaRepository<Sucursal, UUID> {
 	 */
 	List<Sucursal> findAllByTallerId(UUID tallerId);
 
+	boolean existsByIdAndTallerId(UUID id, UUID tallerId);
+
 
 	/**
 	 * Finds a branch by workshop identifier.

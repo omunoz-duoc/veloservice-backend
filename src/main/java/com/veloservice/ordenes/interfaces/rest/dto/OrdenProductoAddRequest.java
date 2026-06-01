@@ -7,10 +7,12 @@ import lombok.Data;
 import java.util.UUID;
 
 /**
- * Work order product line request payload.
+ * DTO para representar un producto asociado a una orden, utilizado en la creación y actualización de órdenes.
  */
 @Data
-public class OrdenProductoRequest {
+public class OrdenProductoAddRequest {
+    @NotNull
+    private UUID ordenId;
     @NotNull
     private UUID productoId;
     @NotNull
