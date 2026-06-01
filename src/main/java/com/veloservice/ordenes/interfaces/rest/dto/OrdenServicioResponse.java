@@ -1,9 +1,9 @@
-package com.veloservice.ordenes.application.dto;
+package com.veloservice.ordenes.interfaces.rest.dto;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
-public record OrdenServicioResult(
+public record OrdenServicioResponse(
         UUID id,
         UUID servicioId,
         String nombre,

@@ -20,8 +20,10 @@ import com.veloservice.ordenes.application.dto.OrdenCreateResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
+import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoResult;
 import com.veloservice.ordenes.application.dto.OrdenReadResult;
+import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
 import com.veloservice.ordenes.domain.model.EstadoOrden;
 import com.veloservice.ordenes.domain.model.Orden;
@@ -38,17 +40,25 @@ import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepos
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenServicioRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.TipoOrdenRepository;
 import com.veloservice.servicios.domain.model.Servicio;
+import com.veloservice.servicios.domain.model.SucursalServicio;
 import com.veloservice.servicios.infraestructure.persistence.repository.ServicioRepository;
+import com.veloservice.servicios.infraestructure.persistence.repository.SucursalServicioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -61,6 +71,7 @@ public class OrdenService {
     private final OrdenEstadoRepository ordenEstadoRepository;
     private final TipoOrdenRepository tipoOrdenRepository;
     private final ServicioRepository servicioRepository;
+    private final SucursalServicioRepository sucursalServicioRepository;
     private final ProductoRepository productoRepository;
     private final OrdenServicioRepository ordenServicioRepository;
     private final OrdenProductoRepository ordenProductoRepository;
@@ -202,6 +213,89 @@ public class OrdenService {
                 .observacion(command.getObservacion())
                 .createdAt(now)
                 .build());
+    }
+
+    @TenantOperation
+    @Transactional
+    public List<OrdenProductoResult> agregarProductos(UUID ordenId, List<OrdenProductoAddCommand> items) {
+        Orden orden = buscarOrdenPorIdParaMutacion(ordenId);
+        OffsetDateTime now = OffsetDateTime.now();
+
+        List<OrdenProducto> lineItems = items.stream()
+                .map(item -> {
+                    Producto producto = productoRepository.findById(item.getProductoId())
+                            .orElseThrow(() -> new ResponseStatusException(
+                                    HttpStatus.NOT_FOUND,
+                                    "Producto no encontrado: " + item.getProductoId()
+                            ));
+                    if (!producto.getSucursalId().equals(orden.getSucursalId())) {
+                        throw new IllegalArgumentException(
+                                "Producto " + item.getProductoId() + " no pertenece a la sucursal de esta orden"
+                        );
+                    }
+                    return OrdenProducto.builder()
+                            .ordenId(ordenId)
+                            .productoId(item.getProductoId())
+                            .cantidad(item.getCantidad())
+                            .precioCostoSnapshot(producto.getPrecioCosto())
+                            .precioVentaSnapshot(producto.getPrecioVenta())
+                            .precioAplicado(producto.getPrecioVenta())
+                            .proporcionadoPorCliente(Boolean.TRUE.equals(item.getProporcionadoPorCliente()))
+                            .notas(item.getNotas())
+                            .createdAt(now)
+                            .build();
+                })
+                .toList();
+
+        List<OrdenProducto> saved = ordenProductoRepository.saveAll(lineItems);
+        List<UUID> ids = saved.stream().map(OrdenProducto::getId).toList();
+        Map<UUID, OrdenProductoResult> resultsById = ordenProductoRepository.findResultByIdIn(ids).stream()
+                .collect(Collectors.toMap(OrdenProductoResult::id, Function.identity()));
+        return ids.stream().map(resultsById::get).toList();
+    }
+
+    @TenantOperation
+    @Transactional
+    public List<OrdenServicioResult> agregarServicios(UUID ordenId, List<OrdenServicioAddCommand> items) {
+        Orden orden = buscarOrdenPorIdParaMutacion(ordenId);
+        OffsetDateTime now = OffsetDateTime.now();
+
+        List<OrdenServicio> lineItems = items.stream()
+                .map(item -> {
+                    Servicio servicio = servicioRepository.findById(item.getServicioId())
+                            .orElseThrow(() -> new ResponseStatusException(
+                                    HttpStatus.NOT_FOUND,
+                                    "Servicio no encontrado: " + item.getServicioId()
+                            ));
+                    if (!servicio.getTallerId().equals(orden.getTallerId())) {
+                        throw new IllegalArgumentException(
+                                "Servicio " + item.getServicioId() + " no pertenece al taller de esta orden"
+                        );
+                    }
+
+                    BigDecimal precioBase = sucursalServicioRepository
+                            .findBySucursalIdAndServicioId(orden.getSucursalId(), item.getServicioId())
+                            .map(SucursalServicio::getPrecioPersonalizado)
+                            .filter(precio -> precio != null)
+                            .orElse(servicio.getPrecioBase());
+
+                    return OrdenServicio.builder()
+                            .ordenId(ordenId)
+                            .servicioId(item.getServicioId())
+                            .precioBaseSnapshot(precioBase)
+                            .precioAplicado(precioBase)
+                            .descuentoAplicado(BigDecimal.ZERO)
+                            .notas(item.getNotas())
+                            .createdAt(now)
+                            .build();
+                })
+                .toList();
+
+        List<OrdenServicio> saved = ordenServicioRepository.saveAll(lineItems);
+        List<UUID> ids = saved.stream().map(OrdenServicio::getId).toList();
+        Map<UUID, OrdenServicioResult> resultsById = ordenServicioRepository.findResultByIdIn(ids).stream()
+                .collect(Collectors.toMap(OrdenServicioResult::id, Function.identity()));
+        return ids.stream().map(resultsById::get).toList();
     }
 
     private OrdenCreateResult crearEnSucursal(OrdenCreateCommand command, UUID tallerId, UUID sucursalId) {
@@ -392,6 +486,25 @@ public class OrdenService {
             return byUuid;
         }
         return ordenRepository.findByNumeroOrdenAndSucursalId(id, sucursalId);
+    }
+
+    private Orden buscarOrdenPorIdParaMutacion(UUID ordenId) {
+        Orden orden = ordenRepository.findById(ordenId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Orden no encontrada"));
+
+        UUID tallerId = TallerContext.getCurrentTaller();
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (tallerId == null && sucursalId == null) {
+            throw new IllegalStateException("Contexto de taller o sucursal requerido");
+        }
+        if (tallerId != null && !orden.getTallerId().equals(tallerId)) {
+            throw new AccessDeniedException("Acceso denegado");
+        }
+        if (sucursalId != null && !orden.getSucursalId().equals(sucursalId)) {
+            throw new AccessDeniedException("Acceso denegado");
+        }
+
+        return orden;
     }
 
     /**
