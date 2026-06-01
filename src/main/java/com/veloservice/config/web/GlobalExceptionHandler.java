@@ -3,6 +3,7 @@ package com.veloservice.config.web;
 import com.veloservice.auth.application.exception.AuthException;
 import com.veloservice.inventario.application.exception.ProductoException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -110,6 +111,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        String cause = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : "";
+        if (cause != null && cause.contains("idx_ordenes_taller_numero")) {
+            return buildResponse(HttpStatus.CONFLICT, "Numero de orden duplicado. Intenta crear la orden nuevamente.");
+        }
+        return buildResponse(HttpStatus.BAD_REQUEST, "La solicitud viola una restriccion de datos");
     }
 
     /**

@@ -21,7 +21,4 @@ public class OrdenRequest {
     private TipoOrdenEnum tipo;
     private String diagnosticoInicial;
     private String observacionesCliente;
-    @NotEmpty(message = "Debe adjuntar al menos una evidencia multimedia (RN01)")
-    @Valid
-    private List<MultimediaRequest> multimedia;
 }

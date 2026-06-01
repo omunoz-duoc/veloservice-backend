@@ -84,6 +84,9 @@ public class Orden {
     @Column(name = "porcentaje_descuento_membresia", nullable = false, precision = 5, scale = 2)
     private BigDecimal porcentajeDescuentoMembresia;
 
+    @Column(name = "prioridad")
+    private String prioridad;
+
     @Column(name = "fecha_ingreso", nullable = false)
     private OffsetDateTime fechaIngreso;
 

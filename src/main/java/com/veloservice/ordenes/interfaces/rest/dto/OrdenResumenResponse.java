@@ -1,26 +1,19 @@
 package com.veloservice.ordenes.interfaces.rest.dto;
 
-import com.veloservice.ordenes.domain.EstadoOrdenEnum;
-import com.veloservice.ordenes.domain.TipoOrdenEnum;
-
 import java.time.OffsetDateTime;
 
 public record OrdenResumenResponse(
-        String externalId,
-        TipoOrdenEnum tipo,
-        OffsetDateTime fechaIngreso,
-        String nombreMecanico,
-        String nombreCliente,
-        String descripcion,
-        String observacionesCliente,
-        BicicletaResumenResponse bicicleta,
-        EstadoOrdenEnum estado
+    String numeroOrden,
+    String tipo,
+    OffsetDateTime fechaIngreso,
+    String mecanico,
+    String cliente,
+    BicicletaResumenResponse bicicleta,
+    String diagnosticoInicial,
+    String estado,
+    String prioridad
 ) {
     public record BicicletaResumenResponse(
-            String marca,
-            String color,
-            String tipo,
-            String talla
-    ) {
-    }
+        String marca, String modelo, String tipo, String color
+    ) {}
 }
