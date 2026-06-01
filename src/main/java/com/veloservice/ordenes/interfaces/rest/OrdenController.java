@@ -18,7 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/ordenes")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('mecanico') or hasRole('recepcionista') or hasRole('jefe_taller') or hasRole('admin_taller')")
+@PreAuthorize("hasRole('mecanico') or hasRole('recepcionista') or hasRole('jefe_taller') or hasRole('admin_taller') or hasRole('ADMIN_SUCURSAL')")
 public class OrdenController {
 
     private final OrdenService ordenService;
