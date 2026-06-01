@@ -1,5 +1,6 @@
 package com.veloservice.ordenes.interfaces.rest.dto;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -22,7 +23,9 @@ public record OrdenDetalleResponse(
     MecanicoDetalleResponse mecanico,
     String prioridad,
     List<ComentarioResponse> comentarios,
-    List<MultimediaResponse> multimedia
+    List<MultimediaResponse> multimedia,
+    List<ProductoResponse> productos,
+    List<ServicioResponse> servicios
 ) {
     public record CatalogoResponse(UUID id, String codigo, String nombre) {}
 
@@ -41,4 +44,10 @@ public record OrdenDetalleResponse(
     public record MultimediaResponse(
         String usuario, String tipoArchivo, String url, String etapa, String descripcion
     ) {}
+
+    public record ProductoResponse(
+        UUID id, UUID productoId, String nombre, String sku, Integer cantidad, BigDecimal precioVenta
+    ) {}
+
+    public record ServicioResponse(UUID id, UUID servicioId, String nombre, BigDecimal precioBase) {}
 }

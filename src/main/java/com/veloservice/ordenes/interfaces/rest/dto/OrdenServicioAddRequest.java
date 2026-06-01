@@ -9,7 +9,9 @@ import java.util.UUID;
  * Work order service line request payload.
  */
 @Data
-public class OrdenServicioRequest {
+public class OrdenServicioAddRequest {
+    @NotNull
+    private UUID ordenId;
     @NotNull
     private UUID servicioId;
     private String notas;

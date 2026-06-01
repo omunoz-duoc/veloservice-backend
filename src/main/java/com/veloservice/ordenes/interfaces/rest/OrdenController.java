@@ -2,14 +2,16 @@ package com.veloservice.ordenes.interfaces.rest;
 
 import com.veloservice.clientes.application.dto.BicicletaCreateCommand;
 import com.veloservice.clientes.application.dto.ClienteCreateCommand;
-import com.veloservice.ordenes.application.dto.OrdenCreadaResult;
+import com.veloservice.ordenes.application.dto.OrdenCreateResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
+import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.dto.OrdenReadResult;
 import com.veloservice.ordenes.application.usecase.OrdenService;
-import com.veloservice.ordenes.interfaces.rest.dto.NuevaOrdenRequest;
-import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreadaResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreateRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreateResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenDetalleResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenEstadoChangeRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenReadListResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenReadResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenResumenListResponse;
@@ -20,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,11 +47,11 @@ public class OrdenController {
      * @return
      */
     @PostMapping
-    public ResponseEntity<OrdenCreadaResponse> crear(@Valid @RequestBody NuevaOrdenRequest request) {
+    public ResponseEntity<OrdenCreateResponse> crear(@Valid @RequestBody OrdenCreateRequest request) {
         OrdenCreateCommand command = toCommand(request);
-        OrdenCreadaResult result = ordenService.crear(command);
+        OrdenCreateResult result = ordenService.crear(command);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new OrdenCreadaResponse(result.id(), result.numeroOrden()));
+                .body(new OrdenCreateResponse(result.id(), result.numeroOrden()));
     }
 
     /**
@@ -90,6 +93,19 @@ public class OrdenController {
         return ResponseEntity.ok(toDetalleResponse(ordenService.obtenerDetalle(id)));
     }
 
+    @PatchMapping("/{id}/estado")
+    public ResponseEntity<OrdenDetalleResponse> cambiarEstado(@PathVariable String id,
+                                                              @Valid @RequestBody OrdenEstadoChangeRequest request) {
+        ordenService.cambiarEstado(id, new OrdenEstadoChangeCommand(request.getCodigo(), request.getObservacion()));
+        return ResponseEntity.ok(toDetalleResponse(ordenService.obtenerDetalle(id)));
+    }
+
+    /**
+     * Convierte un OrdenReadResult a OrdenResumenResponse, mapeando solo los campos necesarios para el resumen. 
+     * Este método se encarga de transformar la información del dominio al formato que se expondrá a través de la API REST en el endpoint de resumen.
+     * @param r
+     * @return
+     */
     private OrdenResumenResponse toResumenResponse(OrdenReadResult r) {
         String mecanico = r.mecanicoId() != null
             ? r.mecanicoNombre() + " " + r.mecanicoApellido()
@@ -125,15 +141,35 @@ public class OrdenController {
             );
         }
 
-        List<OrdenDetalleResponse.ComentarioResponse> comentarios = result.comentarios().stream()
+        List<OrdenDetalleResponse.ComentarioResponse> comentarios = result.comentarios() != null
+            ? result.comentarios().stream()
             .map(c -> new OrdenDetalleResponse.ComentarioResponse(c.usuario(), c.texto(), c.createdAt()))
-            .toList();
+            .toList()
+            : List.of();
 
-        List<OrdenDetalleResponse.MultimediaResponse> multimedia = result.multimedia().stream()
+        List<OrdenDetalleResponse.MultimediaResponse> multimedia = result.multimedia() != null
+            ? result.multimedia().stream()
             .map(m -> new OrdenDetalleResponse.MultimediaResponse(
                 m.usuario(), m.tipoArchivo(), m.url(), m.etapa(), m.descripcion()
             ))
-            .toList();
+            .toList()
+            : List.of();
+
+        List<OrdenDetalleResponse.ProductoResponse> productos = result.productos() != null
+            ? result.productos().stream()
+            .map(p -> new OrdenDetalleResponse.ProductoResponse(
+                p.getId(), p.getProductoId(), p.getNombre(), p.getSku(), p.getCantidad(), p.getPrecioVenta()
+            ))
+            .toList()
+            : List.of();
+
+        List<OrdenDetalleResponse.ServicioResponse> servicios = result.servicios() != null
+            ? result.servicios().stream()
+            .map(s -> new OrdenDetalleResponse.ServicioResponse(
+                s.getId(), s.getServicioId(), s.getNombre(), s.getPrecioBase()
+            ))
+            .toList()
+            : List.of();
 
         return new OrdenDetalleResponse(
             result.id(),
@@ -171,7 +207,9 @@ public class OrdenController {
             mecanico,
             result.prioridad(),
             comentarios,
-            multimedia
+            multimedia,
+            productos,
+            servicios
         );
     }
 
@@ -181,23 +219,23 @@ public class OrdenController {
      * @param r
      * @return
      */
-    private OrdenCreateCommand toCommand(NuevaOrdenRequest r) {
+    private OrdenCreateCommand toCommand(OrdenCreateRequest r) {
         ClienteCreateCommand clienteNuevo = null;
         if (r.getClienteNuevo() != null) {
-            NuevaOrdenRequest.ClienteNuevoRequest cn = r.getClienteNuevo();
+            OrdenCreateRequest.ClienteCreateRequest cn = r.getClienteNuevo();
             clienteNuevo = new ClienteCreateCommand(cn.getNombre(), cn.getApellido(),
                     cn.getRut(), cn.getTelefono(), cn.getEmail(), cn.getDireccion());
         }
 
         BicicletaCreateCommand bicicletaNueva = null;
         if (r.getBicicletaNueva() != null) {
-            NuevaOrdenRequest.BicicletaNuevaRequest bn = r.getBicicletaNueva();
+            OrdenCreateRequest.BicicletaCreateRequest bn = r.getBicicletaNueva();
             bicicletaNueva = new BicicletaCreateCommand(bn.getMarca(), bn.getModelo(),
                     bn.getTipo(), bn.getAro(), bn.getColor(), bn.getNumeroSerie(), bn.getAnio(), bn.getNotas());
         }
 
         List<java.util.UUID> servicios = r.getServicios() != null
-                ? r.getServicios().stream().map(NuevaOrdenRequest.ServicioItem::getServicioId).collect(Collectors.toList())
+                ? r.getServicios().stream().map(OrdenCreateRequest.ServicioItem::getServicioId).collect(Collectors.toList())
                 : null;
 
         List<OrdenCreateCommand.ProductoItem> productos = r.getProductos() != null

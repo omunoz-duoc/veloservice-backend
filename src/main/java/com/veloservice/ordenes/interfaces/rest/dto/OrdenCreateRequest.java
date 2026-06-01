@@ -12,13 +12,13 @@ import java.util.List;
 import java.util.UUID;
 
 @Data
-public class NuevaOrdenRequest {
+public class OrdenCreateRequest {
     private UUID clienteId;
     @Valid
-    private ClienteNuevoRequest clienteNuevo;
+    private ClienteCreateRequest clienteNuevo;
     private UUID bicicletaId;
     @Valid
-    private BicicletaNuevaRequest bicicletaNueva;
+    private BicicletaCreateRequest bicicletaNueva;
     private UUID sucursalId;
 
     @NotBlank
@@ -34,7 +34,7 @@ public class NuevaOrdenRequest {
     private List<ProductoItem> productos;
 
     @Data
-    public static class ClienteNuevoRequest {
+    public static class ClienteCreateRequest {
         @NotBlank
         private String nombre;
         @NotBlank
@@ -46,7 +46,7 @@ public class NuevaOrdenRequest {
     }
 
     @Data
-    public static class BicicletaNuevaRequest {
+    public static class BicicletaCreateRequest {
         @NotBlank
         private String marca;
         private String modelo;

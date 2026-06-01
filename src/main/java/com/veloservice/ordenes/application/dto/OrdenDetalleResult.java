@@ -24,5 +24,7 @@ public record OrdenDetalleResult(
     UUID mecanicoId, String mecanicoNombre, String mecanicoApellido,
     String prioridad,
     List<ComentarioResult> comentarios,
-    List<MultimediaResult> multimedia
+    List<MultimediaResult> multimedia,
+    List<OrdenProductoResult> productos,
+    List<OrdenServicioResult> servicios
 ) {}

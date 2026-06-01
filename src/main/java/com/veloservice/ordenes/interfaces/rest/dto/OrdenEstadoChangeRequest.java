@@ -1,17 +1,15 @@
 package com.veloservice.ordenes.interfaces.rest.dto;
 
-import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 /**
  * Work order state change payload.
  */
 @Data
-public class EstadoChangeRequest {
-    @NotNull
-    private EstadoOrdenEnum nuevoEstado;
+public class OrdenEstadoChangeRequest {
     @NotBlank
+    private String codigo;
+
     private String observacion;
 }

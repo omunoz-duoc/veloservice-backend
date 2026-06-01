@@ -8,14 +8,18 @@ import com.veloservice.clientes.infraestructure.persistence.repository.Bicicleta
 import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRepository;
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
+import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
+import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
 import com.veloservice.ordenes.domain.model.EstadoOrden;
 import com.veloservice.ordenes.domain.model.Orden;
+import com.veloservice.ordenes.domain.model.OrdenEstado;
 import com.veloservice.ordenes.domain.model.TipoOrden;
 import com.veloservice.ordenes.infraestructure.persistence.repository.ComentarioRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.EstadoOrdenCatalogRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.MultimediaRepository;
+import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenEstadoRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenProductoRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenServicioRepository;
@@ -38,6 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class OrdenServiceCreateScopeTest {
@@ -46,6 +51,7 @@ class OrdenServiceCreateScopeTest {
     @Mock private ComentarioRepository comentarioRepository;
     @Mock private MultimediaRepository multimediaRepository;
     @Mock private EstadoOrdenCatalogRepository estadoOrdenRepository;
+    @Mock private OrdenEstadoRepository ordenEstadoRepository;
     @Mock private TipoOrdenRepository tipoOrdenRepository;
     @Mock private ServicioRepository servicioRepository;
     @Mock private ProductoRepository productoRepository;
@@ -67,6 +73,7 @@ class OrdenServiceCreateScopeTest {
                 comentarioRepository,
                 multimediaRepository,
                 estadoOrdenRepository,
+                ordenEstadoRepository,
                 tipoOrdenRepository,
                 servicioRepository,
                 productoRepository,
@@ -85,6 +92,7 @@ class OrdenServiceCreateScopeTest {
     void cleanup() {
         TallerContext.clear();
         SucursalContext.clear();
+        UsuarioContext.clear();
     }
 
     @Test
@@ -138,6 +146,69 @@ class OrdenServiceCreateScopeTest {
         assertThatThrownBy(() -> ordenService.crear(baseCommand(UUID.randomUUID(), UUID.randomUUID(), requestedSucursalId)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("La sucursal solicitada no coincide con el contexto actual");
+    }
+
+    @Test
+    void cambiarEstadoUpdatesOrdenAndCreatesHistoryWithCurrentUser() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID estadoAnteriorId = UUID.randomUUID();
+        UUID estadoNuevoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        UsuarioContext.setCurrentUser(usuarioId);
+        Orden orden = Orden.builder()
+                .id(ordenId)
+                .sucursalId(sucursalId)
+                .estadoId(estadoAnteriorId)
+                .build();
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(orden));
+        given(estadoOrdenRepository.findByCodigo("en_diagnostico"))
+                .willReturn(Optional.of(EstadoOrden.builder().id(estadoNuevoId).codigo("en_diagnostico").build()));
+
+        ordenService.cambiarEstado(ordenId.toString(), new OrdenEstadoChangeCommand("en_diagnostico", "Diagnostico iniciado"));
+
+        assertThat(orden.getEstadoId()).isEqualTo(estadoNuevoId);
+        assertThat(orden.getUpdatedAt()).isNotNull();
+        verify(ordenRepository).save(orden);
+        ArgumentCaptor<OrdenEstado> historyCaptor = ArgumentCaptor.forClass(OrdenEstado.class);
+        verify(ordenEstadoRepository).save(historyCaptor.capture());
+        OrdenEstado history = historyCaptor.getValue();
+        assertThat(history.getOrdenId()).isEqualTo(ordenId);
+        assertThat(history.getUsuarioId()).isEqualTo(usuarioId);
+        assertThat(history.getEstadoAnteriorId()).isEqualTo(estadoAnteriorId);
+        assertThat(history.getEstadoNuevoId()).isEqualTo(estadoNuevoId);
+        assertThat(history.getObservacion()).isEqualTo("Diagnostico iniciado");
+        assertThat(history.getCreatedAt()).isNotNull();
+    }
+
+    @Test
+    void cambiarEstadoRequiresUsuarioContext() {
+        SucursalContext.setCurrentSucursal(UUID.randomUUID());
+
+        assertThatThrownBy(() -> ordenService.cambiarEstado("OT-000001", new OrdenEstadoChangeCommand("en_diagnostico", null)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Contexto de usuario requerido");
+
+        verifyNoInteractions(ordenEstadoRepository);
+    }
+
+    @Test
+    void cambiarEstadoRejectsUnknownEstadoCodigo() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        UsuarioContext.setCurrentUser(usuarioId);
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(Orden.builder().id(ordenId).estadoId(UUID.randomUUID()).build()));
+        given(estadoOrdenRepository.findByCodigo("no_existe")).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> ordenService.cambiarEstado(ordenId.toString(), new OrdenEstadoChangeCommand("no_existe", null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Estado de orden no encontrado: no_existe");
+
+        verifyNoInteractions(ordenEstadoRepository);
     }
 
     private OrdenCreateCommand baseCommand(UUID clienteId, UUID bicicletaId, UUID sucursalId) {

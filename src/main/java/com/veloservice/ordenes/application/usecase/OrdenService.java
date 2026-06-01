@@ -11,22 +11,28 @@ import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRe
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.TenantOperation;
+import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import com.veloservice.ordenes.application.dto.ComentarioResult;
 import com.veloservice.ordenes.application.dto.MultimediaResult;
-import com.veloservice.ordenes.application.dto.OrdenCreadaResult;
+import com.veloservice.ordenes.application.dto.OrdenCreateResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
+import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
+import com.veloservice.ordenes.application.dto.OrdenProductoResult;
 import com.veloservice.ordenes.application.dto.OrdenReadResult;
+import com.veloservice.ordenes.application.dto.OrdenServicioResult;
 import com.veloservice.ordenes.domain.model.EstadoOrden;
 import com.veloservice.ordenes.domain.model.Orden;
+import com.veloservice.ordenes.domain.model.OrdenEstado;
 import com.veloservice.ordenes.domain.model.OrdenProducto;
 import com.veloservice.ordenes.domain.model.OrdenServicio;
 import com.veloservice.ordenes.domain.model.TipoOrden;
 import com.veloservice.ordenes.infraestructure.persistence.repository.ComentarioRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.EstadoOrdenCatalogRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.MultimediaRepository;
+import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenEstadoRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenProductoRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenServicioRepository;
@@ -52,6 +58,7 @@ public class OrdenService {
     private final ComentarioRepository comentarioRepository;
     private final MultimediaRepository multimediaRepository;
     private final EstadoOrdenCatalogRepository estadoOrdenRepository;
+    private final OrdenEstadoRepository ordenEstadoRepository;
     private final TipoOrdenRepository tipoOrdenRepository;
     private final ServicioRepository servicioRepository;
     private final ProductoRepository productoRepository;
@@ -116,6 +123,8 @@ public class OrdenService {
         OrdenReadResult orden = obtener(id);
         List<ComentarioResult> comentarios = comentarioRepository.findResultByOrdenId(orden.id());
         List<MultimediaResult> multimedia = multimediaRepository.findResultByOrdenId(orden.id());
+        List<OrdenProductoResult> productos = ordenProductoRepository.findResultByOrdenId(orden.id());
+        List<OrdenServicioResult> servicios = ordenServicioRepository.findResultByOrdenId(orden.id());
         return new OrdenDetalleResult(
             orden.id(),
             orden.numeroOrden(),
@@ -136,13 +145,15 @@ public class OrdenService {
             orden.mecanicoId(), orden.mecanicoNombre(), orden.mecanicoApellido(),
             orden.prioridad(),
             comentarios,
-            multimedia
+            multimedia,
+            productos,
+            servicios
         );
     }
 
     @TenantOperation
     @Transactional
-    public OrdenCreadaResult crear(OrdenCreateCommand command) {
+    public OrdenCreateResult crear(OrdenCreateCommand command) {
         UUID tallerId = TallerContext.getCurrentTaller();
         UUID contextSucursalId = SucursalContext.getCurrentSucursal();
 
@@ -165,7 +176,35 @@ public class OrdenService {
         }
     }
 
-    private OrdenCreadaResult crearEnSucursal(OrdenCreateCommand command, UUID tallerId, UUID sucursalId) {
+    @TenantOperation
+    @Transactional
+    public void cambiarEstado(String id, OrdenEstadoChangeCommand command) {
+        UUID usuarioId = UsuarioContext.getCurrentUser();
+        if (usuarioId == null) {
+            throw new IllegalStateException("Contexto de usuario requerido");
+        }
+
+        Orden orden = buscarOrdenParaMutacion(id);
+        UUID estadoAnteriorId = orden.getEstadoId();
+        EstadoOrden nuevoEstado = estadoOrdenRepository.findByCodigo(command.getCodigo())
+                .orElseThrow(() -> new IllegalArgumentException("Estado de orden no encontrado: " + command.getCodigo()));
+        OffsetDateTime now = OffsetDateTime.now();
+
+        orden.setEstadoId(nuevoEstado.getId());
+        orden.setUpdatedAt(now);
+        ordenRepository.save(orden);
+
+        ordenEstadoRepository.save(OrdenEstado.builder()
+                .ordenId(orden.getId())
+                .usuarioId(usuarioId)
+                .estadoAnteriorId(estadoAnteriorId)
+                .estadoNuevoId(nuevoEstado.getId())
+                .observacion(command.getObservacion())
+                .createdAt(now)
+                .build());
+    }
+
+    private OrdenCreateResult crearEnSucursal(OrdenCreateCommand command, UUID tallerId, UUID sucursalId) {
         UUID clienteId = resolverCliente(command, tallerId);
         UUID bicicletaId = resolverBicicleta(command, clienteId, tallerId);
 
@@ -232,7 +271,7 @@ public class OrdenService {
             }
         }
 
-        return new OrdenCreadaResult(ordenId, numeroOrden);
+        return new OrdenCreateResult(ordenId, numeroOrden);
     }
 
     private UUID resolverSucursal(UUID tallerId, UUID contextSucursalId, UUID requestedSucursalId) {
@@ -319,6 +358,40 @@ public class OrdenService {
             return byUuid;
         }
         return ordenRepository.findReadByNumeroOrdenAndSucursalId(id, sucursalId);
+    }
+
+    private Orden buscarOrdenParaMutacion(String id) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId != null) {
+            return buscarOrdenEntityEnSucursal(id, sucursalId)
+                    .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+        }
+
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId != null) {
+            return buscarOrdenEntityEnTaller(id, tallerId)
+                    .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+        }
+
+        throw new IllegalStateException("Contexto de taller o sucursal requerido");
+    }
+
+    private Optional<Orden> buscarOrdenEntityEnTaller(String id, UUID tallerId) {
+        Optional<Orden> byUuid = parseUuid(id)
+                .flatMap(uuid -> ordenRepository.findByIdAndTallerId(uuid, tallerId));
+        if (byUuid.isPresent()) {
+            return byUuid;
+        }
+        return ordenRepository.findByNumeroOrdenAndTallerId(id, tallerId);
+    }
+
+    private Optional<Orden> buscarOrdenEntityEnSucursal(String id, UUID sucursalId) {
+        Optional<Orden> byUuid = parseUuid(id)
+                .flatMap(uuid -> ordenRepository.findByIdAndSucursalId(uuid, sucursalId));
+        if (byUuid.isPresent()) {
+            return byUuid;
+        }
+        return ordenRepository.findByNumeroOrdenAndSucursalId(id, sucursalId);
     }
 
     /**
