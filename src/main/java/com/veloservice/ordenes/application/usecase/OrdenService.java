@@ -18,6 +18,7 @@ import com.veloservice.ordenes.application.dto.ComentarioResult;
 import com.veloservice.ordenes.application.dto.MultimediaResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
+import com.veloservice.ordenes.application.dto.OrdenDetalleBaseResult;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
@@ -131,30 +132,42 @@ public class OrdenService {
     @TenantOperation
     @Transactional(readOnly = true)
     public OrdenDetalleResult obtenerDetalle(String id) {
-        OrdenReadResult orden = obtener(id);
-        List<ComentarioResult> comentarios = comentarioRepository.findResultByOrdenId(orden.id());
-        List<MultimediaResult> multimedia = multimediaRepository.findResultByOrdenId(orden.id());
-        List<OrdenProductoResult> productos = ordenProductoRepository.findResultByOrdenId(orden.id());
-        List<OrdenServicioResult> servicios = ordenServicioRepository.findResultByOrdenId(orden.id());
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        UUID tallerId = TallerContext.getCurrentTaller();
+
+        OrdenDetalleBaseResult base;
+        if (sucursalId != null) {
+            base = buscarDetalleBaseEnSucursal(id, sucursalId)
+                    .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+        } else if (tallerId != null) {
+            base = buscarDetalleBaseEnTaller(id, tallerId)
+                    .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+        } else {
+            throw new IllegalStateException("Contexto de taller o sucursal requerido");
+        }
+
+        List<ComentarioResult> comentarios = comentarioRepository.findResultByOrdenId(base.id());
+        List<MultimediaResult> multimedia = multimediaRepository.findResultByOrdenId(base.id());
+        List<OrdenProductoResult> productos = ordenProductoRepository.findResultByOrdenId(base.id());
+        List<OrdenServicioResult> servicios = ordenServicioRepository.findResultByOrdenId(base.id());
         return new OrdenDetalleResult(
-            orden.id(),
-            orden.numeroOrden(),
-            orden.tallerId(),
-            orden.sucursalId(),
-            orden.estadoId(), orden.estadoCodigo(), orden.estadoNombre(),
-            orden.tipoId(), orden.tipoCodigo(), orden.tipoNombre(),
-            orden.fechaIngreso(),
-            orden.fechaPrometida(),
-            orden.fechaEntrega(),
-            orden.diagnosticoInicial(),
-            orden.diagnosticoFinal(),
-            orden.observacionesCliente(),
-            orden.bicicletaId(), orden.bicicletaMarca(), orden.bicicletaModelo(),
-            orden.bicicletaTipo(), orden.bicicletaColor(), orden.bicicletaNumeroSerie(),
-            orden.clienteId(), orden.clienteNombre(), orden.clienteApellido(),
-            orden.clienteTelefono(), orden.clienteEmail(), orden.clienteRut(),
-            orden.mecanicoId(), orden.mecanicoNombre(), orden.mecanicoApellido(),
-            orden.prioridad(),
+            base.id(),
+            base.numeroOrden(),
+            base.tallerId(),
+            base.sucursalId(),
+            base.estadoId(), base.estadoCodigo(), base.estadoNombre(),
+            base.tipoId(), base.tipoCodigo(), base.tipoNombre(),
+            base.fechaIngreso(),
+            base.fechaPrometida(),
+            base.fechaEntrega(),
+            base.diagnosticoInicial(),
+            base.diagnosticoFinal(),
+            base.observacionesCliente(),
+            base.bicicletaId(), base.bicicletaMarca(), base.bicicletaModelo(), base.bicicletaTipo(), base.bicicletaColor(), base.bicicletaNumeroSerie(), base.bicicletaAro(), base.bicicletaAnio(), base.bicicletaFotoUrl(), base.bicicletaNotas(),
+            base.clienteId(), base.clienteNombre(), base.clienteApellido(),
+            base.clienteTelefono(), base.clienteEmail(), base.clienteRut(),
+            base.mecanicoId(), base.mecanicoNombre(), base.mecanicoApellido(),
+            base.prioridad(),
             comentarios,
             multimedia,
             productos,
@@ -422,6 +435,18 @@ public class OrdenService {
             return bicicletaService.crear(clienteId, cmd).getId();
         }
         throw new IllegalArgumentException("Se requiere bicicletaId o bicicletaNueva");
+    }
+
+    private Optional<OrdenDetalleBaseResult> buscarDetalleBaseEnSucursal(String id, UUID sucursalId) {
+        return parseUuid(id)
+                .flatMap(uuid -> ordenRepository.findDetalleBaseByIdAndSucursalId(uuid, sucursalId))
+                .or(() -> ordenRepository.findDetalleBaseByNumeroOrdenAndSucursalId(id, sucursalId));
+    }
+
+    private Optional<OrdenDetalleBaseResult> buscarDetalleBaseEnTaller(String id, UUID tallerId) {
+        return parseUuid(id)
+                .flatMap(uuid -> ordenRepository.findDetalleBaseByIdAndTallerId(uuid, tallerId))
+                .or(() -> ordenRepository.findDetalleBaseByNumeroOrdenAndTallerId(id, tallerId));
     }
 
     /**

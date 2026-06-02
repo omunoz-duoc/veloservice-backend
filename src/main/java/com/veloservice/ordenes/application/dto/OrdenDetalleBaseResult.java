@@ -3,7 +3,7 @@ package com.veloservice.ordenes.application.dto;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-public record OrdenReadResult(
+public record OrdenDetalleBaseResult(
         UUID id,
         String numeroOrden,
         UUID tallerId,
@@ -28,6 +28,7 @@ public record OrdenReadResult(
         String bicicletaColor,
         String bicicletaNumeroSerie,
         Integer bicicletaAnio,
+        String bicicletaFotoUrl,
         String bicicletaNotas,
         UUID clienteId,
         String clienteNombre,
@@ -39,5 +40,4 @@ public record OrdenReadResult(
         String mecanicoNombre,
         String mecanicoApellido,
         String prioridad
-) {
-}
+) {}

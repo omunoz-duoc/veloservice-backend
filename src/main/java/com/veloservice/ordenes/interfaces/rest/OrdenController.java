@@ -232,7 +232,11 @@ public class OrdenController {
                 result.bicicletaModelo(),
                 result.bicicletaTipo(),
                 result.bicicletaColor(),
-                result.bicicletaNumeroSerie()
+                result.bicicletaNumeroSerie(),
+                result.bicicletaAro(),
+                result.bicicletaAnio(),
+                result.bicicletaFotoUrl(),
+                result.bicicletaNotas()
             ),
             new OrdenDetalleResponse.ClienteDetalleResponse(
                 result.clienteId(),

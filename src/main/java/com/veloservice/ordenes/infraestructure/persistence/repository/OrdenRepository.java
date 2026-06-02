@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import com.veloservice.ordenes.application.dto.OrdenDetalleBaseResult;
 import com.veloservice.ordenes.application.dto.OrdenReadResult;
 import com.veloservice.ordenes.domain.model.Orden;
 
@@ -40,6 +41,8 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
                 b.aro,
                 b.color,
                 b.numeroSerie,
+                b.anio,
+                b.notas,
                 c.id,
                 c.nombre,
                 c.apellido,
@@ -58,6 +61,81 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
             join com.veloservice.clientes.domain.model.Cliente c on c.id = b.clienteId
             left join com.veloservice.auth.domain.model.Usuario u on u.id = o.mecanicoId
             """;
+
+    String DETALLE_SELECT = """
+            select new com.veloservice.ordenes.application.dto.OrdenDetalleBaseResult(
+                o.id,
+                o.numeroOrden,
+                o.tallerId,
+                o.sucursalId,
+                e.id,
+                e.codigo,
+                e.nombre,
+                t.id,
+                t.codigo,
+                t.nombre,
+                o.fechaIngreso,
+                o.fechaPrometida,
+                o.fechaEntrega,
+                o.diagnosticoInicial,
+                o.diagnosticoFinal,
+                o.observacionesCliente,
+                b.id,
+                b.marca,
+                b.modelo,
+                b.tipo,
+                b.aro,
+                b.color,
+                b.numeroSerie,
+                b.anio,
+                b.fotoUrl,
+                b.notas,
+                c.id,
+                c.nombre,
+                c.apellido,
+                c.telefono,
+                c.email,
+                c.rut,
+                u.id,
+                u.nombre,
+                u.apellido,
+                o.prioridad
+            )
+            from Orden o
+            join com.veloservice.ordenes.domain.model.EstadoOrden e on e.id = o.estadoId
+            join com.veloservice.ordenes.domain.model.TipoOrden t on t.id = o.tipoId
+            join com.veloservice.clientes.domain.model.Bicicleta b on b.id = o.bicicletaId
+            join com.veloservice.clientes.domain.model.Cliente c on c.id = b.clienteId
+            left join com.veloservice.auth.domain.model.Usuario u on u.id = o.mecanicoId
+            """;
+
+    @Query(DETALLE_SELECT + """
+            where o.id = :id
+              and o.tallerId = :tallerId
+            """)
+    Optional<OrdenDetalleBaseResult> findDetalleBaseByIdAndTallerId(@Param("id") UUID id,
+                                                                    @Param("tallerId") UUID tallerId);
+
+    @Query(DETALLE_SELECT + """
+            where o.id = :id
+              and o.sucursalId = :sucursalId
+            """)
+    Optional<OrdenDetalleBaseResult> findDetalleBaseByIdAndSucursalId(@Param("id") UUID id,
+                                                                      @Param("sucursalId") UUID sucursalId);
+
+    @Query(DETALLE_SELECT + """
+            where o.numeroOrden = :numeroOrden
+              and o.tallerId = :tallerId
+            """)
+    Optional<OrdenDetalleBaseResult> findDetalleBaseByNumeroOrdenAndTallerId(@Param("numeroOrden") String numeroOrden,
+                                                                             @Param("tallerId") UUID tallerId);
+
+    @Query(DETALLE_SELECT + """
+            where o.numeroOrden = :numeroOrden
+              and o.sucursalId = :sucursalId
+            """)
+    Optional<OrdenDetalleBaseResult> findDetalleBaseByNumeroOrdenAndSucursalId(@Param("numeroOrden") String numeroOrden,
+                                                                               @Param("sucursalId") UUID sucursalId);
 
     @Query(READ_SELECT + """
             where o.tallerId = :tallerId

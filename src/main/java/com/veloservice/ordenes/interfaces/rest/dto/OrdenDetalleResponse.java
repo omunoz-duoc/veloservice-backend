@@ -30,7 +30,7 @@ public record OrdenDetalleResponse(
     public record CatalogoResponse(UUID id, String codigo, String nombre) {}
 
     public record BicicletaDetalleResponse(
-        UUID id, String marca, String modelo, String tipo, String color, String numeroSerie
+        UUID id, String marca, String modelo, String tipo, String aro, String color, String numeroSerie, Integer anio, String foto_url, String notas
     ) {}
 
     public record ClienteDetalleResponse(
