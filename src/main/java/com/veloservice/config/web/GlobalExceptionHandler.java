@@ -2,18 +2,28 @@ package com.veloservice.config.web;
 
 import com.veloservice.auth.application.exception.AuthException;
 import com.veloservice.inventario.application.exception.ProductoException;
+import com.veloservice.shared.application.exception.BadRequestException;
+import com.veloservice.shared.application.exception.ConflictException;
+import com.veloservice.shared.application.exception.ResourceNotFoundException;
+import com.veloservice.shared.application.exception.ServiceUnavailableException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -95,7 +105,7 @@ public class GlobalExceptionHandler {
         if (cause != null && cause.getMessage() != null) {
             String causeMsg = cause.getMessage().toLowerCase();
             if (causeMsg.contains("uuid")) {
-                message = "sucursalId debe ser un UUID valido (formato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)";
+                message = "UUID invalido (formato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)";
             } else if (causeMsg.contains("cannot deserialize")) {
                 message = "Formato de dato invalido. Verifica los tipos de campo.";
             } else if (causeMsg.contains("unexpected character") || causeMsg.contains("expected double-quote")) {
@@ -127,6 +137,44 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, "Validacion fallida");
     }
 
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        String name = ex.getName() != null ? ex.getName() : "parametro";
+        return buildResponse(HttpStatus.BAD_REQUEST, name + " tiene un formato invalido");
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingParameter(MissingServletRequestParameterException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Parametro requerido faltante: " + ex.getParameterName());
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<Map<String, Object>> handleBadRequest(BadRequestException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleConflict(ConflictException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler({
+            ServiceUnavailableException.class,
+            DataAccessResourceFailureException.class,
+            CannotGetJdbcConnectionException.class,
+            QueryTimeoutException.class,
+            ResourceAccessException.class
+    })
+    public ResponseEntity<Map<String, Object>> handleServiceUnavailable(Exception ex) {
+        log.warn("Recurso requerido no disponible", ex);
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "Servicio temporalmente no disponible");
+    }
+
     /**
      * Handles business logic errors from service layer.
      *
@@ -143,6 +191,9 @@ public class GlobalExceptionHandler {
         String cause = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : "";
         if (cause != null && cause.contains("idx_ordenes_taller_numero")) {
             return buildResponse(HttpStatus.CONFLICT, "Numero de orden duplicado. Intenta crear la orden nuevamente.");
+        }
+        if (isUniqueConstraintViolation(cause)) {
+            return buildResponse(HttpStatus.CONFLICT, "La solicitud entra en conflicto con datos existentes");
         }
         return buildResponse(HttpStatus.BAD_REQUEST, "La solicitud viola una restriccion de datos");
     }
@@ -166,5 +217,15 @@ public class GlobalExceptionHandler {
         body.put("error", status.getReasonPhrase());
         body.put("message", message);
         return ResponseEntity.status(status).body(body);
+    }
+
+    private boolean isUniqueConstraintViolation(String cause) {
+        if (cause == null) {
+            return false;
+        }
+        String normalized = cause.toLowerCase();
+        return normalized.contains("duplicate")
+                || normalized.contains("unique")
+                || normalized.contains("uk_");
     }
 }

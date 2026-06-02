@@ -44,12 +44,12 @@ import com.veloservice.servicios.domain.model.Servicio;
 import com.veloservice.servicios.domain.model.SucursalServicio;
 import com.veloservice.servicios.infraestructure.persistence.repository.ServicioRepository;
 import com.veloservice.servicios.infraestructure.persistence.repository.SucursalServicioRepository;
+import com.veloservice.shared.application.exception.BadRequestException;
+import com.veloservice.shared.application.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -118,12 +118,12 @@ public class OrdenService {
 
         if (sucursalId != null) {
             return buscarEnSucursal(id, sucursalId)
-                    .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
         }
 
         if (tallerId != null) {
             return buscarEnTaller(id, tallerId)
-                    .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
         }
 
         throw new IllegalStateException("Contexto de taller o sucursal requerido");
@@ -138,10 +138,10 @@ public class OrdenService {
         OrdenDetalleBaseResult base;
         if (sucursalId != null) {
             base = buscarDetalleBaseEnSucursal(id, sucursalId)
-                    .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
         } else if (tallerId != null) {
             base = buscarDetalleBaseEnTaller(id, tallerId)
-                    .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
         } else {
             throw new IllegalStateException("Contexto de taller o sucursal requerido");
         }
@@ -211,7 +211,7 @@ public class OrdenService {
         Orden orden = buscarOrdenParaMutacion(id);
         UUID estadoAnteriorId = orden.getEstadoId();
         EstadoOrden nuevoEstado = estadoOrdenRepository.findByCodigo(command.getCodigo())
-                .orElseThrow(() -> new IllegalArgumentException("Estado de orden no encontrado: " + command.getCodigo()));
+                .orElseThrow(() -> new ResourceNotFoundException("Estado de orden no encontrado: " + command.getCodigo()));
         OffsetDateTime now = OffsetDateTime.now();
 
         orden.setEstadoId(nuevoEstado.getId());
@@ -237,12 +237,11 @@ public class OrdenService {
         List<OrdenProducto> lineItems = items.stream()
                 .map(item -> {
                     Producto producto = productoRepository.findById(item.getProductoId())
-                            .orElseThrow(() -> new ResponseStatusException(
-                                    HttpStatus.NOT_FOUND,
+                            .orElseThrow(() -> new ResourceNotFoundException(
                                     "Producto no encontrado: " + item.getProductoId()
                             ));
                     if (!producto.getSucursalId().equals(orden.getSucursalId())) {
-                        throw new IllegalArgumentException(
+                        throw new ResourceNotFoundException(
                                 "Producto " + item.getProductoId() + " no pertenece a la sucursal de esta orden"
                         );
                     }
@@ -276,12 +275,11 @@ public class OrdenService {
         List<OrdenServicio> lineItems = items.stream()
                 .map(item -> {
                     Servicio servicio = servicioRepository.findById(item.getServicioId())
-                            .orElseThrow(() -> new ResponseStatusException(
-                                    HttpStatus.NOT_FOUND,
+                            .orElseThrow(() -> new ResourceNotFoundException(
                                     "Servicio no encontrado: " + item.getServicioId()
                             ));
                     if (!servicio.getTallerId().equals(orden.getTallerId())) {
-                        throw new IllegalArgumentException(
+                        throw new ResourceNotFoundException(
                                 "Servicio " + item.getServicioId() + " no pertenece al taller de esta orden"
                         );
                     }
@@ -318,7 +316,7 @@ public class OrdenService {
         EstadoOrden estado = estadoOrdenRepository.findByCodigo("recibida")
                 .orElseThrow(() -> new IllegalStateException("Estado 'recibida' no configurado"));
         TipoOrden tipo = tipoOrdenRepository.findByCodigo(command.getTipoTrabajo())
-                .orElseThrow(() -> new IllegalArgumentException("Tipo de orden no encontrado: " + command.getTipoTrabajo()));
+                .orElseThrow(() -> new ResourceNotFoundException("Tipo de orden no encontrado: " + command.getTipoTrabajo()));
 
         String numeroOrden = secuenciaService.generarNumeroOrden(tallerId);
 
@@ -349,7 +347,10 @@ public class OrdenService {
         if (command.getServicios() != null) {
             for (UUID servicioId : command.getServicios()) {
                 Servicio servicio = servicioRepository.findById(servicioId)
-                        .orElseThrow(() -> new IllegalArgumentException("Servicio no encontrado: " + servicioId));
+                        .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado: " + servicioId));
+                if (!servicio.getTallerId().equals(tallerId)) {
+                    throw new ResourceNotFoundException("Servicio no encontrado: " + servicioId);
+                }
                 ordenServicioRepository.save(OrdenServicio.builder()
                         .ordenId(ordenId)
                         .servicioId(servicioId)
@@ -364,7 +365,7 @@ public class OrdenService {
         if (command.getProductos() != null) {
             for (OrdenCreateCommand.ProductoItem item : command.getProductos()) {
                 Producto producto = productoRepository.findByIdAndSucursalId(item.getProductoId(), sucursalId)
-                        .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + item.getProductoId()));
+                        .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado: " + item.getProductoId()));
                 ordenProductoRepository.save(OrdenProducto.builder()
                         .ordenId(ordenId)
                         .productoId(item.getProductoId())
@@ -384,14 +385,14 @@ public class OrdenService {
     private UUID resolverSucursal(UUID tallerId, UUID contextSucursalId, UUID requestedSucursalId) {
         if (contextSucursalId != null) {
             if (requestedSucursalId != null && !contextSucursalId.equals(requestedSucursalId)) {
-                throw new IllegalArgumentException("La sucursal solicitada no coincide con el contexto actual");
+                throw new BadRequestException("La sucursal solicitada no coincide con el contexto actual");
             }
             validarSucursalDelTaller(contextSucursalId, tallerId);
             return contextSucursalId;
         }
 
         if (requestedSucursalId == null) {
-            throw new IllegalArgumentException("Se requiere sucursalId para crear una orden desde contexto de taller");
+            throw new BadRequestException("Se requiere sucursalId para crear una orden desde contexto de taller");
         }
 
         validarSucursalDelTaller(requestedSucursalId, tallerId);
@@ -400,14 +401,14 @@ public class OrdenService {
 
     private void validarSucursalDelTaller(UUID sucursalId, UUID tallerId) {
         if (!sucursalRepository.existsByIdAndTallerId(sucursalId, tallerId)) {
-            throw new IllegalArgumentException("Sucursal no pertenece al taller actual");
+            throw new ResourceNotFoundException("Sucursal no pertenece al taller actual");
         }
     }
 
     private UUID resolverCliente(OrdenCreateCommand command, UUID tallerId) {
         if (command.getClienteId() != null) {
             if (!clienteRepository.existsByIdAndTallerId(command.getClienteId(), tallerId)) {
-                throw new IllegalArgumentException("Cliente no encontrado");
+                throw new ResourceNotFoundException("Cliente no encontrado");
             }
             return command.getClienteId();
         }
@@ -415,18 +416,18 @@ public class OrdenService {
             ClienteCreateCommand cmd = command.getClienteNuevo();
             return clienteService.crear(cmd).getId();
         }
-        throw new IllegalArgumentException("Se requiere clienteId o clienteNuevo");
+        throw new BadRequestException("Se requiere clienteId o clienteNuevo");
     }
 
     private UUID resolverBicicleta(OrdenCreateCommand command, UUID clienteId, UUID tallerId) {
         if (command.getBicicletaId() != null) {
             Bicicleta bicicleta = bicicletaRepository.findById(command.getBicicletaId())
-                    .orElseThrow(() -> new IllegalArgumentException("Bicicleta no encontrada"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Bicicleta no encontrada"));
             if (!clienteRepository.existsByIdAndTallerId(bicicleta.getClienteId(), tallerId)) {
-                throw new IllegalArgumentException("Bicicleta no encontrada");
+                throw new ResourceNotFoundException("Bicicleta no encontrada");
             }
             if (!bicicleta.getClienteId().equals(clienteId)) {
-                throw new IllegalArgumentException("La bicicleta no pertenece al cliente");
+                throw new BadRequestException("La bicicleta no pertenece al cliente");
             }
             return bicicleta.getId();
         }
@@ -434,7 +435,7 @@ public class OrdenService {
             BicicletaCreateCommand cmd = command.getBicicletaNueva();
             return bicicletaService.crear(clienteId, cmd).getId();
         }
-        throw new IllegalArgumentException("Se requiere bicicletaId o bicicletaNueva");
+        throw new BadRequestException("Se requiere bicicletaId o bicicletaNueva");
     }
 
     private Optional<OrdenDetalleBaseResult> buscarDetalleBaseEnSucursal(String id, UUID sucursalId) {
@@ -483,13 +484,13 @@ public class OrdenService {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
         if (sucursalId != null) {
             return buscarOrdenEntityEnSucursal(id, sucursalId)
-                    .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
         }
 
         UUID tallerId = TallerContext.getCurrentTaller();
         if (tallerId != null) {
             return buscarOrdenEntityEnTaller(id, tallerId)
-                    .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
         }
 
         throw new IllegalStateException("Contexto de taller o sucursal requerido");
@@ -515,7 +516,7 @@ public class OrdenService {
 
     private Orden buscarOrdenPorIdParaMutacion(UUID ordenId) {
         Orden orden = ordenRepository.findById(ordenId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Orden no encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
 
         UUID tallerId = TallerContext.getCurrentTaller();
         UUID sucursalId = SucursalContext.getCurrentSucursal();

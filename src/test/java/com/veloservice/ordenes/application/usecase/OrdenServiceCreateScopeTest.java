@@ -36,6 +36,8 @@ import com.veloservice.inventario.infraestructure.persistence.repository.Product
 import com.veloservice.servicios.domain.model.Servicio;
 import com.veloservice.servicios.domain.model.SucursalServicio;
 import com.veloservice.servicios.infraestructure.persistence.repository.SucursalServicioRepository;
+import com.veloservice.shared.application.exception.BadRequestException;
+import com.veloservice.shared.application.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -147,7 +149,7 @@ class OrdenServiceCreateScopeTest {
         TallerContext.setCurrentTaller(UUID.randomUUID());
 
         assertThatThrownBy(() -> ordenService.crear(baseCommand(UUID.randomUUID(), UUID.randomUUID(), null)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(BadRequestException.class)
                 .hasMessage("Se requiere sucursalId para crear una orden desde contexto de taller");
     }
 
@@ -160,7 +162,7 @@ class OrdenServiceCreateScopeTest {
         SucursalContext.setCurrentSucursal(contextSucursalId);
 
         assertThatThrownBy(() -> ordenService.crear(baseCommand(UUID.randomUUID(), UUID.randomUUID(), requestedSucursalId)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(BadRequestException.class)
                 .hasMessage("La sucursal solicitada no coincide con el contexto actual");
     }
 
@@ -221,7 +223,7 @@ class OrdenServiceCreateScopeTest {
         given(estadoOrdenRepository.findByCodigo("no_existe")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> ordenService.cambiarEstado(ordenId.toString(), new OrdenEstadoChangeCommand("no_existe", null)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("Estado de orden no encontrado: no_existe");
 
         verifyNoInteractions(ordenEstadoRepository);
@@ -340,7 +342,7 @@ class OrdenServiceCreateScopeTest {
         assertThatThrownBy(() -> ordenService.agregarProductos(ordenId, List.of(
                 new OrdenProductoAddCommand(productoId, 1, false, null)
         )))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("Producto " + productoId + " no pertenece a la sucursal de esta orden");
 
         verifyNoInteractions(ordenProductoRepository);
