@@ -12,6 +12,7 @@ import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.TenantOperation;
 import com.veloservice.config.tenant.UsuarioContext;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import com.veloservice.ordenes.application.dto.ComentarioResult;
@@ -26,6 +27,8 @@ import com.veloservice.ordenes.application.dto.OrdenProductoResult;
 import com.veloservice.ordenes.application.dto.OrdenReadResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
+import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
+import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
 import com.veloservice.ordenes.domain.model.EstadoOrden;
 import com.veloservice.ordenes.domain.model.Orden;
 import com.veloservice.ordenes.domain.model.OrdenEstado;
@@ -82,6 +85,7 @@ public class OrdenService {
     private final BicicletaRepository bicicletaRepository;
     private final ClienteRepository clienteRepository;
     private final SucursalRepository sucursalRepository;
+    private final UsuarioRepository usuarioRepository;
 
     /**
      * Lista todas las órdenes asociadas al taller o sucursal actual. Si ambos contextos están presentes, se prioriza el contexto de 
@@ -226,6 +230,75 @@ public class OrdenService {
                 .observacion(command.getObservacion())
                 .createdAt(now)
                 .build());
+    }
+
+    @TenantOperation
+    @Transactional
+    public OrdenDetalleResult actualizar(String id, OrdenUpdateCommand command) {
+        Orden orden = buscarOrdenParaMutacion(id);
+        OffsetDateTime now = OffsetDateTime.now();
+        boolean changed = false;
+
+        if (hasText(command.getEstadoCodigo())) {
+            UUID usuarioId = UsuarioContext.getCurrentUser();
+            if (usuarioId == null) {
+                throw new IllegalStateException("Contexto de usuario requerido");
+            }
+            UUID estadoAnteriorId = orden.getEstadoId();
+            EstadoOrden nuevoEstado = estadoOrdenRepository.findByCodigo(command.getEstadoCodigo())
+                    .orElseThrow(() -> new ResourceNotFoundException("Estado de orden no encontrado: " + command.getEstadoCodigo()));
+
+            orden.setEstadoId(nuevoEstado.getId());
+            ordenEstadoRepository.save(OrdenEstado.builder()
+                    .ordenId(orden.getId())
+                    .usuarioId(usuarioId)
+                    .estadoAnteriorId(estadoAnteriorId)
+                    .estadoNuevoId(nuevoEstado.getId())
+                    .observacion(command.getEstadoObservacion())
+                    .createdAt(now)
+                    .build());
+            changed = true;
+        } else if (command.getEstadoCodigo() != null) {
+            throw new BadRequestException("estadoCodigo no puede estar vacio");
+        }
+
+        if (hasText(command.getTipoCodigo())) {
+            TipoOrden tipo = tipoOrdenRepository.findByCodigo(command.getTipoCodigo())
+                    .orElseThrow(() -> new ResourceNotFoundException("Tipo de orden no encontrado: " + command.getTipoCodigo()));
+            orden.setTipoId(tipo.getId());
+            changed = true;
+        } else if (command.getTipoCodigo() != null) {
+            throw new BadRequestException("tipoCodigo no puede estar vacio");
+        }
+
+        if (hasText(command.getPrioridad())) {
+            String prioridad = command.getPrioridad().trim().toLowerCase();
+            try {
+                PrioridadOrdenEnum.valueOf(prioridad);
+            } catch (IllegalArgumentException ex) {
+                throw new BadRequestException("Prioridad invalida: " + command.getPrioridad());
+            }
+            orden.setPrioridad(prioridad);
+            changed = true;
+        } else if (command.getPrioridad() != null) {
+            throw new BadRequestException("prioridad no puede estar vacia");
+        }
+
+        if (command.getMecanicoId() != null) {
+            boolean mecanicoValido = usuarioRepository.existsByIdAndActivoTrueAndRol_Nombre(command.getMecanicoId(), "mecanico");
+            if (!mecanicoValido) {
+                throw new ResourceNotFoundException("Mecanico no encontrado: " + command.getMecanicoId());
+            }
+            orden.setMecanicoId(command.getMecanicoId());
+            changed = true;
+        }
+
+        if (changed) {
+            orden.setUpdatedAt(now);
+            ordenRepository.save(orden);
+        }
+
+        return obtenerDetalle(id);
     }
 
     @TenantOperation
@@ -544,5 +617,9 @@ public class OrdenService {
         } catch (IllegalArgumentException ignored) {
             return Optional.empty();
         }
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }

@@ -1,6 +1,7 @@
 package com.veloservice.ordenes.application.usecase;
 
 import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.clientes.application.usecase.BicicletaService;
 import com.veloservice.clientes.application.usecase.ClienteService;
 import com.veloservice.clientes.domain.model.Bicicleta;
@@ -11,11 +12,13 @@ import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
+import com.veloservice.ordenes.application.dto.OrdenDetalleBaseResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
+import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
 import com.veloservice.ordenes.domain.model.EstadoOrden;
 import com.veloservice.ordenes.domain.model.Orden;
@@ -80,6 +83,7 @@ class OrdenServiceCreateScopeTest {
     @Mock private BicicletaRepository bicicletaRepository;
     @Mock private ClienteRepository clienteRepository;
     @Mock private SucursalRepository sucursalRepository;
+    @Mock private UsuarioRepository usuarioRepository;
 
     private OrdenService ordenService;
 
@@ -102,7 +106,8 @@ class OrdenServiceCreateScopeTest {
                 bicicletaService,
                 bicicletaRepository,
                 clienteRepository,
-                sucursalRepository
+                sucursalRepository,
+                usuarioRepository
         );
     }
 
@@ -227,6 +232,76 @@ class OrdenServiceCreateScopeTest {
                 .hasMessage("Estado de orden no encontrado: no_existe");
 
         verifyNoInteractions(ordenEstadoRepository);
+    }
+
+    @Test
+    void actualizarUpdatesEditableFieldsAndCreatesStateHistory() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID estadoAnteriorId = UUID.randomUUID();
+        UUID estadoNuevoId = UUID.randomUUID();
+        UUID tipoAnteriorId = UUID.randomUUID();
+        UUID tipoNuevoId = UUID.randomUUID();
+        UUID mecanicoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        UsuarioContext.setCurrentUser(usuarioId);
+        Orden orden = Orden.builder()
+                .id(ordenId)
+                .sucursalId(sucursalId)
+                .estadoId(estadoAnteriorId)
+                .tipoId(tipoAnteriorId)
+                .prioridad("media")
+                .build();
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(orden));
+        given(estadoOrdenRepository.findByCodigo("lista_para_entrega"))
+                .willReturn(Optional.of(EstadoOrden.builder().id(estadoNuevoId).codigo("lista_para_entrega").build()));
+        given(tipoOrdenRepository.findByCodigo("reparacion"))
+                .willReturn(Optional.of(TipoOrden.builder().id(tipoNuevoId).codigo("reparacion").build()));
+        given(usuarioRepository.existsByIdAndActivoTrueAndRol_Nombre(mecanicoId, "mecanico")).willReturn(true);
+        stubDetalle(ordenId, sucursalId, estadoNuevoId, tipoNuevoId, mecanicoId, "alta");
+
+        ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                "lista_para_entrega",
+                "Cambio desde panel",
+                "reparacion",
+                "ALTA",
+                mecanicoId
+        ));
+
+        assertThat(orden.getEstadoId()).isEqualTo(estadoNuevoId);
+        assertThat(orden.getTipoId()).isEqualTo(tipoNuevoId);
+        assertThat(orden.getPrioridad()).isEqualTo("alta");
+        assertThat(orden.getMecanicoId()).isEqualTo(mecanicoId);
+        assertThat(orden.getUpdatedAt()).isNotNull();
+        verify(ordenRepository).save(orden);
+        ArgumentCaptor<OrdenEstado> historyCaptor = ArgumentCaptor.forClass(OrdenEstado.class);
+        verify(ordenEstadoRepository).save(historyCaptor.capture());
+        OrdenEstado history = historyCaptor.getValue();
+        assertThat(history.getOrdenId()).isEqualTo(ordenId);
+        assertThat(history.getUsuarioId()).isEqualTo(usuarioId);
+        assertThat(history.getEstadoAnteriorId()).isEqualTo(estadoAnteriorId);
+        assertThat(history.getEstadoNuevoId()).isEqualTo(estadoNuevoId);
+        assertThat(history.getObservacion()).isEqualTo("Cambio desde panel");
+    }
+
+    @Test
+    void actualizarRejectsInvalidMecanico() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID mecanicoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(Orden.builder()
+                .id(ordenId)
+                .sucursalId(sucursalId)
+                .build()));
+        given(usuarioRepository.existsByIdAndActivoTrueAndRol_Nombre(mecanicoId, "mecanico")).willReturn(false);
+
+        assertThatThrownBy(() -> ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null, null, null, null, mecanicoId
+        )))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Mecanico no encontrado: " + mecanicoId);
     }
 
     @Test
@@ -356,5 +431,51 @@ class OrdenServiceCreateScopeTest {
                 .tipoTrabajo("mantencion")
                 .prioridad(PrioridadOrdenEnum.media)
                 .build();
+    }
+
+    private void stubDetalle(UUID ordenId, UUID sucursalId, UUID estadoId, UUID tipoId, UUID mecanicoId, String prioridad) {
+        given(ordenRepository.findDetalleBaseByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(new OrdenDetalleBaseResult(
+                        ordenId,
+                        "OT-000001",
+                        UUID.randomUUID(),
+                        sucursalId,
+                        estadoId,
+                        "lista_para_entrega",
+                        "Lista para entrega",
+                        tipoId,
+                        "reparacion",
+                        "Reparacion",
+                        null,
+                        null,
+                        null,
+                        "Diagnostico",
+                        null,
+                        null,
+                        UUID.randomUUID(),
+                        "Trek",
+                        "Domane",
+                        "Ruta",
+                        "Rojo",
+                        "SN-001",
+                        null,
+                        null,
+                        null,
+                        null,
+                        UUID.randomUUID(),
+                        "Cliente",
+                        "Demo",
+                        "+569",
+                        "cliente@example.com",
+                        "11.111.111-1",
+                        mecanicoId,
+                        "Diego",
+                        "Pizarro",
+                        prioridad
+                )));
+        given(comentarioRepository.findResultByOrdenId(ordenId)).willReturn(List.of());
+        given(multimediaRepository.findResultByOrdenId(ordenId)).willReturn(List.of());
+        given(ordenProductoRepository.findResultByOrdenId(ordenId)).willReturn(List.of());
+        given(ordenServicioRepository.findResultByOrdenId(ordenId)).willReturn(List.of());
     }
 }

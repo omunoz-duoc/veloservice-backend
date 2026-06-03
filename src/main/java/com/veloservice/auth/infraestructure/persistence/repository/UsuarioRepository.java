@@ -20,6 +20,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
 
     boolean existsByEmail(String email);
 
+    boolean existsByIdAndActivoTrueAndRol_Nombre(UUID id, String rolNombre);
+
     // List<Usuario> findBySucursalIdAndActivoTrue(UUID sucursalId);
 
     // List<Usuario> findBySucursalIdAndRolNombre(UUID sucursalId, String rolNombre);

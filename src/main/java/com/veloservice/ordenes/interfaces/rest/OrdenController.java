@@ -11,6 +11,7 @@ import com.veloservice.ordenes.application.dto.OrdenProductoResult;
 import com.veloservice.ordenes.application.dto.OrdenReadResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
+import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreateRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreateResponse;
@@ -24,6 +25,7 @@ import com.veloservice.ordenes.interfaces.rest.dto.OrdenResumenListResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenResumenResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenServicioAddRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenServicioResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenUpdateRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
@@ -101,6 +103,19 @@ public class OrdenController {
     @GetMapping("/{id}")
     public ResponseEntity<OrdenDetalleResponse> obtener(@PathVariable String id) {
         return ResponseEntity.ok(toDetalleResponse(ordenService.obtenerDetalle(id)));
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<OrdenDetalleResponse> actualizar(@PathVariable String id,
+                                                           @Valid @RequestBody OrdenUpdateRequest request) {
+        OrdenUpdateCommand command = new OrdenUpdateCommand(
+                request.getEstadoCodigo(),
+                request.getEstadoObservacion(),
+                request.getTipoCodigo(),
+                request.getPrioridad(),
+                request.getMecanicoId()
+        );
+        return ResponseEntity.ok(toDetalleResponse(ordenService.actualizar(id, command)));
     }
 
     @PatchMapping("/{id}/estado")
