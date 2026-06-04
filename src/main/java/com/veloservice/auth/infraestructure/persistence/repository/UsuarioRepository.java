@@ -20,6 +20,33 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
 
     boolean existsByEmail(String email);
 
+    @Query("""
+            select u
+            from Usuario u
+            join fetch u.rol r
+            where u.activo = true
+              and lower(r.nombre) = 'mecanico'
+              and u.tallerId = :tallerId
+            order by u.apellido asc, u.nombre asc
+            """)
+    List<Usuario> findActiveMecanicosByTallerId(@Param("tallerId") UUID tallerId);
+
+    @Query("""
+            select distinct u
+            from Usuario u
+            join fetch u.rol r
+            where u.activo = true
+              and lower(r.nombre) = 'mecanico'
+              and exists (
+                  select 1
+                  from com.veloservice.administracion.domain.model.UsuarioSucursal us
+                  where us.usuarioId = u.id
+                    and us.sucursalId = :sucursalId
+              )
+            order by u.apellido asc, u.nombre asc
+            """)
+    List<Usuario> findActiveMecanicosBySucursalId(@Param("sucursalId") UUID sucursalId);
+
     // List<Usuario> findBySucursalIdAndActivoTrue(UUID sucursalId);
 
     // List<Usuario> findBySucursalIdAndRolNombre(UUID sucursalId, String rolNombre);
