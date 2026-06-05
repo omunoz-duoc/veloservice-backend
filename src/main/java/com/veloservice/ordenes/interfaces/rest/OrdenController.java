@@ -4,6 +4,7 @@ import com.veloservice.clientes.application.dto.BicicletaCreateCommand;
 import com.veloservice.clientes.application.dto.ClienteCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenCreateResult;
 import com.veloservice.ordenes.application.dto.OrdenCatalogoResult;
+import com.veloservice.ordenes.domain.model.TipoOrden;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
@@ -64,6 +65,16 @@ public class OrdenController {
      * @param request
      * @return
      */
+    public record TipoOrdenResponse(String id, String nombre) {}
+
+    @GetMapping("/tipos")
+    public ResponseEntity<List<TipoOrdenResponse>> listarTipos() {
+        List<TipoOrdenResponse> tipos = ordenService.listarTipos().stream()
+                .map(t -> new TipoOrdenResponse(t.getId().toString(), t.getNombre()))
+                .toList();
+        return ResponseEntity.ok(tipos);
+    }
+
     @PostMapping
     public ResponseEntity<OrdenCreateResponse> crear(@Valid @RequestBody OrdenCreateRequest request) {
         OrdenCreateCommand command = toCommand(request);

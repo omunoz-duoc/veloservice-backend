@@ -13,6 +13,7 @@ import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.TenantOperation;
 import com.veloservice.config.tenant.UsuarioContext;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import com.veloservice.ordenes.application.dto.ComentarioResult;
@@ -464,7 +465,7 @@ public class OrdenService {
 
         EstadoOrden estado = estadoOrdenRepository.findByCodigo("recibida")
                 .orElseThrow(() -> new IllegalStateException("Estado 'recibida' no configurado"));
-        TipoOrden tipo = tipoOrdenRepository.findByCodigo(command.getTipoTrabajo())
+        TipoOrden tipo = tipoOrdenRepository.findById(command.getTipoTrabajo())
                 .orElseThrow(() -> new ResourceNotFoundException("Tipo de orden no encontrado: " + command.getTipoTrabajo()));
 
         String numeroOrden = secuenciaService.generarNumeroOrden(tallerId);
@@ -751,6 +752,10 @@ public class OrdenService {
                 .ifPresent(codigo -> {
                     throw new BadRequestException("No se pueden modificar productos de una orden " + codigo);
                 });
+    }
+
+    public List<TipoOrden> listarTipos() {
+        return tipoOrdenRepository.findAll();
     }
 
     private Optional<UUID> parseUuid(String id) {

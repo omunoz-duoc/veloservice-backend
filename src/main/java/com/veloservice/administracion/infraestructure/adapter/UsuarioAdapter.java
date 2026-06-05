@@ -30,6 +30,13 @@ public class UsuarioAdapter implements UsuarioPort {
     // }
 
     @Override
+    public List<UsuarioRef> findMecanicosBySucursalId(UUID sucursalId) {
+        return usuarioRepository.findMecanicosBySucursalId(sucursalId).stream()
+                .map(u -> new UsuarioRef(u.getId(), u.getNombre(), u.getApellido()))
+                .toList();
+    }
+
+    @Override
     public void setActivo(UUID id, UUID sucursalId, boolean activo) {
         var usuario = usuarioRepository.findById(id)
                 .filter(u -> u.getSucursal() != null && sucursalId.equals(u.getSucursal().getId()))

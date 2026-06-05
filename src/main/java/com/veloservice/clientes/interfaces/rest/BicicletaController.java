@@ -14,7 +14,9 @@ import com.veloservice.clientes.application.usecase.BicicletaService;
 import com.veloservice.clientes.interfaces.mapper.BicicletaMapper;
 import com.veloservice.clientes.interfaces.rest.dto.BicicletaRequest;
 import com.veloservice.clientes.interfaces.rest.dto.BicicletaResponse;
+import com.veloservice.clientes.interfaces.rest.dto.BicicletaListItem;
 import com.veloservice.clientes.interfaces.rest.dto.HojaVidaBicicletaResponse;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenProductoRepository;
@@ -67,16 +69,18 @@ public class BicicletaController {
         ));
     }
 
-    /**
-     * Lists all bikes for the current tenant.
-     *
-     * @return tenant bikes
-     */
     @GetMapping
-    public ResponseEntity<List<BicicletaResponse>> listarTodas() {
-        return ResponseEntity.ok(BicicletaMapper.toResponseList(
-                bicicletaService.listarTodas()
-        ));
+    public ResponseEntity<List<BicicletaListItem>> listar(
+            @RequestParam(required = false) UUID clienteId) {
+        List<BicicletaListItem> items = (clienteId != null
+                ? bicicletaService.listarPorCliente(clienteId)
+                : bicicletaService.listarTodas())
+                .stream()
+                .map(b -> new BicicletaListItem(
+                        b.getId(), b.getMarca(), b.getModelo(), b.getTipo(),
+                        b.getColor(), b.getNumeroSerie(), b.getAnio()))
+                .toList();
+        return ResponseEntity.ok(items);
     }
 
         /**
