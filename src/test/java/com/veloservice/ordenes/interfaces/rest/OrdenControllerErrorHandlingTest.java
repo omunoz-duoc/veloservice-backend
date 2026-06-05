@@ -3,10 +3,14 @@ package com.veloservice.ordenes.interfaces.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.config.security.JwtTokenProvider;
+import com.veloservice.ordenes.application.dto.OrdenCatalogoResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateResult;
+import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
+import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.shared.application.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -26,6 +30,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -160,12 +165,173 @@ class OrdenControllerErrorHandlingTest {
                 .andExpect(jsonPath("$.numeroOrden").value("OT-000001"));
     }
 
+    @Test
+    void listarEstadosCatalogoReturnsConfiguredStatuses() throws Exception {
+        when(ordenService.listarEstadosCatalogo()).thenReturn(List.of(
+                new OrdenCatalogoResult("recibida", "Recibida", 1, null),
+                new OrdenCatalogoResult("entregada", "Entregada", 7, null)
+        ));
+
+        mockMvc.perform(get("/ordenes/catalogos/estados"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].codigo").value("recibida"))
+                .andExpect(jsonPath("$[0].nombre").value("Recibida"))
+                .andExpect(jsonPath("$[0].orden").value(1))
+                .andExpect(jsonPath("$[0].activo").doesNotExist())
+                .andExpect(jsonPath("$[1].codigo").value("entregada"));
+    }
+
+    @Test
+    void listarTiposCatalogoReturnsConfiguredTypes() throws Exception {
+        when(ordenService.listarTiposCatalogo()).thenReturn(List.of(
+                new OrdenCatalogoResult("mantencion", "Mantencion", null, true),
+                new OrdenCatalogoResult("reparacion", "Reparacion", null, true)
+        ));
+
+        mockMvc.perform(get("/ordenes/catalogos/tipos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].codigo").value("mantencion"))
+                .andExpect(jsonPath("$[0].nombre").value("Mantencion"))
+                .andExpect(jsonPath("$[0].activo").value(true))
+                .andExpect(jsonPath("$[1].codigo").value("reparacion"));
+    }
+
+    @Test
+    void listarPrioridadesCatalogoDoesNotExposeUrgente() throws Exception {
+        when(ordenService.listarPrioridadesCatalogo()).thenReturn(List.of(
+                new OrdenCatalogoResult("baja", "Baja", null, true),
+                new OrdenCatalogoResult("media", "Media", null, true),
+                new OrdenCatalogoResult("alta", "Alta", null, true)
+        ));
+
+        mockMvc.perform(get("/ordenes/catalogos/prioridades"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].codigo").value(org.hamcrest.Matchers.contains("baja", "media", "alta")))
+                .andExpect(jsonPath("$[*].codigo").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("urgente"))));
+    }
+
+    @Test
+    void obtenerDetalleMapsBicicletaFieldsInContractOrder() throws Exception {
+        UUID ordenId = UUID.randomUUID();
+        when(ordenService.obtenerDetalle("OT-000001"))
+                .thenReturn(detalleResult(ordenId));
+
+        mockMvc.perform(get("/ordenes/OT-000001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bicicleta.tipo").value("Ruta"))
+                .andExpect(jsonPath("$.bicicleta.aro").value("700c"))
+                .andExpect(jsonPath("$.bicicleta.color").value("Rojo"))
+                .andExpect(jsonPath("$.bicicleta.numeroSerie").value("SN-001"));
+    }
+
+    @Test
+    void actualizarMapsProductosCambiosToUnifiedCommand() throws Exception {
+        UUID ordenId = UUID.randomUUID();
+        UUID productoId = UUID.randomUUID();
+        UUID actualizarLineaId = UUID.randomUUID();
+        UUID eliminarLineaId = UUID.randomUUID();
+        when(ordenService.actualizar(ArgumentMatchers.eq(ordenId.toString()), any(OrdenUpdateCommand.class)))
+                .thenReturn(detalleResult(ordenId));
+
+        String body = objectMapper.writeValueAsString(Map.of(
+                "estadoCodigo", "en_reparacion",
+                "productosCambios", List.of(
+                        Map.of(
+                                "accion", "AGREGAR",
+                                "productoId", productoId,
+                                "cantidad", 1,
+                                "notas", "opcional",
+                                "proporcionadoPorCliente", false
+                        ),
+                        Map.of(
+                                "accion", "ACTUALIZAR",
+                                "lineaId", actualizarLineaId,
+                                "cantidad", 2,
+                                "notas", "nueva"
+                        ),
+                        Map.of(
+                                "accion", "ELIMINAR",
+                                "lineaId", eliminarLineaId
+                        )
+                )
+        ));
+
+        mockMvc.perform(patch("/ordenes/{id}", ordenId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<OrdenUpdateCommand> captor = ArgumentCaptor.forClass(OrdenUpdateCommand.class);
+        verify(ordenService).actualizar(ArgumentMatchers.eq(ordenId.toString()), captor.capture());
+        OrdenUpdateCommand command = captor.getValue();
+        assert org.assertj.core.api.Assertions.assertThat(command.getEstadoCodigo()).isEqualTo("en_reparacion") != null;
+        assert org.assertj.core.api.Assertions.assertThat(command.getProductosAgregar()).singleElement()
+                .satisfies(item -> {
+                    org.assertj.core.api.Assertions.assertThat(item.getProductoId()).isEqualTo(productoId);
+                    org.assertj.core.api.Assertions.assertThat(item.getCantidad()).isEqualTo(1);
+                    org.assertj.core.api.Assertions.assertThat(item.getNotas()).isEqualTo("opcional");
+                    org.assertj.core.api.Assertions.assertThat(item.getProporcionadoPorCliente()).isFalse();
+                }) != null;
+        assert org.assertj.core.api.Assertions.assertThat(command.getProductosActualizar()).singleElement()
+                .satisfies(item -> {
+                    org.assertj.core.api.Assertions.assertThat(item.getId()).isEqualTo(actualizarLineaId);
+                    org.assertj.core.api.Assertions.assertThat(item.getCantidad()).isEqualTo(2);
+                    org.assertj.core.api.Assertions.assertThat(item.getNotas()).isEqualTo("nueva");
+                }) != null;
+        assert org.assertj.core.api.Assertions.assertThat(command.getProductosEliminar()).containsExactly(eliminarLineaId) != null;
+    }
+
+    private OrdenDetalleResult detalleResult(UUID ordenId) {
+        return new OrdenDetalleResult(
+                ordenId,
+                "OT-000001",
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "recibida",
+                "Recibida",
+                UUID.randomUUID(),
+                "mantencion",
+                "Mantencion",
+                null,
+                null,
+                null,
+                "Diagnostico",
+                null,
+                null,
+                UUID.randomUUID(),
+                "Trek",
+                "Domane",
+                "Ruta",
+                "Rojo",
+                "SN-001",
+                "700c",
+                2024,
+                "https://cdn.example/bici.jpg",
+                "Notas",
+                UUID.randomUUID(),
+                "Cliente",
+                "Demo",
+                "+569",
+                "cliente@example.com",
+                "11.111.111-1",
+                null,
+                null,
+                null,
+                "media",
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of()
+        );
+    }
+
     private String validCreateJson() throws Exception {
         return objectMapper.writeValueAsString(Map.of(
                 "clienteId", UUID.randomUUID(),
                 "bicicletaId", UUID.randomUUID(),
                 "sucursalId", UUID.randomUUID(),
-                "tipoTrabajo", "mantencion",
+                "tipoTrabajo", UUID.randomUUID(),
                 "prioridad", "media"
         ));
     }

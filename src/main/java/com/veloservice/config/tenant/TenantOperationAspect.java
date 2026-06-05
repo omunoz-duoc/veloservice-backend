@@ -33,17 +33,16 @@ public class TenantOperationAspect {
     @Around("@annotation(com.veloservice.config.tenant.TenantOperation)")
     public Object applySucursalContext(ProceedingJoinPoint joinPoint) throws Throwable {
         UUID tallerId = TallerContext.getCurrentTaller();
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
         if (tallerId != null) {
             entityManager.createNativeQuery("SELECT set_config('app.current_taller_id', ?, false)")
                     .setParameter(1, tallerId.toString())
                     .getSingleResult();
-        } else {
-            UUID sucursalId = SucursalContext.getCurrentSucursal();
-            if (sucursalId != null) {
-                entityManager.createNativeQuery("SELECT set_config('app.current_sucursal_id', ?, false)")
-                        .setParameter(1, sucursalId.toString())
-                        .getSingleResult();
-            }
+        }
+        if (sucursalId != null) {
+            entityManager.createNativeQuery("SELECT set_config('app.current_sucursal_id', ?, false)")
+                    .setParameter(1, sucursalId.toString())
+                    .getSingleResult();
         }
         return joinPoint.proceed();
     }

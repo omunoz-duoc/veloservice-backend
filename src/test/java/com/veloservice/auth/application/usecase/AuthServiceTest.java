@@ -58,6 +58,7 @@ class AuthServiceTest {
         UUID tallerId = UUID.randomUUID();
         Usuario usuario = usuario(userId, tallerId, rol("admin_taller", "taller"));
         givenSuccessfulCredentialCheck(usuario);
+        given(usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(userId)).willReturn(Optional.empty());
         given(jwtProvider.generateToken(userId, usuario.getEmail(), "admin_taller", null, tallerId))
                 .willReturn("jwt");
 
@@ -68,8 +69,35 @@ class AuthServiceTest {
         assertThat(result.getAmbito()).isEqualTo("taller");
         assertThat(result.getTallerId()).isEqualTo(tallerId);
         assertThat(result.getSucursalId()).isNull();
-        verify(usuarioSucursalRepository, never()).findByUsuarioIdAndEsPrincipalTrue(any());
+        verify(usuarioSucursalRepository).findByUsuarioIdAndEsPrincipalTrue(userId);
         verify(jwtProvider).generateToken(userId, usuario.getEmail(), "admin_taller", null, tallerId);
+    }
+
+    @Test
+    void adminTallerWithPrincipalSucursalIncludesSucursalInLoginAndToken() {
+        UUID userId = UUID.randomUUID();
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, tallerId, rol("admin_taller", "taller"));
+        givenSuccessfulCredentialCheck(usuario);
+        given(usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(userId))
+                .willReturn(Optional.of(UsuarioSucursal.builder()
+                        .usuarioId(userId)
+                        .sucursalId(sucursalId)
+                        .esPrincipal(true)
+                        .build()));
+        given(sucursalPort.findTallerIdBySucursalId(sucursalId)).willReturn(Optional.of(tallerId));
+        given(jwtProvider.generateToken(userId, usuario.getEmail(), "admin_taller", sucursalId, tallerId))
+                .willReturn("jwt");
+
+        AuthLoginResult result = authService.login(new AuthLoginCommand(usuario.getEmail(), "Password1!"));
+
+        assertThat(result.getToken()).isEqualTo("jwt");
+        assertThat(result.getRol()).isEqualTo("admin_taller");
+        assertThat(result.getAmbito()).isEqualTo("taller");
+        assertThat(result.getTallerId()).isEqualTo(tallerId);
+        assertThat(result.getSucursalId()).isEqualTo(sucursalId);
+        verify(jwtProvider).generateToken(userId, usuario.getEmail(), "admin_taller", sucursalId, tallerId);
     }
 
     @Test
@@ -117,6 +145,7 @@ class AuthServiceTest {
         UUID tallerId = UUID.randomUUID();
         Usuario usuario = usuario(userId, tallerId, rol("admin_taller", "taller"));
         givenSuccessfulCredentialCheck(usuario);
+        given(usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(userId)).willReturn(Optional.empty());
         given(jwtProvider.generateToken(userId, usuario.getEmail(), "admin_taller", null, tallerId))
                 .willReturn("jwt");
 

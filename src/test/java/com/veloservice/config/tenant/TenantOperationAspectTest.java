@@ -62,4 +62,26 @@ class TenantOperationAspectTest {
         verify(entityManager).createNativeQuery(contains("current_sucursal_id"));
         verify(query).setParameter(1, sucursalId.toString());
     }
+
+    @Test
+    void setsBothConfigsWhenTallerAndSucursalContextsArePresent() throws Throwable {
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        TallerContext.setCurrentTaller(tallerId);
+        SucursalContext.setCurrentSucursal(sucursalId);
+        Query tallerQuery = mock(Query.class);
+        Query sucursalQuery = mock(Query.class);
+        given(entityManager.createNativeQuery(contains("current_taller_id"))).willReturn(tallerQuery);
+        given(entityManager.createNativeQuery(contains("current_sucursal_id"))).willReturn(sucursalQuery);
+        given(tallerQuery.setParameter(eq(1), anyString())).willReturn(tallerQuery);
+        given(sucursalQuery.setParameter(eq(1), anyString())).willReturn(sucursalQuery);
+        given(tallerQuery.getSingleResult()).willReturn(null);
+        given(sucursalQuery.getSingleResult()).willReturn(null);
+        given(joinPoint.proceed()).willReturn(null);
+
+        aspect.applySucursalContext(joinPoint);
+
+        verify(tallerQuery).setParameter(1, tallerId.toString());
+        verify(sucursalQuery).setParameter(1, sucursalId.toString());
+    }
 }

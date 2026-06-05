@@ -3,12 +3,14 @@ package com.veloservice.ordenes.interfaces.rest;
 import com.veloservice.clientes.application.dto.BicicletaCreateCommand;
 import com.veloservice.clientes.application.dto.ClienteCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenCreateResult;
+import com.veloservice.ordenes.application.dto.OrdenCatalogoResult;
 import com.veloservice.ordenes.domain.model.TipoOrden;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoResult;
+import com.veloservice.ordenes.application.dto.OrdenProductoUpdateCommand;
 import com.veloservice.ordenes.application.dto.OrdenReadResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
@@ -16,10 +18,13 @@ import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreateRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreateResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenCatalogoResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenDetalleResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenEstadoChangeRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenProductoAddRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenProductoCambioRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenProductoResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenProductoUpdateRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenReadListResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenReadResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenResumenListResponse;
@@ -42,6 +47,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -91,6 +97,27 @@ public class OrdenController {
         return ResponseEntity.ok(new OrdenReadListResponse(ordenes.size(), ordenes));
     }
 
+    @GetMapping("/catalogos/estados")
+    public ResponseEntity<List<OrdenCatalogoResponse>> listarEstadosCatalogo() {
+        return ResponseEntity.ok(ordenService.listarEstadosCatalogo().stream()
+                .map(this::toCatalogoResponse)
+                .toList());
+    }
+
+    @GetMapping("/catalogos/tipos")
+    public ResponseEntity<List<OrdenCatalogoResponse>> listarTiposCatalogo() {
+        return ResponseEntity.ok(ordenService.listarTiposCatalogo().stream()
+                .map(this::toCatalogoResponse)
+                .toList());
+    }
+
+    @GetMapping("/catalogos/prioridades")
+    public ResponseEntity<List<OrdenCatalogoResponse>> listarPrioridadesCatalogo() {
+        return ResponseEntity.ok(ordenService.listarPrioridadesCatalogo().stream()
+                .map(this::toCatalogoResponse)
+                .toList());
+    }
+
     /**
      * TODO: paginar y/o permitir filtros.
      * Lista todas las órdenes de trabajo con un resumen de información (número de orden, tipo, fecha de ingreso, nombre del cliente, marca/modelo de la bicicleta, diagnóstico inicial, estado y prioridad).
@@ -119,12 +146,32 @@ public class OrdenController {
     @PatchMapping("/{id}")
     public ResponseEntity<OrdenDetalleResponse> actualizar(@PathVariable String id,
                                                            @Valid @RequestBody OrdenUpdateRequest request) {
+        List<OrdenProductoAddCommand> productosAgregar = request.getProductosAgregar() != null
+                ? request.getProductosAgregar().stream()
+                    .map(this::toProductoCommand)
+                    .collect(Collectors.toCollection(ArrayList::new))
+                : new ArrayList<>();
+        List<OrdenProductoUpdateCommand> productosActualizar = request.getProductosActualizar() != null
+                ? request.getProductosActualizar().stream()
+                    .map(this::toProductoUpdateCommand)
+                    .collect(Collectors.toCollection(ArrayList::new))
+                : new ArrayList<>();
+        List<UUID> productosEliminar = request.getProductosEliminar() != null
+                ? new ArrayList<>(request.getProductosEliminar())
+                : new ArrayList<>();
+
+        mapProductoCambios(request.getProductosCambios(), productosAgregar, productosActualizar, productosEliminar);
+        mapProductoCambios(request.getProductos(), productosAgregar, productosActualizar, productosEliminar);
+
         OrdenUpdateCommand command = new OrdenUpdateCommand(
                 request.getEstadoCodigo(),
                 request.getEstadoObservacion(),
                 request.getTipoCodigo(),
                 request.getPrioridad(),
-                request.getMecanicoId()
+                request.getMecanicoId(),
+                productosAgregar.isEmpty() ? null : productosAgregar,
+                productosActualizar.isEmpty() ? null : productosActualizar,
+                productosEliminar.isEmpty() ? null : productosEliminar
         );
         return ResponseEntity.ok(toDetalleResponse(ordenService.actualizar(id, command)));
     }
@@ -257,9 +304,9 @@ public class OrdenController {
                 result.bicicletaMarca(),
                 result.bicicletaModelo(),
                 result.bicicletaTipo(),
+                result.bicicletaAro(),
                 result.bicicletaColor(),
                 result.bicicletaNumeroSerie(),
-                result.bicicletaAro(),
                 result.bicicletaAnio(),
                 result.bicicletaFotoUrl(),
                 result.bicicletaNotas()
@@ -336,6 +383,46 @@ public class OrdenController {
                 request.getProporcionadoPorCliente(),
                 request.getNotas()
         );
+    }
+
+    private OrdenProductoUpdateCommand toProductoUpdateCommand(OrdenProductoUpdateRequest request) {
+        return new OrdenProductoUpdateCommand(
+                request.getId(),
+                request.getCantidad(),
+                request.getProporcionadoPorCliente(),
+                request.getNotas()
+        );
+    }
+
+    private void mapProductoCambios(List<OrdenProductoCambioRequest> cambios,
+                                    List<OrdenProductoAddCommand> productosAgregar,
+                                    List<OrdenProductoUpdateCommand> productosActualizar,
+                                    List<UUID> productosEliminar) {
+        if (cambios == null) {
+            return;
+        }
+
+        for (OrdenProductoCambioRequest cambio : cambios) {
+            String accion = cambio.getAccion() != null ? cambio.getAccion().trim().toUpperCase() : "";
+            switch (accion) {
+                case "AGREGAR" -> productosAgregar.add(new OrdenProductoAddCommand(
+                        cambio.getProductoId(),
+                        cambio.getCantidad(),
+                        cambio.getProporcionadoPorCliente(),
+                        cambio.getNotas()
+                ));
+                case "ACTUALIZAR" -> productosActualizar.add(new OrdenProductoUpdateCommand(
+                        cambio.getLineaId(),
+                        cambio.getCantidad(),
+                        cambio.getProporcionadoPorCliente(),
+                        cambio.getNotas()
+                ));
+                case "ELIMINAR" -> productosEliminar.add(cambio.getLineaId());
+                default -> throw new com.veloservice.shared.application.exception.BadRequestException(
+                        "accion de producto invalida: " + cambio.getAccion()
+                );
+            }
+        }
     }
 
     private OrdenServicioAddCommand toServicioCommand(OrdenServicioAddRequest request) {
@@ -417,6 +504,15 @@ public class OrdenController {
                 ),
                 mecanico,
                 result.prioridad()
+        );
+    }
+
+    private OrdenCatalogoResponse toCatalogoResponse(OrdenCatalogoResult result) {
+        return new OrdenCatalogoResponse(
+                result.codigo(),
+                result.nombre(),
+                result.orden(),
+                result.activo()
         );
     }
 }

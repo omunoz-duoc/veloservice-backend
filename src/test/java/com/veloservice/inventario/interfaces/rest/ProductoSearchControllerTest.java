@@ -33,23 +33,31 @@ class ProductoSearchControllerTest {
 
     @Test
     void searchReturnsFilteredProducts() throws Exception {
+        UUID sucursalId = UUID.fromString("11000000-0000-4000-8000-000000000001");
         ProductoResult r = ProductoResult.builder()
                 .id(UUID.randomUUID())
                 .nombre("Cadena Shimano HG601")
                 .sku("SHM-HG601-11")
+                .marca("Shimano")
                 .precioVenta(new BigDecimal("18900"))
                 .stock(4)
                 .build();
 
-        when(productoService.buscar("shimano")).thenReturn(List.of(r));
+        when(productoService.buscar("shimano", sucursalId)).thenReturn(List.of(r));
 
-        mockMvc.perform(get("/productos").param("search", "shimano"))
+        mockMvc.perform(get("/productos").param("search", "shimano").param("sucursalId", sucursalId.toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.productos[0].nombre").value("Cadena Shimano HG601"));
+                .andExpect(jsonPath("$.productos[0].nombre").value("Cadena Shimano HG601"))
+                .andExpect(jsonPath("$.productos[0].sku").value("SHM-HG601-11"))
+                .andExpect(jsonPath("$.productos[0].marca").value("Shimano"))
+                .andExpect(jsonPath("$.productos[0].precioVenta").value(18900))
+                .andExpect(jsonPath("$.productos[0].precio_asignado").value(18900))
+                .andExpect(jsonPath("$.productos[0].stock").value(4));
     }
 
     @Test
     void listarWithoutSearchReturnsAll() throws Exception {
+        UUID sucursalId = UUID.fromString("11000000-0000-4000-8000-000000000001");
         ProductoResult r = ProductoResult.builder()
                 .id(UUID.randomUUID())
                 .nombre("Llanta MTB")
@@ -58,9 +66,9 @@ class ProductoSearchControllerTest {
                 .stock(2)
                 .build();
 
-        when(productoService.listar()).thenReturn(List.of(r));
+        when(productoService.listar(sucursalId)).thenReturn(List.of(r));
 
-        mockMvc.perform(get("/productos"))
+        mockMvc.perform(get("/productos").param("sucursalId", sucursalId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.productos[0].nombre").value("Llanta MTB"));
     }

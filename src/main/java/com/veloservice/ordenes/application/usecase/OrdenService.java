@@ -1,6 +1,7 @@
 package com.veloservice.ordenes.application.usecase;
 
 import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.clientes.application.dto.BicicletaCreateCommand;
 import com.veloservice.clientes.application.dto.ClienteCreateCommand;
 import com.veloservice.clientes.application.usecase.BicicletaService;
@@ -17,6 +18,7 @@ import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import com.veloservice.ordenes.application.dto.ComentarioResult;
 import com.veloservice.ordenes.application.dto.MultimediaResult;
+import com.veloservice.ordenes.application.dto.OrdenCatalogoResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenDetalleBaseResult;
@@ -24,10 +26,12 @@ import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoResult;
+import com.veloservice.ordenes.application.dto.OrdenProductoUpdateCommand;
 import com.veloservice.ordenes.application.dto.OrdenReadResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
 import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
+import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
 import com.veloservice.ordenes.domain.model.EstadoOrden;
 import com.veloservice.ordenes.domain.model.Orden;
@@ -58,6 +62,8 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -106,6 +112,36 @@ public class OrdenService {
         }
 
         throw new IllegalStateException("Contexto de taller o sucursal requerido");
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrdenCatalogoResult> listarEstadosCatalogo() {
+        return estadoOrdenRepository.findAllByOrderByOrdenAsc().stream()
+                .map(estado -> new OrdenCatalogoResult(
+                        estado.getCodigo(),
+                        estado.getNombre(),
+                        estado.getOrden(),
+                        null
+                ))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrdenCatalogoResult> listarTiposCatalogo() {
+        return tipoOrdenRepository.findAllByOrderByCodigoAsc().stream()
+                .map(tipo -> new OrdenCatalogoResult(
+                        tipo.getCodigo(),
+                        tipo.getNombre(),
+                        null,
+                        tipo.getActivo()
+                ))
+                .toList();
+    }
+
+    public List<OrdenCatalogoResult> listarPrioridadesCatalogo() {
+        return List.of(PrioridadOrdenEnum.baja, PrioridadOrdenEnum.media, PrioridadOrdenEnum.alta).stream()
+                .map(prioridad -> new OrdenCatalogoResult(prioridad.name(), nombrePrioridad(prioridad), null, true))
+                .toList();
     }
 
     /**
@@ -207,29 +243,12 @@ public class OrdenService {
     @TenantOperation
     @Transactional
     public void cambiarEstado(String id, OrdenEstadoChangeCommand command) {
-        UUID usuarioId = UsuarioContext.getCurrentUser();
-        if (usuarioId == null) {
-            throw new IllegalStateException("Contexto de usuario requerido");
-        }
-
+        UUID usuarioId = requerirUsuarioContext();
         Orden orden = buscarOrdenParaMutacion(id);
-        UUID estadoAnteriorId = orden.getEstadoId();
-        EstadoOrden nuevoEstado = estadoOrdenRepository.findByCodigo(command.getCodigo())
-                .orElseThrow(() -> new ResourceNotFoundException("Estado de orden no encontrado: " + command.getCodigo()));
         OffsetDateTime now = OffsetDateTime.now();
-
-        orden.setEstadoId(nuevoEstado.getId());
+        aplicarCambioEstado(orden, command.getCodigo(), command.getObservacion(), now, usuarioId);
         orden.setUpdatedAt(now);
         ordenRepository.save(orden);
-
-        ordenEstadoRepository.save(OrdenEstado.builder()
-                .ordenId(orden.getId())
-                .usuarioId(usuarioId)
-                .estadoAnteriorId(estadoAnteriorId)
-                .estadoNuevoId(nuevoEstado.getId())
-                .observacion(command.getObservacion())
-                .createdAt(now)
-                .build());
     }
 
     @TenantOperation
@@ -240,23 +259,7 @@ public class OrdenService {
         boolean changed = false;
 
         if (hasText(command.getEstadoCodigo())) {
-            UUID usuarioId = UsuarioContext.getCurrentUser();
-            if (usuarioId == null) {
-                throw new IllegalStateException("Contexto de usuario requerido");
-            }
-            UUID estadoAnteriorId = orden.getEstadoId();
-            EstadoOrden nuevoEstado = estadoOrdenRepository.findByCodigo(command.getEstadoCodigo())
-                    .orElseThrow(() -> new ResourceNotFoundException("Estado de orden no encontrado: " + command.getEstadoCodigo()));
-
-            orden.setEstadoId(nuevoEstado.getId());
-            ordenEstadoRepository.save(OrdenEstado.builder()
-                    .ordenId(orden.getId())
-                    .usuarioId(usuarioId)
-                    .estadoAnteriorId(estadoAnteriorId)
-                    .estadoNuevoId(nuevoEstado.getId())
-                    .observacion(command.getEstadoObservacion())
-                    .createdAt(now)
-                    .build());
+            aplicarCambioEstado(orden, command.getEstadoCodigo(), command.getEstadoObservacion(), now, requerirUsuarioContext());
             changed = true;
         } else if (command.getEstadoCodigo() != null) {
             throw new BadRequestException("estadoCodigo no puede estar vacio");
@@ -285,11 +288,28 @@ public class OrdenService {
         }
 
         if (command.getMecanicoId() != null) {
-            boolean mecanicoValido = usuarioRepository.existsByIdAndActivoTrueAndRol_Nombre(command.getMecanicoId(), "mecanico");
-            if (!mecanicoValido) {
+            if (!usuarioRepository.existsActiveMecanicoById(command.getMecanicoId())) {
                 throw new ResourceNotFoundException("Mecanico no encontrado: " + command.getMecanicoId());
             }
             orden.setMecanicoId(command.getMecanicoId());
+            changed = true;
+        }
+
+        if (hasItems(command.getProductosAgregar())) {
+            validarOrdenPermiteModificarProductos(orden);
+            agregarProductosAOrden(orden, command.getProductosAgregar(), now);
+            changed = true;
+        }
+
+        if (hasItems(command.getProductosActualizar())) {
+            validarOrdenPermiteModificarProductos(orden);
+            actualizarProductosAOrden(orden, command.getProductosActualizar());
+            changed = true;
+        }
+
+        if (hasItems(command.getProductosEliminar())) {
+            validarOrdenPermiteModificarProductos(orden);
+            eliminarProductosAOrden(orden, command.getProductosEliminar());
             changed = true;
         }
 
@@ -305,38 +325,95 @@ public class OrdenService {
     @Transactional
     public List<OrdenProductoResult> agregarProductos(UUID ordenId, List<OrdenProductoAddCommand> items) {
         Orden orden = buscarOrdenPorIdParaMutacion(ordenId);
+        validarOrdenPermiteModificarProductos(orden);
         OffsetDateTime now = OffsetDateTime.now();
+        return agregarProductosAOrden(orden, items, now);
+    }
 
-        List<OrdenProducto> lineItems = items.stream()
-                .map(item -> {
-                    Producto producto = productoRepository.findById(item.getProductoId())
-                            .orElseThrow(() -> new ResourceNotFoundException(
-                                    "Producto no encontrado: " + item.getProductoId()
-                            ));
-                    if (!producto.getSucursalId().equals(orden.getSucursalId())) {
-                        throw new ResourceNotFoundException(
-                                "Producto " + item.getProductoId() + " no pertenece a la sucursal de esta orden"
-                        );
-                    }
-                    return OrdenProducto.builder()
-                            .ordenId(ordenId)
-                            .productoId(item.getProductoId())
-                            .cantidad(item.getCantidad())
-                            .precioCostoSnapshot(producto.getPrecioCosto())
-                            .precioVentaSnapshot(producto.getPrecioVenta())
-                            .precioAplicado(producto.getPrecioVenta())
-                            .proporcionadoPorCliente(Boolean.TRUE.equals(item.getProporcionadoPorCliente()))
-                            .notas(item.getNotas())
-                            .createdAt(now)
-                            .build();
-                })
-                .toList();
+    private List<OrdenProductoResult> agregarProductosAOrden(Orden orden, List<OrdenProductoAddCommand> items, OffsetDateTime now) {
+        Map<UUID, OrdenProducto> lineItemsByProducto = new LinkedHashMap<>();
+
+        for (OrdenProductoAddCommand item : items) {
+            if (item.getProductoId() == null) {
+                throw new BadRequestException("productoId es requerido");
+            }
+            validarCantidad(item.getCantidad());
+            Producto producto = buscarProductoDisponible(item.getProductoId(), orden.getSucursalId());
+            boolean proporcionadoPorCliente = Boolean.TRUE.equals(item.getProporcionadoPorCliente());
+            validarStockSuficiente(producto, item.getCantidad(), proporcionadoPorCliente);
+
+            OrdenProducto lineItem = lineItemsByProducto.computeIfAbsent(item.getProductoId(), productoId ->
+                    ordenProductoRepository.findByOrdenIdAndProductoId(orden.getId(), productoId)
+                            .orElseGet(() -> OrdenProducto.builder()
+                                    .ordenId(orden.getId())
+                                    .productoId(productoId)
+                                    .cantidad(0)
+                                    .precioCostoSnapshot(producto.getPrecioCosto())
+                                    .precioVentaSnapshot(producto.getPrecioVenta())
+                                    .precioAplicado(producto.getPrecioVenta())
+                                    .proporcionadoPorCliente(false)
+                                    .createdAt(now)
+                                    .build())
+            );
+
+            int nuevaCantidad = lineItem.getCantidad() + item.getCantidad();
+            validarStockSuficiente(producto, nuevaCantidad, proporcionadoPorCliente);
+            lineItem.setCantidad(nuevaCantidad);
+            lineItem.setProporcionadoPorCliente(proporcionadoPorCliente);
+            if (item.getNotas() != null) {
+                lineItem.setNotas(item.getNotas());
+            }
+        }
+
+        List<OrdenProducto> lineItems = new ArrayList<>(lineItemsByProducto.values());
 
         List<OrdenProducto> saved = ordenProductoRepository.saveAll(lineItems);
         List<UUID> ids = saved.stream().map(OrdenProducto::getId).toList();
         Map<UUID, OrdenProductoResult> resultsById = ordenProductoRepository.findResultByIdIn(ids).stream()
                 .collect(Collectors.toMap(OrdenProductoResult::id, Function.identity()));
         return ids.stream().map(resultsById::get).toList();
+    }
+
+    private void actualizarProductosAOrden(Orden orden, List<OrdenProductoUpdateCommand> items) {
+        List<OrdenProducto> lineItems = items.stream()
+                .map(item -> {
+                    if (item.getId() == null) {
+                        throw new BadRequestException("id de producto asociado es requerido");
+                    }
+                    OrdenProducto lineItem = ordenProductoRepository.findByIdAndOrdenId(item.getId(), orden.getId())
+                            .orElseThrow(() -> new ResourceNotFoundException(
+                                    "Producto asociado no encontrado: " + item.getId()
+                            ));
+                    Producto producto = buscarProductoDisponible(lineItem.getProductoId(), orden.getSucursalId());
+                    Integer cantidad = item.getCantidad() != null ? item.getCantidad() : lineItem.getCantidad();
+                    validarCantidad(cantidad);
+                    boolean proporcionadoPorCliente = item.getProporcionadoPorCliente() != null
+                            ? item.getProporcionadoPorCliente()
+                            : Boolean.TRUE.equals(lineItem.getProporcionadoPorCliente());
+                    validarStockSuficiente(producto, cantidad, proporcionadoPorCliente);
+
+                    lineItem.setCantidad(cantidad);
+                    lineItem.setProporcionadoPorCliente(proporcionadoPorCliente);
+                    if (item.getNotas() != null) {
+                        lineItem.setNotas(item.getNotas());
+                    }
+                    return lineItem;
+                })
+                .toList();
+
+        ordenProductoRepository.saveAll(lineItems);
+    }
+
+    private void eliminarProductosAOrden(Orden orden, List<UUID> lineItemIds) {
+        for (UUID lineItemId : lineItemIds) {
+            if (lineItemId == null) {
+                throw new BadRequestException("id de producto asociado es requerido");
+            }
+            int deleted = ordenProductoRepository.deleteByIdAndOrdenId(lineItemId, orden.getId());
+            if (deleted == 0) {
+                throw new ResourceNotFoundException("Producto asociado no encontrado: " + lineItemId);
+            }
+        }
     }
 
     @TenantOperation
@@ -611,6 +688,72 @@ public class OrdenService {
      * @param id
      * @return
      */
+    private void aplicarCambioEstado(Orden orden, String estadoCodigo, String observacion, OffsetDateTime now, UUID usuarioId) {
+        UUID estadoAnteriorId = orden.getEstadoId();
+        EstadoOrden nuevoEstado = estadoOrdenRepository.findByCodigo(estadoCodigo)
+                .orElseThrow(() -> new ResourceNotFoundException("Estado de orden no encontrado: " + estadoCodigo));
+
+        orden.setEstadoId(nuevoEstado.getId());
+        ordenEstadoRepository.save(OrdenEstado.builder()
+                .ordenId(orden.getId())
+                .usuarioId(usuarioId)
+                .estadoAnteriorId(estadoAnteriorId)
+                .estadoNuevoId(nuevoEstado.getId())
+                .observacion(observacion)
+                .createdAt(now)
+                .build());
+    }
+
+    private UUID requerirUsuarioContext() {
+        UUID usuarioId = UsuarioContext.getCurrentUser();
+        if (usuarioId == null) {
+            throw new BadRequestException("Contexto de usuario requerido");
+        }
+        return usuarioId;
+    }
+
+    private Producto buscarProductoDisponible(UUID productoId, UUID sucursalId) {
+        Producto producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado: " + productoId));
+        if (!Boolean.TRUE.equals(producto.getActivo())) {
+            throw new ResourceNotFoundException("Producto no encontrado: " + productoId);
+        }
+        if (!producto.getSucursalId().equals(sucursalId)) {
+            throw new ResourceNotFoundException(
+                    "Producto " + productoId + " no pertenece a la sucursal de esta orden"
+            );
+        }
+        return producto;
+    }
+
+    private void validarCantidad(Integer cantidad) {
+        if (cantidad == null || cantidad < 1) {
+            throw new BadRequestException("Cantidad de producto debe ser mayor o igual a 1");
+        }
+    }
+
+    private void validarStockSuficiente(Producto producto, Integer cantidad, boolean proporcionadoPorCliente) {
+        if (proporcionadoPorCliente || producto.getStock() == null) {
+            return;
+        }
+        if (producto.getStock() < cantidad) {
+            throw new BadRequestException("Stock insuficiente para producto: " + producto.getId());
+        }
+    }
+
+    private void validarOrdenPermiteModificarProductos(Orden orden) {
+        if (orden.getEstadoId() == null) {
+            return;
+        }
+        estadoOrdenRepository.findById(orden.getEstadoId())
+                .map(EstadoOrden::getCodigo)
+                .filter(codigo -> EstadoOrdenEnum.entregada.name().equals(codigo)
+                        || EstadoOrdenEnum.cancelada.name().equals(codigo))
+                .ifPresent(codigo -> {
+                    throw new BadRequestException("No se pueden modificar productos de una orden " + codigo);
+                });
+    }
+
     public List<TipoOrden> listarTipos() {
         return tipoOrdenRepository.findAll();
     }
@@ -625,5 +768,14 @@ public class OrdenService {
 
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    private boolean hasItems(List<?> items) {
+        return items != null && !items.isEmpty();
+    }
+
+    private String nombrePrioridad(PrioridadOrdenEnum prioridad) {
+        String value = prioridad.name();
+        return value.substring(0, 1).toUpperCase() + value.substring(1);
     }
 }

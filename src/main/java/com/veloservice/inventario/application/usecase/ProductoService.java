@@ -1,5 +1,8 @@
 package com.veloservice.inventario.application.usecase;
 
+import com.veloservice.administracion.domain.model.Sucursal;
+import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
+import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.inventario.application.dto.ProductoCreateCommand;
 import com.veloservice.inventario.application.dto.ProductoResult;
 import com.veloservice.inventario.application.exception.ProductoErrorCode;
@@ -11,10 +14,12 @@ import com.veloservice.inventario.infraestructure.persistence.repository.Product
 import com.veloservice.inventario.interfaces.mapper.ProductoMapper;
 import com.veloservice.config.tenant.TenantOperation;
 import com.veloservice.config.tenant.SucursalContext;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -29,6 +34,8 @@ public class ProductoService {
     private final ProductoRepository productoRepository;
     private final MovimientoStockRepository movimientoRepository;
     private final CategoriaProductoRepository categoriaProductoRepository;
+    private final SucursalRepository sucursalRepository;
+    private final EntityManager entityManager;
 
     @TenantOperation
     @Transactional
@@ -54,6 +61,9 @@ public class ProductoService {
                 .precioVenta(command.getPrecioVenta())
                 .stock(stock)
                 .stockMinimo(stockMinimo)
+                .activo(true)
+                .createdAt(OffsetDateTime.now())
+                .updatedAt(OffsetDateTime.now())
                 .build();
 
         producto = productoRepository.save(producto);
@@ -64,11 +74,17 @@ public class ProductoService {
     @TenantOperation
     @Transactional(readOnly = true)
     public List<ProductoResult> listar() {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null) {
+        return listar(null);
+    }
+
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<ProductoResult> listar(UUID sucursalId) {
+        UUID resolvedSucursalId = resolveSucursalId(sucursalId);
+        if (resolvedSucursalId == null) {
             return List.of();
         }
-        return productoRepository.findBySucursalId(sucursalId).stream()
+        return productoRepository.findBySucursalIdAndActivoTrueOrderByNombreAsc(resolvedSucursalId).stream()
                 .map(producto -> toResult(producto, resolveCategoriaNombre(producto.getCategoriaId())))
                 .collect(Collectors.toList());
     }
@@ -84,14 +100,20 @@ public class ProductoService {
     @TenantOperation
     @Transactional(readOnly = true)
     public List<ProductoResult> buscar(String query) {
+        return buscar(query, null);
+    }
+
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<ProductoResult> buscar(String query, UUID sucursalId) {
         if (query == null || query.isBlank()) {
-            return listar();
+            return listar(sucursalId);
         }
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null) {
+        UUID resolvedSucursalId = resolveSucursalId(sucursalId);
+        if (resolvedSucursalId == null) {
             return List.of();
         }
-        return productoRepository.searchBySucursalId(sucursalId, query).stream()
+        return productoRepository.searchBySucursalId(resolvedSucursalId, query.trim()).stream()
                 .map(producto -> toResult(producto, resolveCategoriaNombre(producto.getCategoriaId())))
                 .collect(Collectors.toList());
     }
@@ -99,7 +121,7 @@ public class ProductoService {
     @TenantOperation
     @Transactional(readOnly = true)
     public List<ProductoResult> alertasStockBajo() {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        UUID sucursalId = resolveSucursalId(null);
         if (sucursalId == null) {
             return List.of();
         }
@@ -111,7 +133,7 @@ public class ProductoService {
         @TenantOperation
         @Transactional(readOnly = true)
         public com.veloservice.inventario.interfaces.rest.dto.InventarioMetricasResponse metricas() {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        UUID sucursalId = resolveSucursalId(null);
         if (sucursalId == null) {
             return com.veloservice.inventario.interfaces.rest.dto.InventarioMetricasResponse.builder()
                 .valorInventario(0)
@@ -175,6 +197,43 @@ public class ProductoService {
         return categoriaProductoRepository.findById(categoriaId)
                 .map(categoria -> categoria.getNombre())
                 .orElse(null);
+    }
+
+    private UUID resolveSucursalId(UUID requestedSucursalId) {
+        if (requestedSucursalId != null) {
+            validateSucursalBelongsToTaller(requestedSucursalId);
+            return requestedSucursalId;
+        }
+
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId != null) {
+            return sucursalId;
+        }
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            return null;
+        }
+        UUID fallbackSucursalId = sucursalRepository.findFirstByTallerIdAndActivoTrueOrderByCreatedAtAsc(tallerId)
+                .map(Sucursal::getId)
+                .orElse(null);
+        if (fallbackSucursalId != null) {
+            SucursalContext.setCurrentSucursal(fallbackSucursalId);
+            entityManager.createNativeQuery("SELECT set_config('app.current_sucursal_id', ?, false)")
+                    .setParameter(1, fallbackSucursalId.toString())
+                    .getSingleResult();
+        }
+        return fallbackSucursalId;
+    }
+
+    private void validateSucursalBelongsToTaller(UUID sucursalId) {
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            return;
+        }
+        boolean belongsToTaller = sucursalRepository.existsByIdAndTallerId(sucursalId, tallerId);
+        if (!belongsToTaller) {
+            throw new IllegalArgumentException("Sucursal no pertenece al taller del usuario");
+        }
     }
 
     private void validateSucursal(UUID sucursalId) {

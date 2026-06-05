@@ -46,6 +46,7 @@ public final class ProductoMapper {
                 .id(result.getId())
                 .nombre(result.getNombre())
                 .sku(result.getSku())
+                .marca(result.getMarca())
                 .categoria(result.getCategoriaNombre())
                 .precioCosto(result.getPrecioCosto())
                 .precioVenta(result.getPrecioVenta())

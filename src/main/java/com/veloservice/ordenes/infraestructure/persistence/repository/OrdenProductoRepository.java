@@ -1,6 +1,7 @@
 package com.veloservice.ordenes.infraestructure.persistence.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -33,6 +34,16 @@ public interface OrdenProductoRepository extends JpaRepository<OrdenProducto, UU
      * @return matching order product, if present
      */
     Optional<OrdenProducto> findByOrdenIdAndProductoId(UUID ordenId, UUID productoId);
+
+    Optional<OrdenProducto> findByIdAndOrdenId(UUID id, UUID ordenId);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+        DELETE FROM OrdenProducto op
+        WHERE op.id = :id
+          AND op.ordenId = :ordenId
+        """)
+    int deleteByIdAndOrdenId(@Param("id") UUID id, @Param("ordenId") UUID ordenId);
 
     /**
      * Encuentra todos los productos asociados a una orden

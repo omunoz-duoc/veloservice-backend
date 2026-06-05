@@ -17,11 +17,16 @@ public class ProductoResponse {
     private UUID id;
     private String nombre;
     private String sku;
+    private String marca;
     @JsonProperty("categoria")
     private String categoria;
     @JsonProperty("costo_unitario")
     private BigDecimal precioCosto;
-    @JsonProperty("precio_asignado")
     private BigDecimal precioVenta;
     private Integer stock;
+
+    @JsonProperty("precio_asignado")
+    public BigDecimal getPrecioAsignado() {
+        return precioVenta;
+    }
 }

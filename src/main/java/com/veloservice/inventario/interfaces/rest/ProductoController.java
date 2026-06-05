@@ -58,10 +58,11 @@ public class ProductoController {
      * @return product list
      */
     @GetMapping
-    public ResponseEntity<Map<String, Object>> listar(@RequestParam(required = false) String search) {
+    public ResponseEntity<Map<String, Object>> listar(@RequestParam(required = false) String search,
+                                                      @RequestParam(required = false) UUID sucursalId) {
         List<ProductoResult> results = (search != null && search.length() >= 1)
-                ? productoService.buscar(search)
-                : productoService.listar();
+                ? productoService.buscar(search, sucursalId)
+                : productoService.listar(sucursalId);
         List<ProductoResponse> productos = ProductoMapper.toResponseList(results);
         return ResponseEntity.ok(Map.of(
                 "total", productos.size(),

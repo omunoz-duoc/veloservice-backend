@@ -182,7 +182,11 @@ public class AuthService {
         String ambito = normalizeAmbito(usuario.getRol().getAmbito());
         UUID tallerId = usuario.getTallerId();
         if ("taller".equals(ambito)) {
-            return new Scope(ambito, tallerId, null);
+            UUID sucursalId = usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(usuario.getId())
+                    .map(UsuarioSucursal::getSucursalId)
+                    .map(sid -> validarSucursalPrincipalDelTaller(sid, tallerId))
+                    .orElse(null);
+            return new Scope(ambito, tallerId, sucursalId);
         }
         if (!"sucursal".equals(ambito)) {
             throw new AuthException(AuthErrorCode.AMBITO_ROL_INVALIDO);
@@ -197,6 +201,15 @@ public class AuthService {
         }
 
         return new Scope(ambito, tallerId, principal.getSucursalId());
+    }
+
+    private UUID validarSucursalPrincipalDelTaller(UUID sucursalId, UUID tallerId) {
+        UUID sucursalTallerId = sucursalPort.findTallerIdBySucursalId(sucursalId)
+                .orElseThrow(() -> new AuthException(AuthErrorCode.USUARIO_SIN_SUCURSAL_PRINCIPAL));
+        if (!sucursalTallerId.equals(tallerId)) {
+            throw new AuthException(AuthErrorCode.SUCURSAL_NO_PERTENECE_TALLER);
+        }
+        return sucursalId;
     }
 
     private String normalizeAmbito(String ambito) {

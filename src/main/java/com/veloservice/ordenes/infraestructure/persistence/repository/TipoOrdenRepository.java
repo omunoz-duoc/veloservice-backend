@@ -4,6 +4,7 @@ import com.veloservice.ordenes.domain.model.TipoOrden;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.List;
@@ -14,6 +15,16 @@ import java.util.List;
  */
 @Repository
 public interface TipoOrdenRepository extends JpaRepository<TipoOrden, UUID> {
+    /**
+     * Encuentra un tipo de orden por su código.
+     * @param codigo
+     * @return
+     */
     Optional<TipoOrden> findByCodigo(String codigo);
-    List<TipoOrden> findListById(UUID id);
+
+    /**
+     * Busca todos los tipos de orden ordenados por código de forma ascendente.
+     * @return
+     */
+    List<TipoOrden> findAllByOrderByCodigoAsc();
 }
