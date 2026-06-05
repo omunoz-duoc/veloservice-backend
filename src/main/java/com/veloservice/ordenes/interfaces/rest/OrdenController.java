@@ -14,6 +14,7 @@ import com.veloservice.ordenes.application.dto.OrdenProductoUpdateCommand;
 import com.veloservice.ordenes.application.dto.OrdenReadResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
+import com.veloservice.ordenes.application.dto.OrdenServicioUpdateCommand;
 import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreateRequest;
@@ -30,6 +31,7 @@ import com.veloservice.ordenes.interfaces.rest.dto.OrdenReadResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenResumenListResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenResumenResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenServicioAddRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenServicioCambioRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenServicioResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenUpdateRequest;
 import jakarta.validation.Valid;
@@ -159,9 +161,13 @@ public class OrdenController {
         List<UUID> productosEliminar = request.getProductosEliminar() != null
                 ? new ArrayList<>(request.getProductosEliminar())
                 : new ArrayList<>();
+        List<OrdenServicioAddCommand> serviciosAgregar = new ArrayList<>();
+        List<OrdenServicioUpdateCommand> serviciosActualizar = new ArrayList<>();
+        List<UUID> serviciosEliminar = new ArrayList<>();
 
         mapProductoCambios(request.getProductosCambios(), productosAgregar, productosActualizar, productosEliminar);
         mapProductoCambios(request.getProductos(), productosAgregar, productosActualizar, productosEliminar);
+        mapServicioCambios(request.getServiciosCambios(), serviciosAgregar, serviciosActualizar, serviciosEliminar);
 
         OrdenUpdateCommand command = new OrdenUpdateCommand(
                 request.getEstadoCodigo(),
@@ -171,7 +177,10 @@ public class OrdenController {
                 request.getMecanicoId(),
                 productosAgregar.isEmpty() ? null : productosAgregar,
                 productosActualizar.isEmpty() ? null : productosActualizar,
-                productosEliminar.isEmpty() ? null : productosEliminar
+                productosEliminar.isEmpty() ? null : productosEliminar,
+                serviciosAgregar.isEmpty() ? null : serviciosAgregar,
+                serviciosActualizar.isEmpty() ? null : serviciosActualizar,
+                serviciosEliminar.isEmpty() ? null : serviciosEliminar
         );
         return ResponseEntity.ok(toDetalleResponse(ordenService.actualizar(id, command)));
     }
@@ -277,7 +286,13 @@ public class OrdenController {
         List<OrdenDetalleResponse.ServicioResponse> servicios = result.servicios() != null
             ? result.servicios().stream()
             .map(s -> new OrdenDetalleResponse.ServicioResponse(
-                s.id(), s.servicioId(), s.nombre(), s.precioBase()
+                s.id(),
+                s.servicioId(),
+                s.nombre(),
+                s.precioBase(),
+                s.precioAplicado(),
+                s.descuentoAplicado(),
+                s.notas()
             ))
             .toList()
             : List.of();
@@ -425,6 +440,35 @@ public class OrdenController {
         }
     }
 
+    private void mapServicioCambios(List<OrdenServicioCambioRequest> cambios,
+                                    List<OrdenServicioAddCommand> serviciosAgregar,
+                                    List<OrdenServicioUpdateCommand> serviciosActualizar,
+                                    List<UUID> serviciosEliminar) {
+        if (cambios == null) {
+            return;
+        }
+
+        for (OrdenServicioCambioRequest cambio : cambios) {
+            String accion = cambio.getAccion() != null ? cambio.getAccion().trim().toUpperCase() : "";
+            switch (accion) {
+                case "AGREGAR" -> serviciosAgregar.add(new OrdenServicioAddCommand(
+                        cambio.getServicioId(),
+                        cambio.getNotas()
+                ));
+                case "ACTUALIZAR" -> serviciosActualizar.add(new OrdenServicioUpdateCommand(
+                        cambio.getLineaId(),
+                        cambio.getPrecioAplicado(),
+                        cambio.getDescuentoAplicado(),
+                        cambio.getNotas()
+                ));
+                case "ELIMINAR" -> serviciosEliminar.add(cambio.getLineaId());
+                default -> throw new com.veloservice.shared.application.exception.BadRequestException(
+                        "accion de servicio invalida: " + cambio.getAccion()
+                );
+            }
+        }
+    }
+
     private OrdenServicioAddCommand toServicioCommand(OrdenServicioAddRequest request) {
         return new OrdenServicioAddCommand(request.getServicioId(), request.getNotas());
     }
@@ -445,7 +489,10 @@ public class OrdenController {
                 result.id(),
                 result.servicioId(),
                 result.nombre(),
-                result.precioBase()
+                result.precioBase(),
+                result.precioAplicado(),
+                result.descuentoAplicado(),
+                result.notas()
         );
     }
 

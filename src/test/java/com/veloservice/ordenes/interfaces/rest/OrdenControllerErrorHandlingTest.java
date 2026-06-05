@@ -6,6 +6,7 @@ import com.veloservice.config.security.JwtTokenProvider;
 import com.veloservice.ordenes.application.dto.OrdenCatalogoResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateResult;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
+import com.veloservice.ordenes.application.dto.OrdenServicioResult;
 import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.shared.application.exception.ResourceNotFoundException;
@@ -26,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.math.BigDecimal;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -225,6 +227,32 @@ class OrdenControllerErrorHandlingTest {
     }
 
     @Test
+    void obtenerDetalleReturnsServiceEditableFields() throws Exception {
+        UUID ordenId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+        UUID servicioId = UUID.randomUUID();
+        when(ordenService.obtenerDetalle("OT-000001"))
+                .thenReturn(detalleResult(ordenId, List.of(new OrdenServicioResult(
+                        lineId,
+                        servicioId,
+                        "Ajuste general",
+                        new BigDecimal("15000.00"),
+                        new BigDecimal("12000.00"),
+                        new BigDecimal("3000.00"),
+                        "Nota editable"
+                ))));
+
+        mockMvc.perform(get("/ordenes/OT-000001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.servicios[0].id").value(lineId.toString()))
+                .andExpect(jsonPath("$.servicios[0].servicioId").value(servicioId.toString()))
+                .andExpect(jsonPath("$.servicios[0].precioBase").value(15000.00))
+                .andExpect(jsonPath("$.servicios[0].precioAplicado").value(12000.00))
+                .andExpect(jsonPath("$.servicios[0].descuentoAplicado").value(3000.00))
+                .andExpect(jsonPath("$.servicios[0].notas").value("Nota editable"));
+    }
+
+    @Test
     void actualizarMapsProductosCambiosToUnifiedCommand() throws Exception {
         UUID ordenId = UUID.randomUUID();
         UUID productoId = UUID.randomUUID();
@@ -281,7 +309,64 @@ class OrdenControllerErrorHandlingTest {
         assert org.assertj.core.api.Assertions.assertThat(command.getProductosEliminar()).containsExactly(eliminarLineaId) != null;
     }
 
+    @Test
+    void actualizarMapsServiciosCambiosToUnifiedCommand() throws Exception {
+        UUID ordenId = UUID.randomUUID();
+        UUID servicioId = UUID.randomUUID();
+        UUID actualizarLineaId = UUID.randomUUID();
+        UUID eliminarLineaId = UUID.randomUUID();
+        when(ordenService.actualizar(ArgumentMatchers.eq(ordenId.toString()), any(OrdenUpdateCommand.class)))
+                .thenReturn(detalleResult(ordenId));
+
+        String body = objectMapper.writeValueAsString(Map.of(
+                "serviciosCambios", List.of(
+                        Map.of(
+                                "accion", "AGREGAR",
+                                "servicioId", servicioId,
+                                "notas", "opcional"
+                        ),
+                        Map.of(
+                                "accion", "ACTUALIZAR",
+                                "lineaId", actualizarLineaId,
+                                "precioAplicado", 12000,
+                                "descuentoAplicado", 3000,
+                                "notas", "nueva"
+                        ),
+                        Map.of(
+                                "accion", "ELIMINAR",
+                                "lineaId", eliminarLineaId
+                        )
+                )
+        ));
+
+        mockMvc.perform(patch("/ordenes/{id}", ordenId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<OrdenUpdateCommand> captor = ArgumentCaptor.forClass(OrdenUpdateCommand.class);
+        verify(ordenService).actualizar(ArgumentMatchers.eq(ordenId.toString()), captor.capture());
+        OrdenUpdateCommand command = captor.getValue();
+        assert org.assertj.core.api.Assertions.assertThat(command.getServiciosAgregar()).singleElement()
+                .satisfies(item -> {
+                    org.assertj.core.api.Assertions.assertThat(item.getServicioId()).isEqualTo(servicioId);
+                    org.assertj.core.api.Assertions.assertThat(item.getNotas()).isEqualTo("opcional");
+                }) != null;
+        assert org.assertj.core.api.Assertions.assertThat(command.getServiciosActualizar()).singleElement()
+                .satisfies(item -> {
+                    org.assertj.core.api.Assertions.assertThat(item.getId()).isEqualTo(actualizarLineaId);
+                    org.assertj.core.api.Assertions.assertThat(item.getPrecioAplicado()).isEqualByComparingTo("12000");
+                    org.assertj.core.api.Assertions.assertThat(item.getDescuentoAplicado()).isEqualByComparingTo("3000");
+                    org.assertj.core.api.Assertions.assertThat(item.getNotas()).isEqualTo("nueva");
+                }) != null;
+        assert org.assertj.core.api.Assertions.assertThat(command.getServiciosEliminar()).containsExactly(eliminarLineaId) != null;
+    }
+
     private OrdenDetalleResult detalleResult(UUID ordenId) {
+        return detalleResult(ordenId, List.of());
+    }
+
+    private OrdenDetalleResult detalleResult(UUID ordenId, List<OrdenServicioResult> servicios) {
         return new OrdenDetalleResult(
                 ordenId,
                 "OT-000001",
@@ -322,7 +407,7 @@ class OrdenControllerErrorHandlingTest {
                 List.of(),
                 List.of(),
                 List.of(),
-                List.of()
+                servicios
         );
     }
 

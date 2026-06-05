@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 
 import com.veloservice.servicios.domain.model.Servicio;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,4 +21,6 @@ public interface ServicioRepository extends JpaRepository<Servicio, UUID> {
      * @return matching service, if present
      */
     Optional<Servicio> findById(UUID id);
+
+    List<Servicio> findByTallerIdAndActivoTrueOrderByNombreAsc(UUID tallerId);
 }
