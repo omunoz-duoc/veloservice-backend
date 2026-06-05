@@ -428,7 +428,7 @@ class OrdenServiceCreateScopeTest {
                 .clienteId(clienteId)
                 .bicicletaId(bicicletaId)
                 .sucursalId(sucursalId)
-                .tipoTrabajo("mantencion")
+                .tipoTrabajo(UUID.fromString("31000000-0000-4000-8000-000000000002"))
                 .prioridad(PrioridadOrdenEnum.media)
                 .build();
     }
