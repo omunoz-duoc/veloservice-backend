@@ -133,8 +133,9 @@ class OrdenServiceCreateScopeTest {
                 .willReturn(Optional.of(Bicicleta.builder().id(bicicletaId).clienteId(clienteId).build()));
         given(estadoOrdenRepository.findByCodigo("recibida"))
                 .willReturn(Optional.of(EstadoOrden.builder().id(UUID.randomUUID()).codigo("recibida").build()));
-        given(tipoOrdenRepository.findByCodigo("mantencion"))
-                .willReturn(Optional.of(TipoOrden.builder().id(UUID.randomUUID()).codigo("mantencion").build()));
+        UUID tipoId = UUID.fromString("31000000-0000-4000-8000-000000000002");
+        given(tipoOrdenRepository.findById(tipoId))
+                .willReturn(Optional.of(TipoOrden.builder().id(tipoId).codigo("mantencion").build()));
         given(secuenciaService.generarNumeroOrden(tallerId)).willReturn("OT-000001");
         given(ordenRepository.save(any(Orden.class))).willAnswer(invocation -> {
             Orden orden = invocation.getArgument(0);

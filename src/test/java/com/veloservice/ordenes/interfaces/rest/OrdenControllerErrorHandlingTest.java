@@ -331,7 +331,7 @@ class OrdenControllerErrorHandlingTest {
                 "clienteId", UUID.randomUUID(),
                 "bicicletaId", UUID.randomUUID(),
                 "sucursalId", UUID.randomUUID(),
-                "tipoTrabajo", "mantencion",
+                "tipoTrabajo", UUID.randomUUID(),
                 "prioridad", "media"
         ));
     }
