@@ -6,6 +6,7 @@ import com.veloservice.config.security.JwtTokenProvider;
 import com.veloservice.ordenes.application.dto.OrdenCatalogoResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateResult;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
+import com.veloservice.ordenes.application.dto.OrdenProductoResult;
 import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.shared.application.exception.ResourceNotFoundException;
@@ -26,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.math.BigDecimal;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -225,6 +227,37 @@ class OrdenControllerErrorHandlingTest {
     }
 
     @Test
+    void obtenerDetalleReturnsProductEditableFields() throws Exception {
+        UUID ordenId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+        UUID productoId = UUID.randomUUID();
+        when(ordenService.obtenerDetalle("OT-000001"))
+                .thenReturn(detalleResult(ordenId, List.of(new OrdenProductoResult(
+                        lineId,
+                        productoId,
+                        "Cadena Shimano",
+                        "CAD-001",
+                        2,
+                        new BigDecimal("12500.00"),
+                        new BigDecimal("11000.00"),
+                        "Nota editable",
+                        true
+                ))));
+
+        mockMvc.perform(get("/ordenes/OT-000001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productos[0].id").value(lineId.toString()))
+                .andExpect(jsonPath("$.productos[0].productoId").value(productoId.toString()))
+                .andExpect(jsonPath("$.productos[0].nombre").value("Cadena Shimano"))
+                .andExpect(jsonPath("$.productos[0].sku").value("CAD-001"))
+                .andExpect(jsonPath("$.productos[0].cantidad").value(2))
+                .andExpect(jsonPath("$.productos[0].precioVenta").value(12500.00))
+                .andExpect(jsonPath("$.productos[0].precioAplicado").value(11000.00))
+                .andExpect(jsonPath("$.productos[0].notas").value("Nota editable"))
+                .andExpect(jsonPath("$.productos[0].proporcionadoPorCliente").value(true));
+    }
+
+    @Test
     void actualizarMapsProductosCambiosToUnifiedCommand() throws Exception {
         UUID ordenId = UUID.randomUUID();
         UUID productoId = UUID.randomUUID();
@@ -282,6 +315,10 @@ class OrdenControllerErrorHandlingTest {
     }
 
     private OrdenDetalleResult detalleResult(UUID ordenId) {
+        return detalleResult(ordenId, List.of());
+    }
+
+    private OrdenDetalleResult detalleResult(UUID ordenId, List<OrdenProductoResult> productos) {
         return new OrdenDetalleResult(
                 ordenId,
                 "OT-000001",
@@ -321,7 +358,7 @@ class OrdenControllerErrorHandlingTest {
                 "media",
                 List.of(),
                 List.of(),
-                List.of(),
+                productos,
                 List.of()
         );
     }

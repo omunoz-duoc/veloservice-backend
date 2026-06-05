@@ -9,5 +9,8 @@ public record OrdenProductoResult(
         String nombre,
         String sku,
         Integer cantidad,
-        BigDecimal precioVenta
+        BigDecimal precioVenta,
+        BigDecimal precioAplicado,
+        String notas,
+        Boolean proporcionadoPorCliente
 ) {}

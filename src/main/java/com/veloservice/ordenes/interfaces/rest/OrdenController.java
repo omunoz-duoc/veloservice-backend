@@ -269,7 +269,15 @@ public class OrdenController {
         List<OrdenDetalleResponse.ProductoResponse> productos = result.productos() != null
             ? result.productos().stream()
             .map(p -> new OrdenDetalleResponse.ProductoResponse(
-                p.id(), p.productoId(), p.nombre(), p.sku(), p.cantidad(), p.precioVenta()
+                p.id(),
+                p.productoId(),
+                p.nombre(),
+                p.sku(),
+                p.cantidad(),
+                p.precioVenta(),
+                p.precioAplicado(),
+                p.notas(),
+                p.proporcionadoPorCliente()
             ))
             .toList()
             : List.of();
@@ -436,7 +444,10 @@ public class OrdenController {
                 result.nombre(),
                 result.sku(),
                 result.cantidad(),
-                result.precioVenta()
+                result.precioVenta(),
+                result.precioAplicado(),
+                result.notas(),
+                result.proporcionadoPorCliente()
         );
     }
 

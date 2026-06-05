@@ -55,7 +55,10 @@ public interface OrdenProductoRepository extends JpaRepository<OrdenProducto, UU
             p.nombre,
             p.sku,
             op.cantidad,
-            op.precioVentaSnapshot
+            op.precioVentaSnapshot,
+            op.precioAplicado,
+            op.notas,
+            op.proporcionadoPorCliente
         )
         FROM OrdenProducto op
         JOIN com.veloservice.inventario.domain.model.Producto p ON p.id = op.productoId
@@ -71,7 +74,10 @@ public interface OrdenProductoRepository extends JpaRepository<OrdenProducto, UU
             p.nombre,
             p.sku,
             op.cantidad,
-            op.precioVentaSnapshot
+            op.precioVentaSnapshot,
+            op.precioAplicado,
+            op.notas,
+            op.proporcionadoPorCliente
         )
         FROM OrdenProducto op
         JOIN com.veloservice.inventario.domain.model.Producto p ON p.id = op.productoId
