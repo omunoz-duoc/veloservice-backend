@@ -75,6 +75,14 @@ public class ProductoService {
 
     @TenantOperation
     @Transactional(readOnly = true)
+    public List<ProductoResult> listarBySucursal(UUID sucursalId) {
+        return productoRepository.findBySucursalId(sucursalId).stream()
+                .map(producto -> toResult(producto, resolveCategoriaNombre(producto.getCategoriaId())))
+                .collect(Collectors.toList());
+    }
+
+    @TenantOperation
+    @Transactional(readOnly = true)
     public List<ProductoResult> buscar(String query) {
         if (query == null || query.isBlank()) {
             return listar();

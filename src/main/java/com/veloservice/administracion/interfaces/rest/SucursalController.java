@@ -9,11 +9,9 @@ import com.veloservice.administracion.interfaces.mapper.SucursalMapper;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
 
 @RestController
@@ -27,11 +25,9 @@ public class SucursalController {
      * Lista todas las sucursales 
      */
     @GetMapping
-    public ResponseEntity<Map<String, Object>> listar() {
+    public ResponseEntity<List<SucursalRespone>> listar() {
         List<SucursalRespone> sucursales = SucursalMapper.toResponseList(sucursalService.listar());
-        return ResponseEntity.ok(Map.of(
-                "sucursales", sucursales
-        ));
+        return ResponseEntity.ok(sucursales);
     }
     
 }

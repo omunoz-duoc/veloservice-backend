@@ -29,6 +29,7 @@ class ProductoSearchControllerTest {
     @MockBean private ProductoService productoService;
     @MockBean private JwtTokenProvider jwtTokenProvider;
     @MockBean private UsuarioRepository usuarioRepository;
+    @MockBean private com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository sucursalRepository;
 
     @Test
     void searchReturnsFilteredProducts() throws Exception {

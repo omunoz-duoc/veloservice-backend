@@ -9,6 +9,7 @@ public interface UsuarioPort {
     // Optional<UsuarioRef> findByIdAndSucursal(UUID id, UUID sucursalId);
     void setActivo(UUID id, UUID sucursalId, boolean activo);
     void setRol(UUID id, UUID sucursalId, String rolNombre);
+    List<UsuarioRef> findMecanicosBySucursalId(UUID sucursalId);
 
     record UsuarioRef(UUID id, String nombre, String apellido) {}
 }

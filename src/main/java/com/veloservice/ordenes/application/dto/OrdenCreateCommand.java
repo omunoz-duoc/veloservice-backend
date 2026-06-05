@@ -22,7 +22,7 @@ public class OrdenCreateCommand {
     private UUID bicicletaId;
     private BicicletaCreateCommand bicicletaNueva;
     private UUID sucursalId;
-    private String tipoTrabajo;
+    private UUID tipoTrabajo;
     private PrioridadOrdenEnum prioridad;
     private UUID mecanicoId;
     private LocalDate fechaPrometida;

@@ -7,9 +7,14 @@ import com.veloservice.inventario.interfaces.rest.dto.InventarioMetricasResponse
 import com.veloservice.inventario.interfaces.rest.dto.ProductoRequest;
 import com.veloservice.inventario.interfaces.rest.dto.ProductoResponse;
 import com.veloservice.inventario.interfaces.rest.dto.ProductoStockMinimoResponse;
+import com.veloservice.inventario.interfaces.rest.dto.ProductosListResponse;
+import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
+import com.veloservice.config.tenant.SucursalContext;
+import com.veloservice.config.tenant.TallerContext;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -31,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProductoController {
 
     private final ProductoService productoService;
+    private final SucursalRepository sucursalRepository;
 
     /**
      * Creates a product.
@@ -98,6 +104,31 @@ public class ProductoController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=productos.csv")
                 .contentType(MediaType.TEXT_PLAIN)
                 .body(csv.toString());
+    }
+
+    @GetMapping("/lista-productos")
+    public ResponseEntity<ProductosListResponse> listaProductos(
+            @RequestParam(required = false) UUID sucursalId) {
+
+        UUID resolvedSucursalId;
+        if (sucursalId != null) {
+            if (!sucursalRepository.existsByIdAndTallerId(sucursalId, TallerContext.getCurrentTaller())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            resolvedSucursalId = sucursalId;
+        } else {
+            resolvedSucursalId = SucursalContext.getCurrentSucursal();
+        }
+
+        if (resolvedSucursalId == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        List<ProductosListResponse.ProductoListItem> items = productoService.listarBySucursal(resolvedSucursalId)
+                .stream()
+                .map(p -> new ProductosListResponse.ProductoListItem(p.getId(), p.getNombre(), p.getPrecioVenta(), p.getStock()))
+                .toList();
+        return ResponseEntity.ok(new ProductosListResponse(items));
     }
 
     private String csvEscape(String value) {

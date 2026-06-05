@@ -6,6 +6,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
+
 
 /**
  * Repository for the order type catalog.
@@ -13,4 +15,5 @@ import java.util.UUID;
 @Repository
 public interface TipoOrdenRepository extends JpaRepository<TipoOrden, UUID> {
     Optional<TipoOrden> findByCodigo(String codigo);
+    List<TipoOrden> findListById(UUID id);
 }

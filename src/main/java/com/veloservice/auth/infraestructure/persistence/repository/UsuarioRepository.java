@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+
 @Repository
 public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
 
@@ -42,4 +43,17 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
     //         """)
     // List<Usuario> findMecanicosBySucursalIdAndActivo(@Param("sucursalId") UUID sucursalId,
     //                                                  @Param("activo") Boolean activo);
+
+    @Query("""
+            SELECT u FROM Usuario u
+            JOIN u.rol r
+            WHERE r.nombre = 'mecanico'
+              AND u.activo = true
+              AND u.id IN (
+                  SELECT us.usuarioId FROM UsuarioSucursal us
+                  WHERE us.sucursalId = :sucursalId
+              )
+            ORDER BY u.apellido ASC, u.nombre ASC
+            """)
+    List<Usuario> findMecanicosBySucursalId(@Param("sucursalId") UUID sucursalId);
 }

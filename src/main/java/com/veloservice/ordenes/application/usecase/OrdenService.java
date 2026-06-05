@@ -315,7 +315,7 @@ public class OrdenService {
 
         EstadoOrden estado = estadoOrdenRepository.findByCodigo("recibida")
                 .orElseThrow(() -> new IllegalStateException("Estado 'recibida' no configurado"));
-        TipoOrden tipo = tipoOrdenRepository.findByCodigo(command.getTipoTrabajo())
+        TipoOrden tipo = tipoOrdenRepository.findById(command.getTipoTrabajo())
                 .orElseThrow(() -> new ResourceNotFoundException("Tipo de orden no encontrado: " + command.getTipoTrabajo()));
 
         String numeroOrden = secuenciaService.generarNumeroOrden(tallerId);
@@ -538,6 +538,10 @@ public class OrdenService {
      * @param id
      * @return
      */
+    public List<TipoOrden> listarTipos() {
+        return tipoOrdenRepository.findAll();
+    }
+
     private Optional<UUID> parseUuid(String id) {
         try {
             return Optional.of(UUID.fromString(id));

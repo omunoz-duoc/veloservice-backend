@@ -21,8 +21,8 @@ public class OrdenCreateRequest {
     private BicicletaCreateRequest bicicletaNueva;
     private UUID sucursalId;
 
-    @NotBlank
-    private String tipoTrabajo;
+    @NotNull
+    private UUID tipoTrabajo;
     @NotNull
     private PrioridadOrdenEnum prioridad;
     private UUID mecanicoId;

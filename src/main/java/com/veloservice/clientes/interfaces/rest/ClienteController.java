@@ -7,6 +7,7 @@ import com.veloservice.clientes.interfaces.rest.dto.ClienteBusquedaResponse;
 import com.veloservice.clientes.interfaces.rest.dto.ClienteRequest;
 import com.veloservice.clientes.interfaces.rest.dto.ClienteResponse;
 import com.veloservice.clientes.interfaces.rest.dto.ClienteResumenResponse;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteListItem;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -74,6 +75,17 @@ public class ClienteController {
     @GetMapping("/resumen")
     public ResponseEntity<List<ClienteResumenResponse>> listarResumen() {
         return ResponseEntity.ok(List.of()); // TODO: implementar listarResumen en ClienteService
+    }
+
+    @GetMapping("/lista-clientes")
+    public ResponseEntity<List<ClienteListItem>> listaClientes() {
+        List<ClienteListItem> items = clienteService.listar().stream()
+                .map(c -> new ClienteListItem(
+                        c.getId(),
+                        (c.getNombre() + " " + (c.getApellido() != null ? c.getApellido() : "")).trim(),
+                        c.getRut()))
+                .toList();
+        return ResponseEntity.ok(items);
     }
 
     /**
