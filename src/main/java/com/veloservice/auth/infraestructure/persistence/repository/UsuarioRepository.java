@@ -21,6 +21,16 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
     boolean existsByEmail(String email);
 
     @Query("""
+            select count(u) > 0
+            from Usuario u
+            join u.rol r
+            where u.id = :id
+              and u.activo = true
+              and lower(r.nombre) = 'mecanico'
+            """)
+    boolean existsActiveMecanicoById(@Param("id") UUID id);
+
+    @Query("""
             select u
             from Usuario u
             join fetch u.rol r

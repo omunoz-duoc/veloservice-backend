@@ -69,7 +69,7 @@ public class CobroService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal subtotalProductos = productos.stream()
-                .map(OrdenProducto::getPrecioAplicado)
+                .map(producto -> producto.getPrecioAplicado().multiply(BigDecimal.valueOf(producto.getCantidad())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal descuentoMembresia = BigDecimal.ZERO;

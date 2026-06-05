@@ -17,4 +17,6 @@ public interface EstadoOrdenCatalogRepository extends JpaRepository<EstadoOrden,
     Optional<EstadoOrden> findByCodigo(String codigo);
 
     List<EstadoOrden> findByCodigoIn(Collection<String> codigos);
+
+    List<EstadoOrden> findAllByOrderByOrdenAsc();
 }

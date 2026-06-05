@@ -1,6 +1,7 @@
 package com.veloservice.ordenes.application.usecase;
 
 import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.clientes.application.usecase.BicicletaService;
 import com.veloservice.clientes.application.usecase.ClienteService;
 import com.veloservice.clientes.domain.model.Bicicleta;
@@ -11,11 +12,15 @@ import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
+import com.veloservice.ordenes.application.dto.OrdenDetalleBaseResult;
+import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoResult;
+import com.veloservice.ordenes.application.dto.OrdenProductoUpdateCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
+import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
 import com.veloservice.ordenes.domain.model.EstadoOrden;
 import com.veloservice.ordenes.domain.model.Orden;
@@ -80,6 +85,7 @@ class OrdenServiceCreateScopeTest {
     @Mock private BicicletaRepository bicicletaRepository;
     @Mock private ClienteRepository clienteRepository;
     @Mock private SucursalRepository sucursalRepository;
+    @Mock private UsuarioRepository usuarioRepository;
 
     private OrdenService ordenService;
 
@@ -102,7 +108,8 @@ class OrdenServiceCreateScopeTest {
                 bicicletaService,
                 bicicletaRepository,
                 clienteRepository,
-                sucursalRepository
+                sucursalRepository,
+                usuarioRepository
         );
     }
 
@@ -205,7 +212,7 @@ class OrdenServiceCreateScopeTest {
         SucursalContext.setCurrentSucursal(UUID.randomUUID());
 
         assertThatThrownBy(() -> ordenService.cambiarEstado("OT-000001", new OrdenEstadoChangeCommand("en_diagnostico", null)))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(BadRequestException.class)
                 .hasMessage("Contexto de usuario requerido");
 
         verifyNoInteractions(ordenEstadoRepository);
@@ -230,6 +237,358 @@ class OrdenServiceCreateScopeTest {
     }
 
     @Test
+    void actualizarWithEstadoCodigoUpdatesStateAndCreatesHistory() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID estadoAnteriorId = UUID.randomUUID();
+        UUID estadoNuevoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        UsuarioContext.setCurrentUser(usuarioId);
+        Orden orden = Orden.builder()
+                .id(ordenId)
+                .sucursalId(sucursalId)
+                .estadoId(estadoAnteriorId)
+                .build();
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(orden));
+        given(estadoOrdenRepository.findByCodigo("esperando_repuestos"))
+                .willReturn(Optional.of(EstadoOrden.builder().id(estadoNuevoId).codigo("esperando_repuestos").build()));
+        stubDetalle(ordenId, sucursalId, estadoNuevoId, UUID.randomUUID(), null, null);
+
+        ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                "esperando_repuestos",
+                "Cambio de estado desde panel web",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        ));
+
+        assertThat(orden.getEstadoId()).isEqualTo(estadoNuevoId);
+        assertThat(orden.getUpdatedAt()).isNotNull();
+        verify(ordenRepository).save(orden);
+        ArgumentCaptor<OrdenEstado> historyCaptor = ArgumentCaptor.forClass(OrdenEstado.class);
+        verify(ordenEstadoRepository).save(historyCaptor.capture());
+        assertThat(historyCaptor.getValue().getOrdenId()).isEqualTo(ordenId);
+        assertThat(historyCaptor.getValue().getUsuarioId()).isEqualTo(usuarioId);
+        assertThat(historyCaptor.getValue().getEstadoAnteriorId()).isEqualTo(estadoAnteriorId);
+        assertThat(historyCaptor.getValue().getEstadoNuevoId()).isEqualTo(estadoNuevoId);
+        assertThat(historyCaptor.getValue().getObservacion()).isEqualTo("Cambio de estado desde panel web");
+    }
+
+    @Test
+    void actualizarWithFullPayloadPersistsEditableFields() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID estadoAnteriorId = UUID.randomUUID();
+        UUID estadoNuevoId = UUID.randomUUID();
+        UUID tipoNuevoId = UUID.randomUUID();
+        UUID mecanicoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        UsuarioContext.setCurrentUser(usuarioId);
+        Orden orden = Orden.builder()
+                .id(ordenId)
+                .sucursalId(sucursalId)
+                .estadoId(estadoAnteriorId)
+                .prioridad("media")
+                .build();
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(orden));
+        given(estadoOrdenRepository.findByCodigo("esperando_repuestos"))
+                .willReturn(Optional.of(EstadoOrden.builder().id(estadoNuevoId).codigo("esperando_repuestos").build()));
+        given(tipoOrdenRepository.findByCodigo("revision"))
+                .willReturn(Optional.of(TipoOrden.builder().id(tipoNuevoId).codigo("revision").build()));
+        given(usuarioRepository.existsActiveMecanicoById(mecanicoId)).willReturn(true);
+        stubDetalle(ordenId, sucursalId, estadoNuevoId, tipoNuevoId, mecanicoId, "baja");
+
+        ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                "esperando_repuestos",
+                "Cambio de estado desde panel web",
+                "revision",
+                "baja",
+                mecanicoId,
+                null,
+                null,
+                null
+        ));
+
+        assertThat(orden.getEstadoId()).isEqualTo(estadoNuevoId);
+        assertThat(orden.getTipoId()).isEqualTo(tipoNuevoId);
+        assertThat(orden.getPrioridad()).isEqualTo("baja");
+        assertThat(orden.getMecanicoId()).isEqualTo(mecanicoId);
+        verify(ordenRepository).save(orden);
+        verify(ordenEstadoRepository).save(any(OrdenEstado.class));
+    }
+
+    @Test
+    void actualizarRejectsUrgentePriorityBeforePersisting() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(Orden.builder()
+                        .id(ordenId)
+                        .sucursalId(sucursalId)
+                        .prioridad("media")
+                        .build()));
+
+        assertThatThrownBy(() -> ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null,
+                null,
+                null,
+                "urgente",
+                null,
+                null,
+                null,
+                null
+        )))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Prioridad invalida: urgente");
+
+        verifyNoInteractions(estadoOrdenRepository);
+        verifyNoInteractions(tipoOrdenRepository);
+        verifyNoInteractions(ordenEstadoRepository);
+    }
+
+    @Test
+    void catalogosReturnEstadosTiposAndSupportedPrioridades() {
+        given(estadoOrdenRepository.findAllByOrderByOrdenAsc()).willReturn(List.of(
+                EstadoOrden.builder().codigo("recibida").nombre("Recibida").orden(1).esFinal(false).build(),
+                EstadoOrden.builder().codigo("entregada").nombre("Entregada").orden(7).esFinal(true).build()
+        ));
+        given(tipoOrdenRepository.findAllByOrderByCodigoAsc()).willReturn(List.of(
+                TipoOrden.builder().codigo("mantencion").nombre("Mantencion").activo(true).build(),
+                TipoOrden.builder().codigo("reparacion").nombre("Reparacion").activo(true).build()
+        ));
+
+        assertThat(ordenService.listarEstadosCatalogo())
+                .extracting("codigo")
+                .containsExactly("recibida", "entregada");
+        assertThat(ordenService.listarTiposCatalogo())
+                .extracting("codigo")
+                .containsExactly("mantencion", "reparacion");
+        assertThat(ordenService.listarPrioridadesCatalogo())
+                .extracting("codigo")
+                .containsExactly("baja", "media", "alta");
+    }
+
+    @Test
+    void actualizarWithProductosAgregarPersistsLineItemsAndReturnsUpdatedDetail() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID productoId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+        UUID estadoId = UUID.randomUUID();
+        UUID tipoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        Orden orden = Orden.builder()
+                .id(ordenId)
+                .sucursalId(sucursalId)
+                .estadoId(estadoId)
+                .tipoId(tipoId)
+                .prioridad("media")
+                .build();
+        Producto producto = Producto.builder()
+                .id(productoId)
+                .sucursalId(sucursalId)
+                .precioCosto(new BigDecimal("7000.00"))
+                .precioVenta(new BigDecimal("12500.00"))
+                .activo(true)
+                .build();
+        OrdenProductoResult productoResult = new OrdenProductoResult(
+                lineId, productoId, "Cadena Shimano HG601 11v", "CAD-001", 2, new BigDecimal("12500.00")
+        );
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(orden));
+        given(productoRepository.findById(productoId)).willReturn(Optional.of(producto));
+        given(ordenProductoRepository.saveAll(anyList())).willAnswer(invocation -> {
+            List<OrdenProducto> saved = invocation.getArgument(0);
+            saved.getFirst().setId(lineId);
+            return saved;
+        });
+        given(ordenProductoRepository.findResultByIdIn(List.of(lineId))).willReturn(List.of(productoResult));
+        stubDetalle(ordenId, sucursalId, estadoId, tipoId, null, "media");
+        given(ordenProductoRepository.findResultByOrdenId(ordenId)).willReturn(List.of(productoResult));
+
+        OrdenDetalleResult result = ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(new OrdenProductoAddCommand(productoId, 2, false, "Instalar desde drawer")),
+                null,
+                null
+        ));
+
+        assertThat(result.productos()).containsExactly(productoResult);
+        assertThat(orden.getUpdatedAt()).isNotNull();
+        verify(ordenRepository).save(orden);
+        ArgumentCaptor<List<OrdenProducto>> captor = ArgumentCaptor.forClass(List.class);
+        verify(ordenProductoRepository).saveAll(captor.capture());
+        OrdenProducto saved = captor.getValue().getFirst();
+        assertThat(saved.getOrdenId()).isEqualTo(ordenId);
+        assertThat(saved.getProductoId()).isEqualTo(productoId);
+        assertThat(saved.getCantidad()).isEqualTo(2);
+        assertThat(saved.getPrecioCostoSnapshot()).isEqualByComparingTo("7000.00");
+        assertThat(saved.getPrecioVentaSnapshot()).isEqualByComparingTo("12500.00");
+        assertThat(saved.getPrecioAplicado()).isEqualByComparingTo("12500.00");
+        assertThat(saved.getProporcionadoPorCliente()).isFalse();
+        assertThat(saved.getNotas()).isEqualTo("Instalar desde drawer");
+    }
+
+    @Test
+    void actualizarWithProductosAgregarRejectsInvalidQuantity() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID productoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(Orden.builder().id(ordenId).sucursalId(sucursalId).build()));
+
+        assertThatThrownBy(() -> ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(new OrdenProductoAddCommand(productoId, 0, false, null)),
+                null,
+                null
+        )))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Cantidad de producto debe ser mayor o igual a 1");
+
+        verifyNoInteractions(productoRepository);
+        verifyNoInteractions(ordenProductoRepository);
+    }
+
+    @Test
+    void actualizarWithProductosActualizarEditsQuantityAndNotesKeepingSnapshots() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID productoId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+        UUID estadoId = UUID.randomUUID();
+        UUID tipoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        Orden orden = Orden.builder().id(ordenId).sucursalId(sucursalId).estadoId(estadoId).tipoId(tipoId).build();
+        OrdenProducto lineItem = OrdenProducto.builder()
+                .id(lineId)
+                .ordenId(ordenId)
+                .productoId(productoId)
+                .cantidad(1)
+                .precioCostoSnapshot(new BigDecimal("7000.00"))
+                .precioVentaSnapshot(new BigDecimal("12500.00"))
+                .precioAplicado(new BigDecimal("12500.00"))
+                .proporcionadoPorCliente(false)
+                .notas("Nota original")
+                .build();
+        Producto producto = Producto.builder()
+                .id(productoId)
+                .sucursalId(sucursalId)
+                .activo(true)
+                .stock(5)
+                .build();
+        OrdenProductoResult productoResult = new OrdenProductoResult(
+                lineId, productoId, "Cadena Shimano HG601 11v", "CAD-001", 3, new BigDecimal("12500.00")
+        );
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(orden));
+        given(ordenProductoRepository.findByIdAndOrdenId(lineId, ordenId)).willReturn(Optional.of(lineItem));
+        given(productoRepository.findById(productoId)).willReturn(Optional.of(producto));
+        stubDetalle(ordenId, sucursalId, estadoId, tipoId, null, "media");
+        given(ordenProductoRepository.findResultByOrdenId(ordenId)).willReturn(List.of(productoResult));
+
+        OrdenDetalleResult result = ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(new OrdenProductoUpdateCommand(lineId, 3, true, "Nueva nota")),
+                null
+        ));
+
+        assertThat(result.productos()).containsExactly(productoResult);
+        assertThat(lineItem.getCantidad()).isEqualTo(3);
+        assertThat(lineItem.getNotas()).isEqualTo("Nueva nota");
+        assertThat(lineItem.getProporcionadoPorCliente()).isTrue();
+        assertThat(lineItem.getPrecioVentaSnapshot()).isEqualByComparingTo("12500.00");
+        assertThat(lineItem.getPrecioAplicado()).isEqualByComparingTo("12500.00");
+        verify(ordenProductoRepository).saveAll(List.of(lineItem));
+        verify(ordenRepository).save(orden);
+    }
+
+    @Test
+    void actualizarWithProductosEliminarDeletesLineItemsFromOrder() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID productoId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+        UUID estadoId = UUID.randomUUID();
+        UUID tipoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        Orden orden = Orden.builder().id(ordenId).sucursalId(sucursalId).estadoId(estadoId).tipoId(tipoId).build();
+        OrdenProducto lineItem = OrdenProducto.builder()
+                .id(lineId)
+                .ordenId(ordenId)
+                .productoId(productoId)
+                .cantidad(1)
+                .build();
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(orden));
+        given(ordenProductoRepository.deleteByIdAndOrdenId(lineId, ordenId)).willReturn(1);
+        stubDetalle(ordenId, sucursalId, estadoId, tipoId, null, "media");
+
+        ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(lineId)
+        ));
+
+        verify(ordenProductoRepository).deleteByIdAndOrdenId(lineId, ordenId);
+        verify(ordenRepository).save(orden);
+    }
+
+    @Test
+    void actualizarWithProductosAgregarRejectsInsufficientStock() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID productoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(Orden.builder().id(ordenId).sucursalId(sucursalId).build()));
+        given(productoRepository.findById(productoId))
+                .willReturn(Optional.of(Producto.builder()
+                        .id(productoId)
+                        .sucursalId(sucursalId)
+                        .activo(true)
+                        .stock(1)
+                        .build()));
+
+        assertThatThrownBy(() -> ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(new OrdenProductoAddCommand(productoId, 2, false, null)),
+                null,
+                null
+        )))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Stock insuficiente para producto: " + productoId);
+
+        verifyNoInteractions(ordenProductoRepository);
+    }
+
+    @Test
     void agregarProductosStoresSnapshotsAndReturnsCreatedRows() {
         UUID tallerId = UUID.randomUUID();
         UUID sucursalId = UUID.randomUUID();
@@ -243,6 +602,7 @@ class OrdenServiceCreateScopeTest {
                 .sucursalId(sucursalId)
                 .precioCosto(new BigDecimal("7000.00"))
                 .precioVenta(new BigDecimal("12500.00"))
+                .activo(true)
                 .build();
         given(ordenRepository.findById(ordenId)).willReturn(Optional.of(orden));
         given(productoRepository.findById(productoId)).willReturn(Optional.of(producto));
@@ -337,13 +697,42 @@ class OrdenServiceCreateScopeTest {
         given(ordenRepository.findById(ordenId))
                 .willReturn(Optional.of(Orden.builder().id(ordenId).tallerId(tallerId).sucursalId(sucursalId).build()));
         given(productoRepository.findById(productoId))
-                .willReturn(Optional.of(Producto.builder().id(productoId).sucursalId(UUID.randomUUID()).build()));
+                .willReturn(Optional.of(Producto.builder()
+                        .id(productoId)
+                        .sucursalId(UUID.randomUUID())
+                        .activo(true)
+                        .build()));
 
         assertThatThrownBy(() -> ordenService.agregarProductos(ordenId, List.of(
                 new OrdenProductoAddCommand(productoId, 1, false, null)
         )))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("Producto " + productoId + " no pertenece a la sucursal de esta orden");
+
+        verifyNoInteractions(ordenProductoRepository);
+    }
+
+    @Test
+    void agregarProductosRejectsInactiveProduct() {
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID productoId = UUID.randomUUID();
+        TallerContext.setCurrentTaller(tallerId);
+        given(ordenRepository.findById(ordenId))
+                .willReturn(Optional.of(Orden.builder().id(ordenId).tallerId(tallerId).sucursalId(sucursalId).build()));
+        given(productoRepository.findById(productoId))
+                .willReturn(Optional.of(Producto.builder()
+                        .id(productoId)
+                        .sucursalId(sucursalId)
+                        .activo(false)
+                        .build()));
+
+        assertThatThrownBy(() -> ordenService.agregarProductos(ordenId, List.of(
+                new OrdenProductoAddCommand(productoId, 1, false, null)
+        )))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Producto no encontrado: " + productoId);
 
         verifyNoInteractions(ordenProductoRepository);
     }
@@ -356,5 +745,51 @@ class OrdenServiceCreateScopeTest {
                 .tipoTrabajo("mantencion")
                 .prioridad(PrioridadOrdenEnum.media)
                 .build();
+    }
+
+    private void stubDetalle(UUID ordenId, UUID sucursalId, UUID estadoId, UUID tipoId, UUID mecanicoId, String prioridad) {
+        given(ordenRepository.findDetalleBaseByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(new OrdenDetalleBaseResult(
+                        ordenId,
+                        "OT-000001",
+                        UUID.randomUUID(),
+                        sucursalId,
+                        estadoId,
+                        "esperando_repuestos",
+                        "Esperando repuestos",
+                        tipoId,
+                        "revision",
+                        "Revision",
+                        null,
+                        null,
+                        null,
+                        "Diagnostico",
+                        null,
+                        null,
+                        UUID.randomUUID(),
+                        "Trek",
+                        "Domane",
+                        "Ruta",
+                        "Rojo",
+                        "SN-001",
+                        null,
+                        null,
+                        null,
+                        null,
+                        UUID.randomUUID(),
+                        "Cliente",
+                        "Demo",
+                        "+569",
+                        "cliente@example.com",
+                        "11.111.111-1",
+                        mecanicoId,
+                        mecanicoId != null ? "Diego" : null,
+                        mecanicoId != null ? "Pizarro" : null,
+                        prioridad
+                )));
+        given(comentarioRepository.findResultByOrdenId(ordenId)).willReturn(List.of());
+        given(multimediaRepository.findResultByOrdenId(ordenId)).willReturn(List.of());
+        given(ordenProductoRepository.findResultByOrdenId(ordenId)).willReturn(List.of());
+        given(ordenServicioRepository.findResultByOrdenId(ordenId)).willReturn(List.of());
     }
 }
