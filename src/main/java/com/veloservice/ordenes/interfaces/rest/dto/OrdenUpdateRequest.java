@@ -4,7 +4,6 @@ import jakarta.validation.Valid;
 import lombok.Data;
 
 import java.util.List;
-import lombok.Data;
 
 import java.util.UUID;
 
@@ -19,6 +18,8 @@ public class OrdenUpdateRequest {
     private List<OrdenProductoCambioRequest> productosCambios;
     @Valid
     private List<OrdenProductoCambioRequest> productos;
+    @Valid
+    private List<OrdenServicioCambioRequest> serviciosCambios;
     @Valid
     private List<OrdenProductoAddRequest> productosAgregar;
     @Valid

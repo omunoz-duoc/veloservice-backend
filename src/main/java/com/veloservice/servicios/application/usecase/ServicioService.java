@@ -9,6 +9,7 @@ import com.veloservice.servicios.domain.model.SucursalServicio;
 import com.veloservice.servicios.infraestructure.persistence.repository.ServicioRepository;
 import com.veloservice.servicios.infraestructure.persistence.repository.SucursalServicioRepository;
 import com.veloservice.config.tenant.SucursalContext;
+import com.veloservice.config.tenant.TallerContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +27,11 @@ public class ServicioService {
 
     @Transactional(readOnly = true)
         public List<ServicioResult> listar() {
-        return servicioRepository.findAll().stream()
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            throw new IllegalStateException("Taller no presente en contexto");
+        }
+        return servicioRepository.findByTallerIdAndActivoTrueOrderByNombreAsc(tallerId).stream()
             .map(this::toResult)
             .collect(Collectors.toList());
     }

@@ -1,6 +1,7 @@
 package com.veloservice.ordenes.infraestructure.persistence.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -9,6 +10,7 @@ import com.veloservice.ordenes.application.dto.OrdenServicioResult;
 import com.veloservice.ordenes.domain.model.OrdenServicio;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -24,6 +26,18 @@ public interface OrdenServicioRepository extends JpaRepository<OrdenServicio, UU
      */
     List<OrdenServicio> findByOrdenId(UUID ordenId);
 
+    Optional<OrdenServicio> findByIdAndOrdenId(UUID id, UUID ordenId);
+
+    Optional<OrdenServicio> findByOrdenIdAndServicioId(UUID ordenId, UUID servicioId);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+        DELETE FROM OrdenServicio os
+        WHERE os.id = :id
+          AND os.ordenId = :ordenId
+        """)
+    int deleteByIdAndOrdenId(@Param("id") UUID id, @Param("ordenId") UUID ordenId);
+
     /**
      * Encuentra todos los servicios asociados a una orden
      */
@@ -32,7 +46,10 @@ public interface OrdenServicioRepository extends JpaRepository<OrdenServicio, UU
             os.id,
             os.servicioId,
             s.nombre,
-            os.precioBaseSnapshot
+            os.precioBaseSnapshot,
+            os.precioAplicado,
+            os.descuentoAplicado,
+            os.notas
         )
         FROM OrdenServicio os
         JOIN com.veloservice.servicios.domain.model.Servicio s ON s.id = os.servicioId
@@ -46,7 +63,10 @@ public interface OrdenServicioRepository extends JpaRepository<OrdenServicio, UU
             os.id,
             os.servicioId,
             s.nombre,
-            os.precioBaseSnapshot
+            os.precioBaseSnapshot,
+            os.precioAplicado,
+            os.descuentoAplicado,
+            os.notas
         )
         FROM OrdenServicio os
         JOIN com.veloservice.servicios.domain.model.Servicio s ON s.id = os.servicioId

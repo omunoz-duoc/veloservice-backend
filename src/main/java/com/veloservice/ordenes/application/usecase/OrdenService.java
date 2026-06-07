@@ -30,6 +30,7 @@ import com.veloservice.ordenes.application.dto.OrdenProductoUpdateCommand;
 import com.veloservice.ordenes.application.dto.OrdenReadResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
+import com.veloservice.ordenes.application.dto.OrdenServicioUpdateCommand;
 import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
@@ -52,6 +53,7 @@ import com.veloservice.servicios.domain.model.SucursalServicio;
 import com.veloservice.servicios.infraestructure.persistence.repository.ServicioRepository;
 import com.veloservice.servicios.infraestructure.persistence.repository.SucursalServicioRepository;
 import com.veloservice.shared.application.exception.BadRequestException;
+import com.veloservice.shared.application.exception.ConflictException;
 import com.veloservice.shared.application.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -63,9 +65,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -313,6 +317,24 @@ public class OrdenService {
             changed = true;
         }
 
+        if (hasItems(command.getServiciosAgregar())) {
+            validarOrdenPermiteModificarServicios(orden);
+            agregarServiciosAOrden(orden, command.getServiciosAgregar(), now);
+            changed = true;
+        }
+
+        if (hasItems(command.getServiciosActualizar())) {
+            validarOrdenPermiteModificarServicios(orden);
+            actualizarServiciosAOrden(orden, command.getServiciosActualizar());
+            changed = true;
+        }
+
+        if (hasItems(command.getServiciosEliminar())) {
+            validarOrdenPermiteModificarServicios(orden);
+            eliminarServiciosAOrden(orden, command.getServiciosEliminar());
+            changed = true;
+        }
+
         if (changed) {
             orden.setUpdatedAt(now);
             ordenRepository.save(orden);
@@ -420,28 +442,30 @@ public class OrdenService {
     @Transactional
     public List<OrdenServicioResult> agregarServicios(UUID ordenId, List<OrdenServicioAddCommand> items) {
         Orden orden = buscarOrdenPorIdParaMutacion(ordenId);
+        validarOrdenPermiteModificarServicios(orden);
         OffsetDateTime now = OffsetDateTime.now();
+        return agregarServiciosAOrden(orden, items, now);
+    }
 
+    private List<OrdenServicioResult> agregarServiciosAOrden(Orden orden, List<OrdenServicioAddCommand> items, OffsetDateTime now) {
+        Set<UUID> serviciosEnRequest = new HashSet<>();
         List<OrdenServicio> lineItems = items.stream()
                 .map(item -> {
-                    Servicio servicio = servicioRepository.findById(item.getServicioId())
-                            .orElseThrow(() -> new ResourceNotFoundException(
-                                    "Servicio no encontrado: " + item.getServicioId()
-                            ));
-                    if (!servicio.getTallerId().equals(orden.getTallerId())) {
-                        throw new ResourceNotFoundException(
-                                "Servicio " + item.getServicioId() + " no pertenece al taller de esta orden"
-                        );
+                    if (item.getServicioId() == null) {
+                        throw new BadRequestException("servicioId es requerido");
+                    }
+                    if (!serviciosEnRequest.add(item.getServicioId())) {
+                        throw new ConflictException("Servicio ya asociado a la orden: " + item.getServicioId());
+                    }
+                    if (ordenServicioRepository.findByOrdenIdAndServicioId(orden.getId(), item.getServicioId()).isPresent()) {
+                        throw new ConflictException("Servicio ya asociado a la orden: " + item.getServicioId());
                     }
 
-                    BigDecimal precioBase = sucursalServicioRepository
-                            .findBySucursalIdAndServicioId(orden.getSucursalId(), item.getServicioId())
-                            .map(SucursalServicio::getPrecioPersonalizado)
-                            .filter(precio -> precio != null)
-                            .orElse(servicio.getPrecioBase());
+                    Servicio servicio = buscarServicioDisponible(item.getServicioId(), orden.getTallerId());
+                    BigDecimal precioBase = resolverPrecioServicio(orden, item.getServicioId(), servicio);
 
                     return OrdenServicio.builder()
-                            .ordenId(ordenId)
+                            .ordenId(orden.getId())
                             .servicioId(item.getServicioId())
                             .precioBaseSnapshot(precioBase)
                             .precioAplicado(precioBase)
@@ -457,6 +481,47 @@ public class OrdenService {
         Map<UUID, OrdenServicioResult> resultsById = ordenServicioRepository.findResultByIdIn(ids).stream()
                 .collect(Collectors.toMap(OrdenServicioResult::id, Function.identity()));
         return ids.stream().map(resultsById::get).toList();
+    }
+
+    private void actualizarServiciosAOrden(Orden orden, List<OrdenServicioUpdateCommand> items) {
+        List<OrdenServicio> lineItems = items.stream()
+                .map(item -> {
+                    if (item.getId() == null) {
+                        throw new BadRequestException("id de servicio asociado es requerido");
+                    }
+                    OrdenServicio lineItem = ordenServicioRepository.findByIdAndOrdenId(item.getId(), orden.getId())
+                            .orElseThrow(() -> new ResourceNotFoundException(
+                                    "Servicio asociado no encontrado: " + item.getId()
+                            ));
+
+                    if (item.getPrecioAplicado() != null) {
+                        validarMontoNoNegativo(item.getPrecioAplicado(), "precioAplicado");
+                        lineItem.setPrecioAplicado(item.getPrecioAplicado());
+                    }
+                    if (item.getDescuentoAplicado() != null) {
+                        validarMontoNoNegativo(item.getDescuentoAplicado(), "descuentoAplicado");
+                        lineItem.setDescuentoAplicado(item.getDescuentoAplicado());
+                    }
+                    if (item.getNotas() != null) {
+                        lineItem.setNotas(item.getNotas());
+                    }
+                    return lineItem;
+                })
+                .toList();
+
+        ordenServicioRepository.saveAll(lineItems);
+    }
+
+    private void eliminarServiciosAOrden(Orden orden, List<UUID> lineItemIds) {
+        for (UUID lineItemId : lineItemIds) {
+            if (lineItemId == null) {
+                throw new BadRequestException("id de servicio asociado es requerido");
+            }
+            int deleted = ordenServicioRepository.deleteByIdAndOrdenId(lineItemId, orden.getId());
+            if (deleted == 0) {
+                throw new ResourceNotFoundException("Servicio asociado no encontrado: " + lineItemId);
+            }
+        }
     }
 
     private OrdenCreateResult crearEnSucursal(OrdenCreateCommand command, UUID tallerId, UUID sucursalId) {
@@ -726,6 +791,28 @@ public class OrdenService {
         return producto;
     }
 
+    private Servicio buscarServicioDisponible(UUID servicioId, UUID tallerId) {
+        Servicio servicio = servicioRepository.findById(servicioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado: " + servicioId));
+        if (!Boolean.TRUE.equals(servicio.getActivo())) {
+            throw new ResourceNotFoundException("Servicio no encontrado: " + servicioId);
+        }
+        if (!servicio.getTallerId().equals(tallerId)) {
+            throw new ResourceNotFoundException(
+                    "Servicio " + servicioId + " no pertenece al taller de esta orden"
+            );
+        }
+        return servicio;
+    }
+
+    private BigDecimal resolverPrecioServicio(Orden orden, UUID servicioId, Servicio servicio) {
+        return sucursalServicioRepository
+                .findBySucursalIdAndServicioId(orden.getSucursalId(), servicioId)
+                .map(SucursalServicio::getPrecioPersonalizado)
+                .filter(precio -> precio != null)
+                .orElse(servicio.getPrecioBase());
+    }
+
     private void validarCantidad(Integer cantidad) {
         if (cantidad == null || cantidad < 1) {
             throw new BadRequestException("Cantidad de producto debe ser mayor o igual a 1");
@@ -741,6 +828,12 @@ public class OrdenService {
         }
     }
 
+    private void validarMontoNoNegativo(BigDecimal value, String field) {
+        if (value.signum() < 0) {
+            throw new BadRequestException(field + " debe ser mayor o igual a 0");
+        }
+    }
+
     private void validarOrdenPermiteModificarProductos(Orden orden) {
         if (orden.getEstadoId() == null) {
             return;
@@ -751,6 +844,19 @@ public class OrdenService {
                         || EstadoOrdenEnum.cancelada.name().equals(codigo))
                 .ifPresent(codigo -> {
                     throw new BadRequestException("No se pueden modificar productos de una orden " + codigo);
+                });
+    }
+
+    private void validarOrdenPermiteModificarServicios(Orden orden) {
+        if (orden.getEstadoId() == null) {
+            return;
+        }
+        estadoOrdenRepository.findById(orden.getEstadoId())
+                .map(EstadoOrden::getCodigo)
+                .filter(codigo -> EstadoOrdenEnum.entregada.name().equals(codigo)
+                        || EstadoOrdenEnum.cancelada.name().equals(codigo))
+                .ifPresent(codigo -> {
+                    throw new BadRequestException("No se pueden modificar servicios de una orden " + codigo);
                 });
     }
 

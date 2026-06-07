@@ -17,4 +17,7 @@ public class OrdenUpdateCommand {
     private List<OrdenProductoAddCommand> productosAgregar;
     private List<OrdenProductoUpdateCommand> productosActualizar;
     private List<UUID> productosEliminar;
+    private List<OrdenServicioAddCommand> serviciosAgregar;
+    private List<OrdenServicioUpdateCommand> serviciosActualizar;
+    private List<UUID> serviciosEliminar;
 }

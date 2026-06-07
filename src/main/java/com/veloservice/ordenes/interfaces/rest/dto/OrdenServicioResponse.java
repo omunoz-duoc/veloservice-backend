@@ -7,5 +7,8 @@ public record OrdenServicioResponse(
         UUID id,
         UUID servicioId,
         String nombre,
-        BigDecimal precioBase
+        BigDecimal precioBase,
+        BigDecimal precioAplicado,
+        BigDecimal descuentoAplicado,
+        String notas
 ) {}
