@@ -46,7 +46,15 @@ public record OrdenDetalleResponse(
     ) {}
 
     public record ProductoResponse(
-        UUID id, UUID productoId, String nombre, String sku, Integer cantidad, BigDecimal precioVenta
+        UUID id,
+        UUID productoId,
+        String nombre,
+        String sku,
+        Integer cantidad,
+        BigDecimal precioVenta,
+        BigDecimal precioAplicado,
+        String notas,
+        Boolean proporcionadoPorCliente
     ) {}
 
     public record ServicioResponse(

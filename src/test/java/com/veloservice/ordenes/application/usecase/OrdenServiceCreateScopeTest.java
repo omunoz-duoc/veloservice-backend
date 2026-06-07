@@ -410,7 +410,15 @@ class OrdenServiceCreateScopeTest {
                 .activo(true)
                 .build();
         OrdenProductoResult productoResult = new OrdenProductoResult(
-                lineId, productoId, "Cadena Shimano HG601 11v", "CAD-001", 2, new BigDecimal("12500.00")
+                lineId,
+                productoId,
+                "Cadena Shimano HG601 11v",
+                "CAD-001",
+                2,
+                new BigDecimal("12500.00"),
+                new BigDecimal("12500.00"),
+                "Instalar desde drawer",
+                false
         );
         given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(orden));
         given(productoRepository.findById(productoId)).willReturn(Optional.of(producto));
@@ -510,7 +518,15 @@ class OrdenServiceCreateScopeTest {
                 .stock(5)
                 .build();
         OrdenProductoResult productoResult = new OrdenProductoResult(
-                lineId, productoId, "Cadena Shimano HG601 11v", "CAD-001", 3, new BigDecimal("12500.00")
+                lineId,
+                productoId,
+                "Cadena Shimano HG601 11v",
+                "CAD-001",
+                3,
+                new BigDecimal("12500.00"),
+                new BigDecimal("12500.00"),
+                "Nueva nota",
+                true
         );
         given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(orden));
         given(ordenProductoRepository.findByIdAndOrdenId(lineId, ordenId)).willReturn(Optional.of(lineItem));
@@ -876,7 +892,17 @@ class OrdenServiceCreateScopeTest {
             return saved;
         });
         given(ordenProductoRepository.findResultByIdIn(List.of(lineId))).willReturn(List.of(
-                new OrdenProductoResult(lineId, productoId, "Pastillas", "SKU-001", 2, new BigDecimal("12500.00"))
+                new OrdenProductoResult(
+                        lineId,
+                        productoId,
+                        "Pastillas",
+                        "SKU-001",
+                        2,
+                        new BigDecimal("12500.00"),
+                        new BigDecimal("12500.00"),
+                        "Cliente trajo repuesto",
+                        true
+                )
         ));
 
         List<OrdenProductoResult> result = ordenService.agregarProductos(ordenId, List.of(
@@ -884,7 +910,17 @@ class OrdenServiceCreateScopeTest {
         ));
 
         assertThat(result).containsExactly(
-                new OrdenProductoResult(lineId, productoId, "Pastillas", "SKU-001", 2, new BigDecimal("12500.00"))
+                new OrdenProductoResult(
+                        lineId,
+                        productoId,
+                        "Pastillas",
+                        "SKU-001",
+                        2,
+                        new BigDecimal("12500.00"),
+                        new BigDecimal("12500.00"),
+                        "Cliente trajo repuesto",
+                        true
+                )
         );
         ArgumentCaptor<List<OrdenProducto>> captor = ArgumentCaptor.forClass(List.class);
         verify(ordenProductoRepository).saveAll(captor.capture());

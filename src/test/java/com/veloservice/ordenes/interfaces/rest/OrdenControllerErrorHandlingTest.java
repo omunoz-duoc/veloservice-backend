@@ -6,7 +6,7 @@ import com.veloservice.config.security.JwtTokenProvider;
 import com.veloservice.ordenes.application.dto.OrdenCatalogoResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateResult;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
-import com.veloservice.ordenes.application.dto.OrdenServicioResult;
+import com.veloservice.ordenes.application.dto.OrdenProductoResult;
 import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.shared.application.exception.ResourceNotFoundException;
@@ -227,29 +227,34 @@ class OrdenControllerErrorHandlingTest {
     }
 
     @Test
-    void obtenerDetalleReturnsServiceEditableFields() throws Exception {
+    void obtenerDetalleReturnsProductEditableFields() throws Exception {
         UUID ordenId = UUID.randomUUID();
         UUID lineId = UUID.randomUUID();
-        UUID servicioId = UUID.randomUUID();
+        UUID productoId = UUID.randomUUID();
         when(ordenService.obtenerDetalle("OT-000001"))
-                .thenReturn(detalleResult(ordenId, List.of(new OrdenServicioResult(
+                .thenReturn(detalleResult(ordenId, List.of(new OrdenProductoResult(
                         lineId,
-                        servicioId,
-                        "Ajuste general",
-                        new BigDecimal("15000.00"),
-                        new BigDecimal("12000.00"),
-                        new BigDecimal("3000.00"),
-                        "Nota editable"
+                        productoId,
+                        "Cadena Shimano",
+                        "CAD-001",
+                        2,
+                        new BigDecimal("12500.00"),
+                        new BigDecimal("11000.00"),
+                        "Nota editable",
+                        true
                 ))));
 
         mockMvc.perform(get("/ordenes/OT-000001"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.servicios[0].id").value(lineId.toString()))
-                .andExpect(jsonPath("$.servicios[0].servicioId").value(servicioId.toString()))
-                .andExpect(jsonPath("$.servicios[0].precioBase").value(15000.00))
-                .andExpect(jsonPath("$.servicios[0].precioAplicado").value(12000.00))
-                .andExpect(jsonPath("$.servicios[0].descuentoAplicado").value(3000.00))
-                .andExpect(jsonPath("$.servicios[0].notas").value("Nota editable"));
+                .andExpect(jsonPath("$.productos[0].id").value(lineId.toString()))
+                .andExpect(jsonPath("$.productos[0].productoId").value(productoId.toString()))
+                .andExpect(jsonPath("$.productos[0].nombre").value("Cadena Shimano"))
+                .andExpect(jsonPath("$.productos[0].sku").value("CAD-001"))
+                .andExpect(jsonPath("$.productos[0].cantidad").value(2))
+                .andExpect(jsonPath("$.productos[0].precioVenta").value(12500.00))
+                .andExpect(jsonPath("$.productos[0].precioAplicado").value(11000.00))
+                .andExpect(jsonPath("$.productos[0].notas").value("Nota editable"))
+                .andExpect(jsonPath("$.productos[0].proporcionadoPorCliente").value(true));
     }
 
     @Test
@@ -366,7 +371,7 @@ class OrdenControllerErrorHandlingTest {
         return detalleResult(ordenId, List.of());
     }
 
-    private OrdenDetalleResult detalleResult(UUID ordenId, List<OrdenServicioResult> servicios) {
+    private OrdenDetalleResult detalleResult(UUID ordenId, List<OrdenProductoResult> productos) {
         return new OrdenDetalleResult(
                 ordenId,
                 "OT-000001",
@@ -406,8 +411,8 @@ class OrdenControllerErrorHandlingTest {
                 "media",
                 List.of(),
                 List.of(),
-                List.of(),
-                servicios
+                productos,
+                List.of()
         );
     }
 

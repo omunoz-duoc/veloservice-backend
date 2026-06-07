@@ -20,4 +20,7 @@ public class OrdenProductoResponse {
     private Integer cantidad;
     @JsonProperty("precioVenta")
     private BigDecimal precioVenta;
+    private BigDecimal precioAplicado;
+    private String notas;
+    private Boolean proporcionadoPorCliente;
 }
