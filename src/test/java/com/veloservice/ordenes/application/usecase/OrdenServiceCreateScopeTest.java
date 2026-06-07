@@ -20,6 +20,7 @@ import com.veloservice.ordenes.application.dto.OrdenProductoResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoUpdateCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
+import com.veloservice.ordenes.application.dto.OrdenServicioUpdateCommand;
 import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
 import com.veloservice.ordenes.domain.model.EstadoOrden;
@@ -42,6 +43,7 @@ import com.veloservice.servicios.domain.model.Servicio;
 import com.veloservice.servicios.domain.model.SucursalServicio;
 import com.veloservice.servicios.infraestructure.persistence.repository.SucursalServicioRepository;
 import com.veloservice.shared.application.exception.BadRequestException;
+import com.veloservice.shared.application.exception.ConflictException;
 import com.veloservice.shared.application.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -264,6 +266,9 @@ class OrdenServiceCreateScopeTest {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
         ));
 
@@ -312,6 +317,9 @@ class OrdenServiceCreateScopeTest {
                 mecanicoId,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null
         ));
 
@@ -340,6 +348,9 @@ class OrdenServiceCreateScopeTest {
                 null,
                 null,
                 "urgente",
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -428,6 +439,9 @@ class OrdenServiceCreateScopeTest {
                 null,
                 List.of(new OrdenProductoAddCommand(productoId, 2, false, "Instalar desde drawer")),
                 null,
+                null,
+                null,
+                null,
                 null
         ));
 
@@ -463,6 +477,9 @@ class OrdenServiceCreateScopeTest {
                 null,
                 null,
                 List.of(new OrdenProductoAddCommand(productoId, 0, false, null)),
+                null,
+                null,
+                null,
                 null,
                 null
         )))
@@ -525,6 +542,9 @@ class OrdenServiceCreateScopeTest {
                 null,
                 null,
                 List.of(new OrdenProductoUpdateCommand(lineId, 3, true, "Nueva nota")),
+                null,
+                null,
+                null,
                 null
         ));
 
@@ -566,11 +586,251 @@ class OrdenServiceCreateScopeTest {
                 null,
                 null,
                 null,
-                List.of(lineId)
+                List.of(lineId),
+                null,
+                null,
+                null
         ));
 
         verify(ordenProductoRepository).deleteByIdAndOrdenId(lineId, ordenId);
         verify(ordenRepository).save(orden);
+    }
+
+    @Test
+    void actualizarWithServiciosAgregarPersistsLineItemsAndReturnsUpdatedDetail() {
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID servicioId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+        UUID estadoId = UUID.randomUUID();
+        UUID tipoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        Orden orden = Orden.builder()
+                .id(ordenId)
+                .tallerId(tallerId)
+                .sucursalId(sucursalId)
+                .estadoId(estadoId)
+                .tipoId(tipoId)
+                .build();
+        Servicio servicio = Servicio.builder()
+                .id(servicioId)
+                .tallerId(tallerId)
+                .precioBase(new BigDecimal("15000.00"))
+                .activo(true)
+                .build();
+        OrdenServicioResult servicioResult = new OrdenServicioResult(
+                lineId,
+                servicioId,
+                "Ajuste general",
+                new BigDecimal("15000.00"),
+                new BigDecimal("15000.00"),
+                BigDecimal.ZERO,
+                "Servicio desde drawer"
+        );
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(orden));
+        given(ordenServicioRepository.findByOrdenIdAndServicioId(ordenId, servicioId)).willReturn(Optional.empty());
+        given(servicioRepository.findById(servicioId)).willReturn(Optional.of(servicio));
+        given(sucursalServicioRepository.findBySucursalIdAndServicioId(sucursalId, servicioId)).willReturn(Optional.empty());
+        given(ordenServicioRepository.saveAll(anyList())).willAnswer(invocation -> {
+            List<OrdenServicio> saved = invocation.getArgument(0);
+            saved.getFirst().setId(lineId);
+            return saved;
+        });
+        given(ordenServicioRepository.findResultByIdIn(List.of(lineId))).willReturn(List.of(servicioResult));
+        stubDetalle(ordenId, sucursalId, estadoId, tipoId, null, "media");
+        given(ordenServicioRepository.findResultByOrdenId(ordenId)).willReturn(List.of(servicioResult));
+
+        OrdenDetalleResult result = ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(new OrdenServicioAddCommand(servicioId, "Servicio desde drawer")),
+                null,
+                null
+        ));
+
+        assertThat(result.servicios()).containsExactly(servicioResult);
+        verify(ordenServicioRepository).saveAll(anyList());
+        verify(ordenRepository).save(orden);
+    }
+
+    @Test
+    void actualizarWithServiciosActualizarEditsNotesAndPrices() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID servicioId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+        UUID estadoId = UUID.randomUUID();
+        UUID tipoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        Orden orden = Orden.builder().id(ordenId).sucursalId(sucursalId).estadoId(estadoId).tipoId(tipoId).build();
+        OrdenServicio lineItem = OrdenServicio.builder()
+                .id(lineId)
+                .ordenId(ordenId)
+                .servicioId(servicioId)
+                .precioBaseSnapshot(new BigDecimal("15000.00"))
+                .precioAplicado(new BigDecimal("15000.00"))
+                .descuentoAplicado(BigDecimal.ZERO)
+                .notas("Nota original")
+                .build();
+        OrdenServicioResult servicioResult = new OrdenServicioResult(
+                lineId,
+                servicioId,
+                "Ajuste general",
+                new BigDecimal("15000.00"),
+                new BigDecimal("12000.00"),
+                new BigDecimal("3000.00"),
+                "Nueva nota"
+        );
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(orden));
+        given(ordenServicioRepository.findByIdAndOrdenId(lineId, ordenId)).willReturn(Optional.of(lineItem));
+        stubDetalle(ordenId, sucursalId, estadoId, tipoId, null, "media");
+        given(ordenServicioRepository.findResultByOrdenId(ordenId)).willReturn(List.of(servicioResult));
+
+        OrdenDetalleResult result = ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(new OrdenServicioUpdateCommand(lineId, new BigDecimal("12000.00"), new BigDecimal("3000.00"), "Nueva nota")),
+                null
+        ));
+
+        assertThat(result.servicios()).containsExactly(servicioResult);
+        assertThat(lineItem.getPrecioAplicado()).isEqualByComparingTo("12000.00");
+        assertThat(lineItem.getDescuentoAplicado()).isEqualByComparingTo("3000.00");
+        assertThat(lineItem.getNotas()).isEqualTo("Nueva nota");
+        verify(ordenServicioRepository).saveAll(List.of(lineItem));
+        verify(ordenRepository).save(orden);
+    }
+
+    @Test
+    void actualizarWithServiciosEliminarDeletesLineItemsFromOrder() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+        UUID estadoId = UUID.randomUUID();
+        UUID tipoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        Orden orden = Orden.builder().id(ordenId).sucursalId(sucursalId).estadoId(estadoId).tipoId(tipoId).build();
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)).willReturn(Optional.of(orden));
+        given(ordenServicioRepository.deleteByIdAndOrdenId(lineId, ordenId)).willReturn(1);
+        stubDetalle(ordenId, sucursalId, estadoId, tipoId, null, "media");
+
+        ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(lineId)
+        ));
+
+        verify(ordenServicioRepository).deleteByIdAndOrdenId(lineId, ordenId);
+        verify(ordenRepository).save(orden);
+    }
+
+    @Test
+    void actualizarWithServiciosEliminarRejectsLineFromAnotherOrder() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(Orden.builder().id(ordenId).sucursalId(sucursalId).build()));
+        given(ordenServicioRepository.deleteByIdAndOrdenId(lineId, ordenId)).willReturn(0);
+
+        assertThatThrownBy(() -> ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(lineId)
+        )))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Servicio asociado no encontrado: " + lineId);
+    }
+
+    @Test
+    void actualizarWithServiciosAgregarRejectsServiceFromAnotherTaller() {
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID servicioId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(Orden.builder().id(ordenId).tallerId(tallerId).sucursalId(sucursalId).build()));
+        given(ordenServicioRepository.findByOrdenIdAndServicioId(ordenId, servicioId)).willReturn(Optional.empty());
+        given(servicioRepository.findById(servicioId))
+                .willReturn(Optional.of(Servicio.builder().id(servicioId).tallerId(UUID.randomUUID()).activo(true).build()));
+
+        assertThatThrownBy(() -> ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(new OrdenServicioAddCommand(servicioId, null)),
+                null,
+                null
+        )))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Servicio " + servicioId + " no pertenece al taller de esta orden");
+    }
+
+    @Test
+    void actualizarWithServiciosAgregarRejectsDuplicateService() {
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID servicioId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(Orden.builder().id(ordenId).tallerId(tallerId).sucursalId(sucursalId).build()));
+        given(ordenServicioRepository.findByOrdenIdAndServicioId(ordenId, servicioId))
+                .willReturn(Optional.of(OrdenServicio.builder().id(lineId).ordenId(ordenId).servicioId(servicioId).build()));
+
+        assertThatThrownBy(() -> ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(new OrdenServicioAddCommand(servicioId, null)),
+                null,
+                null
+        )))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("Servicio ya asociado a la orden: " + servicioId);
     }
 
     @Test
@@ -596,6 +856,9 @@ class OrdenServiceCreateScopeTest {
                 null,
                 null,
                 List.of(new OrdenProductoAddCommand(productoId, 2, false, null)),
+                null,
+                null,
+                null,
                 null,
                 null
         )))
@@ -686,6 +949,7 @@ class OrdenServiceCreateScopeTest {
                 .id(servicioId)
                 .tallerId(tallerId)
                 .precioBase(new BigDecimal("8500.00"))
+                .activo(true)
                 .build();
         SucursalServicio override = SucursalServicio.builder()
                 .sucursalId(sucursalId)
@@ -693,6 +957,7 @@ class OrdenServiceCreateScopeTest {
                 .precioPersonalizado(new BigDecimal("9900.00"))
                 .build();
         given(ordenRepository.findById(ordenId)).willReturn(Optional.of(orden));
+        given(ordenServicioRepository.findByOrdenIdAndServicioId(ordenId, servicioId)).willReturn(Optional.empty());
         given(servicioRepository.findById(servicioId)).willReturn(Optional.of(servicio));
         given(sucursalServicioRepository.findBySucursalIdAndServicioId(sucursalId, servicioId))
                 .willReturn(Optional.of(override));
@@ -702,7 +967,15 @@ class OrdenServiceCreateScopeTest {
             return saved;
         });
         given(ordenServicioRepository.findResultByIdIn(List.of(lineId))).willReturn(List.of(
-                new OrdenServicioResult(lineId, servicioId, "Ajuste de frenos", new BigDecimal("9900.00"))
+                new OrdenServicioResult(
+                        lineId,
+                        servicioId,
+                        "Ajuste de frenos",
+                        new BigDecimal("9900.00"),
+                        new BigDecimal("9900.00"),
+                        BigDecimal.ZERO,
+                        "Ajustar delantero"
+                )
         ));
 
         List<OrdenServicioResult> result = ordenService.agregarServicios(ordenId, List.of(
@@ -710,7 +983,15 @@ class OrdenServiceCreateScopeTest {
         ));
 
         assertThat(result).containsExactly(
-                new OrdenServicioResult(lineId, servicioId, "Ajuste de frenos", new BigDecimal("9900.00"))
+                new OrdenServicioResult(
+                        lineId,
+                        servicioId,
+                        "Ajuste de frenos",
+                        new BigDecimal("9900.00"),
+                        new BigDecimal("9900.00"),
+                        BigDecimal.ZERO,
+                        "Ajustar delantero"
+                )
         );
         ArgumentCaptor<List<OrdenServicio>> captor = ArgumentCaptor.forClass(List.class);
         verify(ordenServicioRepository).saveAll(captor.capture());

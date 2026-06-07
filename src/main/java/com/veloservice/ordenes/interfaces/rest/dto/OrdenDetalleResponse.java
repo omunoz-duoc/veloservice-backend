@@ -57,5 +57,13 @@ public record OrdenDetalleResponse(
         Boolean proporcionadoPorCliente
     ) {}
 
-    public record ServicioResponse(UUID id, UUID servicioId, String nombre, BigDecimal precioBase) {}
+    public record ServicioResponse(
+        UUID id,
+        UUID servicioId,
+        String nombre,
+        BigDecimal precioBase,
+        BigDecimal precioAplicado,
+        BigDecimal descuentoAplicado,
+        String notas
+    ) {}
 }

@@ -314,6 +314,59 @@ class OrdenControllerErrorHandlingTest {
         assert org.assertj.core.api.Assertions.assertThat(command.getProductosEliminar()).containsExactly(eliminarLineaId) != null;
     }
 
+    @Test
+    void actualizarMapsServiciosCambiosToUnifiedCommand() throws Exception {
+        UUID ordenId = UUID.randomUUID();
+        UUID servicioId = UUID.randomUUID();
+        UUID actualizarLineaId = UUID.randomUUID();
+        UUID eliminarLineaId = UUID.randomUUID();
+        when(ordenService.actualizar(ArgumentMatchers.eq(ordenId.toString()), any(OrdenUpdateCommand.class)))
+                .thenReturn(detalleResult(ordenId));
+
+        String body = objectMapper.writeValueAsString(Map.of(
+                "serviciosCambios", List.of(
+                        Map.of(
+                                "accion", "AGREGAR",
+                                "servicioId", servicioId,
+                                "notas", "opcional"
+                        ),
+                        Map.of(
+                                "accion", "ACTUALIZAR",
+                                "lineaId", actualizarLineaId,
+                                "precioAplicado", 12000,
+                                "descuentoAplicado", 3000,
+                                "notas", "nueva"
+                        ),
+                        Map.of(
+                                "accion", "ELIMINAR",
+                                "lineaId", eliminarLineaId
+                        )
+                )
+        ));
+
+        mockMvc.perform(patch("/ordenes/{id}", ordenId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<OrdenUpdateCommand> captor = ArgumentCaptor.forClass(OrdenUpdateCommand.class);
+        verify(ordenService).actualizar(ArgumentMatchers.eq(ordenId.toString()), captor.capture());
+        OrdenUpdateCommand command = captor.getValue();
+        assert org.assertj.core.api.Assertions.assertThat(command.getServiciosAgregar()).singleElement()
+                .satisfies(item -> {
+                    org.assertj.core.api.Assertions.assertThat(item.getServicioId()).isEqualTo(servicioId);
+                    org.assertj.core.api.Assertions.assertThat(item.getNotas()).isEqualTo("opcional");
+                }) != null;
+        assert org.assertj.core.api.Assertions.assertThat(command.getServiciosActualizar()).singleElement()
+                .satisfies(item -> {
+                    org.assertj.core.api.Assertions.assertThat(item.getId()).isEqualTo(actualizarLineaId);
+                    org.assertj.core.api.Assertions.assertThat(item.getPrecioAplicado()).isEqualByComparingTo("12000");
+                    org.assertj.core.api.Assertions.assertThat(item.getDescuentoAplicado()).isEqualByComparingTo("3000");
+                    org.assertj.core.api.Assertions.assertThat(item.getNotas()).isEqualTo("nueva");
+                }) != null;
+        assert org.assertj.core.api.Assertions.assertThat(command.getServiciosEliminar()).containsExactly(eliminarLineaId) != null;
+    }
+
     private OrdenDetalleResult detalleResult(UUID ordenId) {
         return detalleResult(ordenId, List.of());
     }
