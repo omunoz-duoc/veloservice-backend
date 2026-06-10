@@ -142,4 +142,13 @@ public class ProductoController {
         }
         return escaped;
     }
+
+    @GetMapping("/stock-bajo")
+    public ResponseEntity<Map<String, Object>> stockBajo() {
+    List<ProductoResponse> productos = ProductoMapper.toResponseList(productoService.alertasStockBajo());
+    return ResponseEntity.ok(Map.of(
+            "total", productos.size(),
+            "productos", productos
+    ));
+}
 }
