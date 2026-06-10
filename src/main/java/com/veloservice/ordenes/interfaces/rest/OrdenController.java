@@ -83,12 +83,12 @@ public class OrdenController {
      * @param request
      * @return
      */
-    public record TipoOrdenResponse(String id, String nombre) {}
+    public record TipoOrdenResponse(String id, String codigo, String nombre) {}
 
     @GetMapping("/tipos")
     public ResponseEntity<List<TipoOrdenResponse>> listarTipos() {
         List<TipoOrdenResponse> tipos = ordenService.listarTipos().stream()
-                .map(t -> new TipoOrdenResponse(t.getId().toString(), t.getNombre()))
+                .map(t -> new TipoOrdenResponse(t.getId().toString(), t.getCodigo(), t.getNombre()))
                 .toList();
         return ResponseEntity.ok(tipos);
     }
@@ -110,6 +110,15 @@ public class OrdenController {
     @GetMapping
     public ResponseEntity<OrdenReadListResponse> listar(@RequestParam(required = false) UUID sucursalId) {
         List<OrdenReadResponse> ordenes = ordenService.listar(sucursalId).stream()
+                .map(this::toResponse)
+                .toList();
+        return ResponseEntity.ok(new OrdenReadListResponse(ordenes.size(), ordenes));
+    }
+
+    @GetMapping("/urgentes")
+    public ResponseEntity<OrdenReadListResponse> listarUrgentes(@RequestParam(required = false) UUID sucursalId) {
+        List<OrdenReadResponse> ordenes = ordenService.listar(sucursalId).stream()
+                .filter(orden -> isPrioridadUrgente(orden.prioridad()))
                 .map(this::toResponse)
                 .toList();
         return ResponseEntity.ok(new OrdenReadListResponse(ordenes.size(), ordenes));
@@ -164,7 +173,11 @@ public class OrdenController {
      * @param id
      * @return
      */
-    @GetMapping("/{id}")
+    @GetMapping({
+            "/{id:[0-9a-fA-F-]{36}}",
+            "/{id:[Oo][Tt]-[A-Za-z0-9-]{1,40}}",
+            "/{id:[Aa][Pp]-[A-Za-z0-9-]{1,40}}"
+    })
     public ResponseEntity<OrdenDetalleResponse> obtener(@PathVariable String id) {
         return ResponseEntity.ok(toDetalleResponse(ordenService.obtenerDetalle(id)));
     }
@@ -707,6 +720,12 @@ public class OrdenController {
                 result.nombre(),
                 result.orden(),
                 result.activo()
+        );
+    }
+
+    private boolean isPrioridadUrgente(String prioridad) {
+        return prioridad != null && (
+                "alta".equalsIgnoreCase(prioridad) || "urgente".equalsIgnoreCase(prioridad)
         );
     }
 

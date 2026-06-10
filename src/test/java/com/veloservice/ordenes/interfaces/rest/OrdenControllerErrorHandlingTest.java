@@ -12,8 +12,10 @@ import com.veloservice.ordenes.application.dto.MultimediaResult;
 import com.veloservice.ordenes.application.dto.MultimediaConfirmationResult;
 import com.veloservice.ordenes.application.dto.MultimediaPresignResult;
 import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
+import com.veloservice.ordenes.application.dto.OrdenReadResult;
 import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.application.usecase.OrdenService;
+import com.veloservice.ordenes.domain.model.TipoOrden;
 import com.veloservice.shared.application.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -37,6 +39,7 @@ import java.time.OffsetDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -70,6 +73,17 @@ class OrdenControllerErrorHandlingTest {
     }
 
     @Test
+    void obtenerByNumeroOrdenStillWorks() throws Exception {
+        UUID ordenId = UUID.randomUUID();
+        when(ordenService.obtenerDetalle("OT-000001"))
+                .thenReturn(detalleResult(ordenId));
+
+        mockMvc.perform(get("/ordenes/OT-000001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numeroOrden").value("OT-000001"));
+    }
+
+    @Test
     void metricasReturnsMobileCounters() throws Exception {
         when(ordenService.metricas(null)).thenReturn(new OrdenMetricasResult(3, 8, 2, 24));
 
@@ -79,6 +93,61 @@ class OrdenControllerErrorHandlingTest {
                 .andExpect(jsonPath("$.enProceso").value(8))
                 .andExpect(jsonPath("$.listas").value(2))
                 .andExpect(jsonPath("$.entregadas").value(24));
+    }
+
+    @Test
+    void listarUrgentesReturnsAltaAndUrgenteOrdersWithListContract() throws Exception {
+        when(ordenService.listar(null)).thenReturn(List.of(
+                ordenReadResult("OT-000001", "alta"),
+                ordenReadResult("OT-000002", "urgente"),
+                ordenReadResult("OT-000003", "media")
+        ));
+
+        mockMvc.perform(get("/ordenes/urgentes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.ordenes[0].numeroOrden").value("OT-000001"))
+                .andExpect(jsonPath("$.ordenes[0].prioridad").value("alta"))
+                .andExpect(jsonPath("$.ordenes[1].numeroOrden").value("OT-000002"))
+                .andExpect(jsonPath("$.ordenes[1].prioridad").value("urgente"));
+
+        verify(ordenService).listar(null);
+        verify(ordenService, never()).obtenerDetalle("urgentes");
+    }
+
+    @Test
+    void listarUrgentesAcceptsSucursalIdAndDoesNotEnterIdHandler() throws Exception {
+        UUID sucursalId = UUID.randomUUID();
+        when(ordenService.listar(sucursalId)).thenReturn(List.of(
+                ordenReadResult("OT-000001", "alta")
+        ));
+
+        mockMvc.perform(get("/ordenes/urgentes").param("sucursalId", sucursalId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.ordenes[0].numeroOrden").value("OT-000001"));
+
+        verify(ordenService).listar(sucursalId);
+        verify(ordenService, never()).obtenerDetalle("urgentes");
+    }
+
+    @Test
+    void listarTiposIncludesCodigoForFrontendContract() throws Exception {
+        UUID tipoId = UUID.randomUUID();
+        when(ordenService.listarTipos()).thenReturn(List.of(
+                TipoOrden.builder()
+                        .id(tipoId)
+                        .codigo("mantencion")
+                        .nombre("Mantencion")
+                        .activo(true)
+                        .build()
+        ));
+
+        mockMvc.perform(get("/ordenes/tipos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(tipoId.toString()))
+                .andExpect(jsonPath("$[0].codigo").value("mantencion"))
+                .andExpect(jsonPath("$[0].nombre").value("Mantencion"));
     }
 
     @Test
@@ -604,6 +673,46 @@ class OrdenControllerErrorHandlingTest {
                 List.of(),
                 productos,
                 List.of()
+        );
+    }
+
+    private OrdenReadResult ordenReadResult(String numeroOrden, String prioridad) {
+        return new OrdenReadResult(
+                UUID.randomUUID(),
+                numeroOrden,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "recibida",
+                "Recibida",
+                UUID.randomUUID(),
+                "mantencion",
+                "Mantencion",
+                OffsetDateTime.parse("2026-06-08T10:00:00-04:00"),
+                null,
+                null,
+                "Diagnostico",
+                null,
+                null,
+                UUID.randomUUID(),
+                "Trek",
+                "Domane",
+                "Ruta",
+                "700c",
+                "Rojo",
+                "SN-001",
+                2024,
+                "Notas",
+                UUID.randomUUID(),
+                "Cliente",
+                "Demo",
+                "+569",
+                "cliente@example.com",
+                "11.111.111-1",
+                null,
+                null,
+                null,
+                prioridad
         );
     }
 
