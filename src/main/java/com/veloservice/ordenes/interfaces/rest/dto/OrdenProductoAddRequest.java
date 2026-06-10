@@ -2,6 +2,7 @@ package com.veloservice.ordenes.interfaces.rest.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.util.UUID;
@@ -17,5 +18,6 @@ public class OrdenProductoAddRequest {
     @Min(1)
     private Integer cantidad;
     private Boolean proporcionadoPorCliente = false;
+    @Size(max = 1000)
     private String notas;
 }

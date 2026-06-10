@@ -18,6 +18,8 @@ import java.util.UUID;
  */
 @Repository
 public interface OrdenServicioRepository extends JpaRepository<OrdenServicio, UUID> {
+    boolean existsByOrdenId(UUID ordenId);
+
     /**
      * Lists services for a work order.
      *
@@ -49,10 +51,14 @@ public interface OrdenServicioRepository extends JpaRepository<OrdenServicio, UU
             os.precioBaseSnapshot,
             os.precioAplicado,
             os.descuentoAplicado,
-            os.notas
+            os.notas,
+            os.usuarioId,
+            COALESCE(CONCAT(u.nombre, ' ', u.apellido), 'Sistema'),
+            os.createdAt
         )
         FROM OrdenServicio os
         JOIN com.veloservice.servicios.domain.model.Servicio s ON s.id = os.servicioId
+        LEFT JOIN com.veloservice.auth.domain.model.Usuario u ON u.id = os.usuarioId
         WHERE os.ordenId = :ordenId
         ORDER BY os.createdAt ASC
         """)
@@ -66,11 +72,27 @@ public interface OrdenServicioRepository extends JpaRepository<OrdenServicio, UU
             os.precioBaseSnapshot,
             os.precioAplicado,
             os.descuentoAplicado,
-            os.notas
+            os.notas,
+            os.usuarioId,
+            COALESCE(CONCAT(u.nombre, ' ', u.apellido), 'Sistema'),
+            os.createdAt
         )
         FROM OrdenServicio os
         JOIN com.veloservice.servicios.domain.model.Servicio s ON s.id = os.servicioId
+        LEFT JOIN com.veloservice.auth.domain.model.Usuario u ON u.id = os.usuarioId
         WHERE os.id IN :ids
         """)
     List<OrdenServicioResult> findResultByIdIn(@Param("ids") List<UUID> ids);
+
+    @Query("""
+        SELECT s.nombre
+        FROM OrdenServicio os
+        JOIN com.veloservice.servicios.domain.model.Servicio s ON s.id = os.servicioId
+        WHERE os.ordenId = :ordenId
+        ORDER BY os.createdAt ASC
+        """)
+    List<String> findServiceNamesByOrder(@Param("ordenId") UUID ordenId);
+
+    @Query("SELECT COALESCE(SUM(os.precioAplicado), 0) FROM OrdenServicio os WHERE os.ordenId = :ordenId")
+    java.math.BigDecimal sumTotalByOrdenId(@Param("ordenId") UUID ordenId);
 }

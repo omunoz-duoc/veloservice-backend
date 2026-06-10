@@ -13,17 +13,22 @@ import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.TenantOperation;
 import com.veloservice.config.tenant.UsuarioContext;
+import com.veloservice.config.storage.R2Properties;
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import com.veloservice.ordenes.application.dto.ComentarioResult;
 import com.veloservice.ordenes.application.dto.MultimediaResult;
+import com.veloservice.ordenes.application.dto.MultimediaConfirmationResult;
+import com.veloservice.ordenes.application.dto.MultimediaPresignResult;
 import com.veloservice.ordenes.application.dto.OrdenCatalogoResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenDetalleBaseResult;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
+import com.veloservice.ordenes.application.dto.OrdenEstadoResult;
+import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoUpdateCommand;
@@ -32,6 +37,10 @@ import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioUpdateCommand;
 import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
+import com.veloservice.ordenes.application.port.MediaStoragePort;
+import com.veloservice.ordenes.application.port.R2StoragePort;
+import com.veloservice.ordenes.domain.EtapaMultimediaEnum;
+import com.veloservice.ordenes.domain.TipoArchivoEnum;
 import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
 import com.veloservice.ordenes.domain.model.EstadoOrden;
@@ -39,6 +48,8 @@ import com.veloservice.ordenes.domain.model.Orden;
 import com.veloservice.ordenes.domain.model.OrdenEstado;
 import com.veloservice.ordenes.domain.model.OrdenProducto;
 import com.veloservice.ordenes.domain.model.OrdenServicio;
+import com.veloservice.ordenes.domain.model.OrdenComentario;
+import com.veloservice.ordenes.domain.model.Multimedia;
 import com.veloservice.ordenes.domain.model.TipoOrden;
 import com.veloservice.ordenes.infraestructure.persistence.repository.ComentarioRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.EstadoOrdenCatalogRepository;
@@ -55,13 +66,15 @@ import com.veloservice.servicios.infraestructure.persistence.repository.Sucursal
 import com.veloservice.shared.application.exception.BadRequestException;
 import com.veloservice.shared.application.exception.ConflictException;
 import com.veloservice.shared.application.exception.ResourceNotFoundException;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.Duration;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.ArrayList;
@@ -73,9 +86,10 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.io.IOException;
+import java.util.Arrays;
 
 @Service
-@RequiredArgsConstructor
 public class OrdenService {
 
     private final OrdenRepository ordenRepository;
@@ -96,6 +110,84 @@ public class OrdenService {
     private final ClienteRepository clienteRepository;
     private final SucursalRepository sucursalRepository;
     private final UsuarioRepository usuarioRepository;
+    private final MediaStoragePort mediaStorage;
+    private final R2StoragePort r2Storage;
+    private final R2Properties r2Properties;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public OrdenService(
+            OrdenRepository ordenRepository,
+            ComentarioRepository comentarioRepository,
+            MultimediaRepository multimediaRepository,
+            EstadoOrdenCatalogRepository estadoOrdenRepository,
+            OrdenEstadoRepository ordenEstadoRepository,
+            TipoOrdenRepository tipoOrdenRepository,
+            ServicioRepository servicioRepository,
+            SucursalServicioRepository sucursalServicioRepository,
+            ProductoRepository productoRepository,
+            OrdenServicioRepository ordenServicioRepository,
+            OrdenProductoRepository ordenProductoRepository,
+            SecuenciaService secuenciaService,
+            ClienteService clienteService,
+            BicicletaService bicicletaService,
+            BicicletaRepository bicicletaRepository,
+            ClienteRepository clienteRepository,
+            SucursalRepository sucursalRepository,
+            UsuarioRepository usuarioRepository,
+            MediaStoragePort mediaStorage,
+            R2StoragePort r2Storage,
+            R2Properties r2Properties
+    ) {
+        this.ordenRepository = ordenRepository;
+        this.comentarioRepository = comentarioRepository;
+        this.multimediaRepository = multimediaRepository;
+        this.estadoOrdenRepository = estadoOrdenRepository;
+        this.ordenEstadoRepository = ordenEstadoRepository;
+        this.tipoOrdenRepository = tipoOrdenRepository;
+        this.servicioRepository = servicioRepository;
+        this.sucursalServicioRepository = sucursalServicioRepository;
+        this.productoRepository = productoRepository;
+        this.ordenServicioRepository = ordenServicioRepository;
+        this.ordenProductoRepository = ordenProductoRepository;
+        this.secuenciaService = secuenciaService;
+        this.clienteService = clienteService;
+        this.bicicletaService = bicicletaService;
+        this.bicicletaRepository = bicicletaRepository;
+        this.clienteRepository = clienteRepository;
+        this.sucursalRepository = sucursalRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.mediaStorage = mediaStorage;
+        this.r2Storage = r2Storage;
+        this.r2Properties = r2Properties;
+    }
+
+    public OrdenService(
+            OrdenRepository ordenRepository,
+            ComentarioRepository comentarioRepository,
+            MultimediaRepository multimediaRepository,
+            EstadoOrdenCatalogRepository estadoOrdenRepository,
+            OrdenEstadoRepository ordenEstadoRepository,
+            TipoOrdenRepository tipoOrdenRepository,
+            ServicioRepository servicioRepository,
+            SucursalServicioRepository sucursalServicioRepository,
+            ProductoRepository productoRepository,
+            OrdenServicioRepository ordenServicioRepository,
+            OrdenProductoRepository ordenProductoRepository,
+            SecuenciaService secuenciaService,
+            ClienteService clienteService,
+            BicicletaService bicicletaService,
+            BicicletaRepository bicicletaRepository,
+            ClienteRepository clienteRepository,
+            SucursalRepository sucursalRepository,
+            UsuarioRepository usuarioRepository
+    ) {
+        this(ordenRepository, comentarioRepository, multimediaRepository, estadoOrdenRepository,
+                ordenEstadoRepository, tipoOrdenRepository, servicioRepository,
+                sucursalServicioRepository, productoRepository, ordenServicioRepository,
+                ordenProductoRepository, secuenciaService, clienteService, bicicletaService,
+                bicicletaRepository, clienteRepository, sucursalRepository, usuarioRepository,
+                null, null, null);
+    }
 
     /**
      * Lista todas las órdenes asociadas al taller o sucursal actual. Si ambos contextos están presentes, se prioriza el contexto de 
@@ -105,17 +197,62 @@ public class OrdenService {
     @TenantOperation
     @Transactional(readOnly = true)
     public List<OrdenReadResult> listar() {
+        return listar(null);
+    }
+
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<OrdenReadResult> listar(UUID requestedSucursalId) {
+        UUID resolvedSucursalId = resolverSucursalConsulta(requestedSucursalId);
+        List<OrdenReadResult> results;
+        if (resolvedSucursalId != null) {
+            results = ordenRepository.findReadBySucursalId(resolvedSucursalId);
+        } else {
+            UUID tallerId = TallerContext.getCurrentTaller();
+            if (tallerId == null) {
+                throw new IllegalStateException("Contexto de taller o sucursal requerido");
+            }
+            results = ordenRepository.findReadByTallerId(tallerId);
+        }
+        return results.stream().map(this::enriquecerResumen).toList();
+    }
+
+    private UUID resolverSucursalConsulta(UUID requestedSucursalId) {
         UUID sucursalId = SucursalContext.getCurrentSucursal();
         if (sucursalId != null) {
-            return ordenRepository.findReadBySucursalId(sucursalId);
+            if (requestedSucursalId != null && !sucursalId.equals(requestedSucursalId)) {
+                throw new AccessDeniedException("Sucursal fuera del alcance autorizado");
+            }
+            return sucursalId;
         }
-
         UUID tallerId = TallerContext.getCurrentTaller();
-        if (tallerId != null) {
-            return ordenRepository.findReadByTallerId(tallerId);
+        if (requestedSucursalId != null) {
+            if (tallerId == null || !sucursalRepository.existsByIdAndTallerId(requestedSucursalId, tallerId)) {
+                throw new AccessDeniedException("Sucursal fuera del alcance autorizado");
+            }
+            return requestedSucursalId;
         }
+        return null;
+    }
 
-        throw new IllegalStateException("Contexto de taller o sucursal requerido");
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public OrdenMetricasResult metricas(UUID requestedSucursalId) {
+        UUID sucursalId = resolverSucursalConsulta(requestedSucursalId);
+        List<OrdenReadResult> orders = sucursalId != null
+                ? ordenRepository.findReadBySucursalId(sucursalId)
+                : ordenRepository.findReadByTallerId(TallerContext.getCurrentTaller());
+        long recibidas = countEstado(orders, "recibida");
+        long enProceso = orders.stream()
+                .filter(order -> Set.of("en_diagnostico", "esperando_repuestos", "en_reparacion", "control_calidad")
+                        .contains(order.estadoCodigo()))
+                .count();
+        return new OrdenMetricasResult(
+                recibidas,
+                enProceso,
+                countEstado(orders, "lista_para_entrega"),
+                countEstado(orders, "entregada")
+        );
     }
 
     @Transactional(readOnly = true)
@@ -143,7 +280,8 @@ public class OrdenService {
     }
 
     public List<OrdenCatalogoResult> listarPrioridadesCatalogo() {
-        return List.of(PrioridadOrdenEnum.baja, PrioridadOrdenEnum.media, PrioridadOrdenEnum.alta).stream()
+        return List.of(PrioridadOrdenEnum.baja, PrioridadOrdenEnum.media,
+                        PrioridadOrdenEnum.alta, PrioridadOrdenEnum.urgente).stream()
                 .map(prioridad -> new OrdenCatalogoResult(prioridad.name(), nombrePrioridad(prioridad), null, true))
                 .toList();
     }
@@ -194,6 +332,9 @@ public class OrdenService {
         List<MultimediaResult> multimedia = multimediaRepository.findResultByOrdenId(base.id());
         List<OrdenProductoResult> productos = ordenProductoRepository.findResultByOrdenId(base.id());
         List<OrdenServicioResult> servicios = ordenServicioRepository.findResultByOrdenId(base.id());
+        List<OrdenEstadoResult> historialEstados = ordenEstadoRepository.findResultByOrdenId(base.id());
+        String servicioResumen = servicios.isEmpty() ? null : servicios.getFirst().nombre();
+        BigDecimal montoTotal = calcularMontoTotal(base.id());
         return new OrdenDetalleResult(
             base.id(),
             base.numeroOrden(),
@@ -210,13 +351,141 @@ public class OrdenService {
             base.bicicletaId(), base.bicicletaMarca(), base.bicicletaModelo(), base.bicicletaTipo(), base.bicicletaColor(), base.bicicletaNumeroSerie(), base.bicicletaAro(), base.bicicletaAnio(), base.bicicletaFotoUrl(), base.bicicletaNotas(),
             base.clienteId(), base.clienteNombre(), base.clienteApellido(),
             base.clienteTelefono(), base.clienteEmail(), base.clienteRut(),
+            base.clienteDireccion(),
             base.mecanicoId(), base.mecanicoNombre(), base.mecanicoApellido(),
             base.prioridad(),
+            servicioResumen,
+            montoTotal,
             comentarios,
             multimedia,
             productos,
-            servicios
+            servicios,
+            historialEstados
         );
+    }
+
+    @TenantOperation
+    @Transactional
+    public ComentarioResult agregarComentario(String id, String texto) {
+        Orden orden = buscarOrdenParaMutacion(id);
+        String trimmed = texto == null ? "" : texto.trim();
+        if (trimmed.isEmpty() || trimmed.length() > 4000) {
+            throw new BadRequestException("texto debe contener entre 1 y 4000 caracteres");
+        }
+        OrdenComentario saved = comentarioRepository.save(OrdenComentario.builder()
+                .ordenId(orden.getId())
+                .usuarioId(requerirUsuarioContext())
+                .texto(trimmed)
+                .createdAt(OffsetDateTime.now())
+                .build());
+        return comentarioRepository.findResultById(saved.getId())
+                .orElseThrow(() -> new IllegalStateException("No fue posible leer el comentario creado"));
+    }
+
+    @TenantOperation
+    @Transactional
+    public MultimediaResult agregarMultimedia(
+            String id,
+            byte[] content,
+            String declaredContentType,
+            String descripcion,
+            String etapa
+    ) {
+        Orden orden = buscarOrdenParaMutacion(id);
+        MediaTypeInfo mediaType = validarMedia(content, declaredContentType);
+        EtapaMultimediaEnum etapaEnum = parseEtapa(etapa);
+        String descripcionNormalizada = normalizarOpcional(descripcion, 500, "descripcion");
+        MediaStoragePort.StoredMedia stored;
+        try {
+            stored = mediaStorage.store(orden.getTallerId(), orden.getId(), mediaType.mimeType(), content);
+        } catch (IOException ex) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Almacenamiento no disponible", ex);
+        }
+        try {
+            Multimedia saved = multimediaRepository.save(Multimedia.builder()
+                    .ordenId(orden.getId())
+                    .usuarioId(requerirUsuarioContext())
+                    .url(stored.url())
+                    .tipoArchivo(mediaType.mimeType())
+                    .etapa(etapaEnum)
+                    .descripcion(descripcionNormalizada)
+                    .createdAt(OffsetDateTime.now())
+                    .build());
+            return multimediaRepository.findResultById(saved.getId())
+                    .orElseThrow(() -> new IllegalStateException("No fue posible leer el archivo creado"));
+        } catch (RuntimeException ex) {
+            mediaStorage.delete(stored.key());
+            throw ex;
+        }
+    }
+
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public MultimediaPresignResult prepararMultimedia(String id, String tipoArchivo) {
+        Orden orden = buscarOrdenParaMutacion(id);
+        String mimeType = validarMimePermitido(tipoArchivo);
+        String objectKey = "ordenes/" + orden.getId() + "/" + UUID.randomUUID() + extensionParaMime(mimeType);
+        Duration expiry = r2Properties.presignExpiry() != null
+                ? r2Properties.presignExpiry()
+                : Duration.ofMinutes(15);
+        String presignedUrl = r2Storage.presignPut(objectKey, mimeType, expiry).url();
+        return new MultimediaPresignResult(presignedUrl, objectKey, publicUrlPara(objectKey));
+    }
+
+    @TenantOperation
+    @Transactional
+    public MultimediaConfirmationResult confirmarMultimedia(
+            String id,
+            String objectKey,
+            String publicUrl,
+            String tipoArchivo,
+            String descripcion,
+            String etapa
+    ) {
+        Orden orden = buscarOrdenParaMutacion(id);
+        String mimeType = validarMimePermitido(tipoArchivo);
+        validarObjectKey(orden.getId(), objectKey, mimeType);
+        String expectedPublicUrl = publicUrlPara(objectKey);
+        if (!expectedPublicUrl.equals(publicUrl)) {
+            throw new BadRequestException("publicUrl no corresponde al objectKey");
+        }
+
+        R2StoragePort.ObjectMetadata metadata = r2Storage.head(objectKey)
+                .orElseThrow(() -> new BadRequestException("El archivo no existe en R2"));
+        if (!mimeType.equals(metadata.contentType())) {
+            throw new BadRequestException("tipoArchivo no coincide con el archivo subido");
+        }
+        if (metadata.contentLength() <= 0) {
+            throw new BadRequestException("El archivo subido esta vacio");
+        }
+        if (metadata.contentLength() > maxSizeParaMime(mimeType)) {
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Archivo demasiado grande");
+        }
+
+        Optional<Multimedia> existing = multimediaRepository.findByObjectKey(objectKey);
+        if (existing.isPresent()) {
+            Multimedia multimedia = existing.get();
+            if (!orden.getId().equals(multimedia.getOrdenId())) {
+                throw new ConflictException("El archivo ya fue confirmado para otra orden");
+            }
+            MultimediaResult result = multimediaRepository.findResultById(multimedia.getId())
+                    .orElseThrow(() -> new IllegalStateException("No fue posible leer el archivo confirmado"));
+            return new MultimediaConfirmationResult(result, false);
+        }
+
+        Multimedia saved = multimediaRepository.save(Multimedia.builder()
+                .ordenId(orden.getId())
+                .usuarioId(requerirUsuarioContext())
+                .url(expectedPublicUrl)
+                .objectKey(objectKey)
+                .tipoArchivo(mimeType)
+                .etapa(parseEtapa(etapa))
+                .descripcion(normalizarOpcional(descripcion, 500, "descripcion"))
+                .createdAt(OffsetDateTime.now())
+                .build());
+        MultimediaResult result = multimediaRepository.findResultById(saved.getId())
+                .orElseThrow(() -> new IllegalStateException("No fue posible leer el archivo creado"));
+        return new MultimediaConfirmationResult(result, true);
     }
 
     @TenantOperation
@@ -345,19 +614,30 @@ public class OrdenService {
 
     @TenantOperation
     @Transactional
-    public List<OrdenProductoResult> agregarProductos(UUID ordenId, List<OrdenProductoAddCommand> items) {
-        Orden orden = buscarOrdenPorIdParaMutacion(ordenId);
+    public List<OrdenProductoResult> agregarProductos(String id, List<OrdenProductoAddCommand> items) {
+        Orden orden = buscarOrdenParaMutacion(id);
         validarOrdenPermiteModificarProductos(orden);
         OffsetDateTime now = OffsetDateTime.now();
         return agregarProductosAOrden(orden, items, now);
     }
 
+    public List<OrdenProductoResult> agregarProductos(UUID ordenId, List<OrdenProductoAddCommand> items) {
+        Orden orden = buscarOrdenPorIdParaMutacion(ordenId);
+        validarOrdenPermiteModificarProductos(orden);
+        return agregarProductosAOrden(orden, items, OffsetDateTime.now());
+    }
+
     private List<OrdenProductoResult> agregarProductosAOrden(Orden orden, List<OrdenProductoAddCommand> items, OffsetDateTime now) {
         Map<UUID, OrdenProducto> lineItemsByProducto = new LinkedHashMap<>();
+        Set<UUID> productosEnRequest = new HashSet<>();
+        UUID usuarioId = UsuarioContext.getCurrentUser();
 
         for (OrdenProductoAddCommand item : items) {
             if (item.getProductoId() == null) {
                 throw new BadRequestException("productoId es requerido");
+            }
+            if (!productosEnRequest.add(item.getProductoId())) {
+                throw new BadRequestException("Producto duplicado en la solicitud: " + item.getProductoId());
             }
             validarCantidad(item.getCantidad());
             Producto producto = buscarProductoDisponible(item.getProductoId(), orden.getSucursalId());
@@ -369,6 +649,7 @@ public class OrdenService {
                             .orElseGet(() -> OrdenProducto.builder()
                                     .ordenId(orden.getId())
                                     .productoId(productoId)
+                                    .usuarioId(usuarioId)
                                     .cantidad(0)
                                     .precioCostoSnapshot(producto.getPrecioCosto())
                                     .precioVentaSnapshot(producto.getPrecioVenta())
@@ -384,6 +665,11 @@ public class OrdenService {
             lineItem.setProporcionadoPorCliente(proporcionadoPorCliente);
             if (item.getNotas() != null) {
                 lineItem.setNotas(item.getNotas());
+            }
+            if (!proporcionadoPorCliente && producto.getStock() != null) {
+                producto.setStock(producto.getStock() - item.getCantidad());
+                producto.setUpdatedAt(now);
+                productoRepository.save(producto);
             }
         }
 
@@ -440,15 +726,22 @@ public class OrdenService {
 
     @TenantOperation
     @Transactional
-    public List<OrdenServicioResult> agregarServicios(UUID ordenId, List<OrdenServicioAddCommand> items) {
-        Orden orden = buscarOrdenPorIdParaMutacion(ordenId);
+    public List<OrdenServicioResult> agregarServicios(String id, List<OrdenServicioAddCommand> items) {
+        Orden orden = buscarOrdenParaMutacion(id);
         validarOrdenPermiteModificarServicios(orden);
         OffsetDateTime now = OffsetDateTime.now();
         return agregarServiciosAOrden(orden, items, now);
     }
 
+    public List<OrdenServicioResult> agregarServicios(UUID ordenId, List<OrdenServicioAddCommand> items) {
+        Orden orden = buscarOrdenPorIdParaMutacion(ordenId);
+        validarOrdenPermiteModificarServicios(orden);
+        return agregarServiciosAOrden(orden, items, OffsetDateTime.now());
+    }
+
     private List<OrdenServicioResult> agregarServiciosAOrden(Orden orden, List<OrdenServicioAddCommand> items, OffsetDateTime now) {
         Set<UUID> serviciosEnRequest = new HashSet<>();
+        UUID usuarioId = UsuarioContext.getCurrentUser();
         List<OrdenServicio> lineItems = items.stream()
                 .map(item -> {
                     if (item.getServicioId() == null) {
@@ -467,6 +760,7 @@ public class OrdenService {
                     return OrdenServicio.builder()
                             .ordenId(orden.getId())
                             .servicioId(item.getServicioId())
+                            .usuarioId(usuarioId)
                             .precioBaseSnapshot(precioBase)
                             .precioAplicado(precioBase)
                             .descuentoAplicado(BigDecimal.ZERO)
@@ -569,6 +863,7 @@ public class OrdenService {
                 ordenServicioRepository.save(OrdenServicio.builder()
                         .ordenId(ordenId)
                         .servicioId(servicioId)
+                        .usuarioId(UsuarioContext.getCurrentUser())
                         .precioBaseSnapshot(servicio.getPrecioBase())
                         .precioAplicado(servicio.getPrecioBase())
                         .descuentoAplicado(BigDecimal.ZERO)
@@ -584,6 +879,7 @@ public class OrdenService {
                 ordenProductoRepository.save(OrdenProducto.builder()
                         .ordenId(ordenId)
                         .productoId(item.getProductoId())
+                        .usuarioId(UsuarioContext.getCurrentUser())
                         .cantidad(item.getCantidad())
                         .precioCostoSnapshot(producto.getPrecioCosto())
                         .precioVentaSnapshot(producto.getPrecioVenta())
@@ -730,22 +1026,17 @@ public class OrdenService {
     }
 
     private Orden buscarOrdenPorIdParaMutacion(UUID ordenId) {
-        Orden orden = ordenRepository.findById(ordenId)
-                .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
-
         UUID tallerId = TallerContext.getCurrentTaller();
         UUID sucursalId = SucursalContext.getCurrentSucursal();
         if (tallerId == null && sucursalId == null) {
             throw new IllegalStateException("Contexto de taller o sucursal requerido");
         }
-        if (tallerId != null && !orden.getTallerId().equals(tallerId)) {
-            throw new AccessDeniedException("Acceso denegado");
+        if (sucursalId != null) {
+            return ordenRepository.findByIdAndSucursalId(ordenId, sucursalId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
         }
-        if (sucursalId != null && !orden.getSucursalId().equals(sucursalId)) {
-            throw new AccessDeniedException("Acceso denegado");
-        }
-
-        return orden;
+        return ordenRepository.findByIdAndTallerId(ordenId, tallerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
     }
 
     /**
@@ -754,11 +1045,24 @@ public class OrdenService {
      * @return
      */
     private void aplicarCambioEstado(Orden orden, String estadoCodigo, String observacion, OffsetDateTime now, UUID usuarioId) {
+        if (!hasText(estadoCodigo)) {
+            throw new BadRequestException("codigo no puede estar vacio");
+        }
         UUID estadoAnteriorId = orden.getEstadoId();
+        Optional<EstadoOrden> estadoAnterior = estadoOrdenRepository.findById(estadoAnteriorId);
+        if (estadoAnterior.map(EstadoOrden::getEsFinal).orElse(false)) {
+            throw new ConflictException("La orden ya se encuentra finalizada");
+        }
         EstadoOrden nuevoEstado = estadoOrdenRepository.findByCodigo(estadoCodigo)
                 .orElseThrow(() -> new ResourceNotFoundException("Estado de orden no encontrado: " + estadoCodigo));
+        if (estadoAnteriorId.equals(nuevoEstado.getId())) {
+            throw new ConflictException("La orden ya se encuentra en el estado solicitado");
+        }
 
         orden.setEstadoId(nuevoEstado.getId());
+        if (EstadoOrdenEnum.entregada.name().equals(nuevoEstado.getCodigo()) && orden.getFechaEntrega() == null) {
+            orden.setFechaEntrega(now);
+        }
         ordenEstadoRepository.save(OrdenEstado.builder()
                 .ordenId(orden.getId())
                 .usuarioId(usuarioId)
@@ -817,6 +1121,9 @@ public class OrdenService {
         if (cantidad == null || cantidad < 1) {
             throw new BadRequestException("Cantidad de producto debe ser mayor o igual a 1");
         }
+        if (cantidad > 9999) {
+            throw new BadRequestException("Cantidad de producto debe ser menor o igual a 9999");
+        }
     }
 
     private void validarStockSuficiente(Producto producto, Integer cantidad, boolean proporcionadoPorCliente) {
@@ -824,7 +1131,9 @@ public class OrdenService {
             return;
         }
         if (producto.getStock() < cantidad) {
-            throw new BadRequestException("Stock insuficiente para producto: " + producto.getId());
+            throw new ConflictException(
+                    "Stock insuficiente para producto " + producto.getId() + "; disponible: " + producto.getStock()
+            );
         }
     }
 
@@ -883,5 +1192,168 @@ public class OrdenService {
     private String nombrePrioridad(PrioridadOrdenEnum prioridad) {
         String value = prioridad.name();
         return value.substring(0, 1).toUpperCase() + value.substring(1);
+    }
+
+    private OrdenReadResult enriquecerResumen(OrdenReadResult result) {
+        List<String> serviceNames = ordenServicioRepository.findServiceNamesByOrder(result.id());
+        return new OrdenReadResult(
+                result.id(), result.numeroOrden(), result.tallerId(), result.sucursalId(),
+                result.estadoId(), result.estadoCodigo(), result.estadoNombre(),
+                result.tipoId(), result.tipoCodigo(), result.tipoNombre(),
+                result.fechaIngreso(), result.fechaPrometida(), result.fechaEntrega(),
+                result.diagnosticoInicial(), result.diagnosticoFinal(), result.observacionesCliente(),
+                result.bicicletaId(), result.bicicletaMarca(), result.bicicletaModelo(),
+                result.bicicletaTipo(), result.bicicletaAro(), result.bicicletaColor(),
+                result.bicicletaNumeroSerie(), result.bicicletaAnio(), result.bicicletaNotas(),
+                result.clienteId(), result.clienteNombre(), result.clienteApellido(),
+                result.clienteTelefono(), result.clienteEmail(), result.clienteRut(),
+                result.clienteDireccion(), result.mecanicoId(), result.mecanicoNombre(),
+                result.mecanicoApellido(), result.prioridad(),
+                serviceNames.isEmpty() ? null : serviceNames.getFirst(),
+                calcularMontoTotal(result.id())
+        );
+    }
+
+    private BigDecimal calcularMontoTotal(UUID ordenId) {
+        if (!ordenServicioRepository.existsByOrdenId(ordenId)
+                && !ordenProductoRepository.existsByOrdenId(ordenId)) {
+            return null;
+        }
+        BigDecimal servicios = Optional.ofNullable(ordenServicioRepository.sumTotalByOrdenId(ordenId))
+                .orElse(BigDecimal.ZERO);
+        BigDecimal productos = Optional.ofNullable(ordenProductoRepository.sumTotalByOrdenId(ordenId))
+                .orElse(BigDecimal.ZERO);
+        return servicios.add(productos);
+    }
+
+    private long countEstado(List<OrdenReadResult> orders, String codigo) {
+        return orders.stream().filter(order -> codigo.equals(order.estadoCodigo())).count();
+    }
+
+    private String normalizarOpcional(String value, int maxLength, String field) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() > maxLength) {
+            throw new BadRequestException(field + " excede " + maxLength + " caracteres");
+        }
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private EtapaMultimediaEnum parseEtapa(String etapa) {
+        if (!hasText(etapa)) {
+            return null;
+        }
+        try {
+            return EtapaMultimediaEnum.valueOf(etapa.trim().toLowerCase());
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("etapa invalida");
+        }
+    }
+
+    private String validarMimePermitido(String mimeType) {
+        if (mimeType == null) {
+            throw new BadRequestException("tipoArchivo es requerido");
+        }
+        String normalized = mimeType.trim().toLowerCase();
+        return switch (normalized) {
+            case "image/jpeg", "image/png", "image/webp",
+                 "video/mp4", "video/quicktime", "application/pdf" -> normalized;
+            default -> throw new BadRequestException("tipoArchivo no soportado");
+        };
+    }
+
+    private void validarObjectKey(UUID ordenId, String objectKey, String mimeType) {
+        String prefix = "ordenes/" + ordenId + "/";
+        String expectedExtension = extensionParaMime(mimeType);
+        if (objectKey == null
+                || !objectKey.startsWith(prefix)
+                || !objectKey.endsWith(expectedExtension)) {
+            throw new BadRequestException("objectKey invalido para la orden");
+        }
+        String filename = objectKey.substring(prefix.length(), objectKey.length() - expectedExtension.length());
+        try {
+            UUID.fromString(filename);
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("objectKey invalido para la orden");
+        }
+    }
+
+    private String publicUrlPara(String objectKey) {
+        String baseUrl = r2Properties.publicBaseUrl();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw new IllegalStateException("cloudflare.r2.public-base-url no configurado");
+        }
+        return baseUrl.replaceAll("/+$", "") + "/" + objectKey;
+    }
+
+    private String extensionParaMime(String mimeType) {
+        return switch (mimeType) {
+            case "image/jpeg" -> ".jpg";
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            case "video/mp4" -> ".mp4";
+            case "video/quicktime" -> ".mov";
+            case "application/pdf" -> ".pdf";
+            default -> throw new BadRequestException("tipoArchivo no soportado");
+        };
+    }
+
+    private long maxSizeParaMime(String mimeType) {
+        return switch (categoriaParaMime(mimeType)) {
+            case imagen -> 10L * 1024 * 1024;
+            case video -> 100L * 1024 * 1024;
+            case documento -> 20L * 1024 * 1024;
+        };
+    }
+
+    private MediaTypeInfo validarMedia(byte[] content, String declaredContentType) {
+        if (content == null || content.length == 0) {
+            throw new BadRequestException("file no puede estar vacio");
+        }
+        String detected = detectarMime(content);
+        if (detected == null) {
+            throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Tipo de archivo no soportado");
+        }
+        if (!detected.equals(declaredContentType)) {
+            throw new BadRequestException("tipoArchivo no coincide con el contenido detectado");
+        }
+        TipoArchivoEnum categoria = categoriaParaMime(detected);
+        long maxSize = maxSizeParaMime(detected);
+        if (content.length > maxSize) {
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Archivo demasiado grande");
+        }
+        return new MediaTypeInfo(detected, categoria);
+    }
+
+    private String detectarMime(byte[] bytes) {
+        if (startsWith(bytes, new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff})) return "image/jpeg";
+        if (startsWith(bytes, new byte[]{(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a})) return "image/png";
+        if (bytes.length >= 12 && ascii(bytes, 0, 4).equals("RIFF") && ascii(bytes, 8, 4).equals("WEBP")) return "image/webp";
+        if (bytes.length >= 12 && ascii(bytes, 4, 4).equals("ftyp")) {
+            String brand = ascii(bytes, 8, 4);
+            return brand.startsWith("qt") ? "video/quicktime" : "video/mp4";
+        }
+        if (startsWith(bytes, "%PDF-".getBytes(java.nio.charset.StandardCharsets.US_ASCII))) return "application/pdf";
+        return null;
+    }
+
+    private boolean startsWith(byte[] content, byte[] signature) {
+        return content.length >= signature.length
+                && Arrays.equals(Arrays.copyOf(content, signature.length), signature);
+    }
+
+    private String ascii(byte[] content, int offset, int length) {
+        return new String(content, offset, length, java.nio.charset.StandardCharsets.US_ASCII);
+    }
+
+    private TipoArchivoEnum categoriaParaMime(String mimeType) {
+        if (mimeType.startsWith("image/")) return TipoArchivoEnum.imagen;
+        if (mimeType.startsWith("video/")) return TipoArchivoEnum.video;
+        return TipoArchivoEnum.documento;
+    }
+
+    private record MediaTypeInfo(String mimeType, TipoArchivoEnum categoria) {
     }
 }

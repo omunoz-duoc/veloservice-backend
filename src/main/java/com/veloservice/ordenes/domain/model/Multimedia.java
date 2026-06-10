@@ -16,7 +16,6 @@ import lombok.Setter;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-import com.veloservice.ordenes.domain.TipoArchivoEnum;
 import com.veloservice.ordenes.domain.EtapaMultimediaEnum;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -51,12 +50,14 @@ public class Multimedia {
     @Column(name = "url", nullable = false)
     private String url;
 
-    @Enumerated(EnumType.STRING)
+    @Column(name = "object_key", length = 512, unique = true)
+    private String objectKey;
+
     @Column(name = "tipo_archivo", nullable = false)
-    private TipoArchivoEnum tipoArchivo;
+    private String tipoArchivo;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "etapa", nullable = false)
+    @Column(name = "etapa")
     private EtapaMultimediaEnum etapa;
 
     @Column(name = "descripcion", columnDefinition = "TEXT")

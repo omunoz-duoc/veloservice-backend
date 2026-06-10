@@ -63,8 +63,12 @@ public class ServicioController {
     }
 
     @GetMapping("/sucursal")
-    public ResponseEntity<List<SucursalServicioResponse>> listarSucursal() {
-        return ResponseEntity.ok(ServicioMapper.toSucursalResponseList(servicioService.listarServiciosSucursal()));
+    public ResponseEntity<List<SucursalServicioResponse>> listarSucursal(
+            @RequestParam(required = false) UUID sucursalId
+    ) {
+        return ResponseEntity.ok(ServicioMapper.toSucursalResponseList(
+                servicioService.listarServiciosSucursal(sucursalId)
+        ));
     }
 
     @GetMapping("/export")

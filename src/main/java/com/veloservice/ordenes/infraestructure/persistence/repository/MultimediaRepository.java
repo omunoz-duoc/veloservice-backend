@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -25,6 +26,8 @@ public interface MultimediaRepository extends JpaRepository<Multimedia, UUID> {
      */
     List<Multimedia> findByOrdenId(UUID ordenId);
 
+    Optional<Multimedia> findByObjectKey(String objectKey);
+
     /**
      * Checks if an order has evidence for a stage.
      *
@@ -36,8 +39,15 @@ public interface MultimediaRepository extends JpaRepository<Multimedia, UUID> {
 
     @Query("""
         SELECT new com.veloservice.ordenes.application.dto.MultimediaResult(
+            m.id,
+            m.usuarioId,
             CONCAT(u.nombre, ' ', u.apellido),
-            CAST(m.tipoArchivo AS string),
+            m.tipoArchivo,
+            CASE
+                WHEN m.tipoArchivo LIKE 'image/%' OR m.tipoArchivo = 'imagen' THEN 'imagen'
+                WHEN m.tipoArchivo LIKE 'video/%' OR m.tipoArchivo = 'video' THEN 'video'
+                ELSE 'documento'
+            END,
             m.url,
             CAST(m.etapa AS string),
             m.descripcion,
@@ -49,4 +59,21 @@ public interface MultimediaRepository extends JpaRepository<Multimedia, UUID> {
         ORDER BY m.createdAt ASC
         """)
     List<MultimediaResult> findResultByOrdenId(@Param("ordenId") UUID ordenId);
+
+    @Query("""
+        SELECT new com.veloservice.ordenes.application.dto.MultimediaResult(
+            m.id, m.usuarioId, CONCAT(u.nombre, ' ', u.apellido),
+            m.tipoArchivo,
+            CASE
+                WHEN m.tipoArchivo LIKE 'image/%' OR m.tipoArchivo = 'imagen' THEN 'imagen'
+                WHEN m.tipoArchivo LIKE 'video/%' OR m.tipoArchivo = 'video' THEN 'video'
+                ELSE 'documento'
+            END,
+            m.url, CAST(m.etapa AS string), m.descripcion, m.createdAt
+        )
+        FROM Multimedia m
+        JOIN com.veloservice.auth.domain.model.Usuario u ON u.id = m.usuarioId
+        WHERE m.id = :id
+        """)
+    Optional<MultimediaResult> findResultById(@Param("id") UUID id);
 }

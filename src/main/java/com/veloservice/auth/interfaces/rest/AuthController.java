@@ -37,6 +37,11 @@ public class AuthController {
         return ResponseEntity.ok(AuthMapper.toResponse(result));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        return ResponseEntity.noContent().build();
+    }
+
     /**
      * Registers a user and returns a JWT token.
      *

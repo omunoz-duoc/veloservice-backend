@@ -1,6 +1,7 @@
 package com.veloservice.ordenes.interfaces.rest.dto;
 
 import java.time.OffsetDateTime;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 public record OrdenReadResponse(
@@ -19,7 +20,9 @@ public record OrdenReadResponse(
         BicicletaResponse bicicleta,
         ClienteResponse cliente,
         MecanicoResponse mecanico,
-        String prioridad
+        String prioridad,
+        String servicioResumen,
+        BigDecimal montoTotal
 ) {
     public record CatalogoResponse(UUID id, String codigo, String nombre) {
     }
@@ -41,7 +44,8 @@ public record OrdenReadResponse(
             String apellido,
             String telefono,
             String email,
-            String rut
+            String rut,
+            String direccion
     ) {
     }
 

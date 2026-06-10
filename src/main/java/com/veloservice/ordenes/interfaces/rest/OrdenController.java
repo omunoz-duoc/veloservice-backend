@@ -16,6 +16,11 @@ import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioUpdateCommand;
 import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
+import com.veloservice.ordenes.application.dto.ComentarioResult;
+import com.veloservice.ordenes.application.dto.MultimediaResult;
+import com.veloservice.ordenes.application.dto.MultimediaConfirmationResult;
+import com.veloservice.ordenes.application.dto.MultimediaPresignResult;
+import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreateRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreateResponse;
@@ -34,8 +39,16 @@ import com.veloservice.ordenes.interfaces.rest.dto.OrdenServicioAddRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenServicioCambioRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenServicioResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenUpdateRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenComentarioRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenComentarioResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenMultimediaResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenMetricasResponse;
+import com.veloservice.ordenes.interfaces.rest.dto.MultimediaConfirmRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.MultimediaPresignRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.MultimediaPresignResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,7 +59,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -92,11 +108,19 @@ public class OrdenController {
      * @return
      */
     @GetMapping
-    public ResponseEntity<OrdenReadListResponse> listar() {
-        List<OrdenReadResponse> ordenes = ordenService.listar().stream()
+    public ResponseEntity<OrdenReadListResponse> listar(@RequestParam(required = false) UUID sucursalId) {
+        List<OrdenReadResponse> ordenes = ordenService.listar(sucursalId).stream()
                 .map(this::toResponse)
                 .toList();
         return ResponseEntity.ok(new OrdenReadListResponse(ordenes.size(), ordenes));
+    }
+
+    @GetMapping("/metricas")
+    public ResponseEntity<OrdenMetricasResponse> metricas(@RequestParam(required = false) UUID sucursalId) {
+        OrdenMetricasResult result = ordenService.metricas(sucursalId);
+        return ResponseEntity.ok(new OrdenMetricasResponse(
+                result.recibidas(), result.enProceso(), result.listas(), result.entregadas()
+        ));
     }
 
     @GetMapping("/catalogos/estados")
@@ -192,15 +216,70 @@ public class OrdenController {
         return ResponseEntity.ok(toDetalleResponse(ordenService.obtenerDetalle(id)));
     }
 
+    @PostMapping("/{id}/comentarios")
+    public ResponseEntity<OrdenComentarioResponse> agregarComentario(
+            @PathVariable String id,
+            @Valid @RequestBody OrdenComentarioRequest request
+    ) {
+        ComentarioResult result = ordenService.agregarComentario(id, request.texto());
+        return ResponseEntity.status(HttpStatus.CREATED).body(toComentarioResponse(result));
+    }
+
+    @PostMapping(value = "/{id}/multimedia", consumes = "multipart/form-data")
+    public ResponseEntity<OrdenMultimediaResponse> agregarMultimedia(
+            @PathVariable String id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("tipoArchivo") String tipoArchivo,
+            @RequestPart(value = "descripcion", required = false) String descripcion,
+            @RequestPart(value = "etapa", required = false) String etapa
+    ) throws java.io.IOException {
+        MultimediaResult result = ordenService.agregarMultimedia(
+                id, file.getBytes(), tipoArchivo, descripcion, etapa
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(toMultimediaResponse(result));
+    }
+
+    @PostMapping("/{id}/multimedia/presign")
+    public ResponseEntity<MultimediaPresignResponse> prepararMultimedia(
+            @PathVariable String id,
+            @Valid @RequestBody MultimediaPresignRequest request
+    ) {
+        MultimediaPresignResult result = ordenService.prepararMultimedia(id, request.tipoArchivo());
+        return ResponseEntity.ok(new MultimediaPresignResponse(
+                result.presignedUrl(), result.objectKey(), result.publicUrl()
+        ));
+    }
+
+    @PostMapping("/{id}/multimedia/confirm")
+    public ResponseEntity<OrdenMultimediaResponse> confirmarMultimedia(
+            @PathVariable String id,
+            @Valid @RequestBody MultimediaConfirmRequest request
+    ) {
+        MultimediaConfirmationResult result = ordenService.confirmarMultimedia(
+                id,
+                request.objectKey(),
+                request.publicUrl(),
+                request.tipoArchivo(),
+                request.descripcion(),
+                request.etapa()
+        );
+        HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(toMultimediaResponse(result.multimedia()));
+    }
+
     @PostMapping("/{id}/productos")
     public ResponseEntity<List<OrdenProductoResponse>> agregarProductos(
-            @PathVariable UUID id,
-            @Valid @NotEmpty @RequestBody List<OrdenProductoAddRequest> items
+            @PathVariable String id,
+            @Valid @NotEmpty @Size(max = 50) @RequestBody List<@Valid OrdenProductoAddRequest> items
     ) {
+        validarIdentificador(id);
         List<OrdenProductoAddCommand> commands = items.stream()
                 .map(this::toProductoCommand)
                 .toList();
-        List<OrdenProductoResponse> response = ordenService.agregarProductos(id, commands).stream()
+        List<OrdenProductoResult> results = parseUuid(id)
+                .map(uuid -> ordenService.agregarProductos(uuid, commands))
+                .orElseGet(() -> ordenService.agregarProductos(id, commands));
+        List<OrdenProductoResponse> response = results.stream()
                 .map(this::toProductoResponse)
                 .toList();
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -208,13 +287,17 @@ public class OrdenController {
 
     @PostMapping("/{id}/servicios")
     public ResponseEntity<List<OrdenServicioResponse>> agregarServicios(
-            @PathVariable UUID id,
-            @Valid @NotEmpty @RequestBody List<OrdenServicioAddRequest> items
+            @PathVariable String id,
+            @Valid @NotEmpty @Size(max = 50) @RequestBody List<@Valid OrdenServicioAddRequest> items
     ) {
+        validarIdentificador(id);
         List<OrdenServicioAddCommand> commands = items.stream()
                 .map(this::toServicioCommand)
                 .toList();
-        List<OrdenServicioResponse> response = ordenService.agregarServicios(id, commands).stream()
+        List<OrdenServicioResult> results = parseUuid(id)
+                .map(uuid -> ordenService.agregarServicios(uuid, commands))
+                .orElseGet(() -> ordenService.agregarServicios(id, commands));
+        List<OrdenServicioResponse> response = results.stream()
                 .map(this::toServicioResponse)
                 .toList();
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -263,14 +346,17 @@ public class OrdenController {
 
         List<OrdenDetalleResponse.ComentarioResponse> comentarios = result.comentarios() != null
             ? result.comentarios().stream()
-            .map(c -> new OrdenDetalleResponse.ComentarioResponse(c.usuario(), c.texto(), c.createdAt()))
+            .map(c -> new OrdenDetalleResponse.ComentarioResponse(
+                    c.id(), c.usuarioId(), c.usuario(), c.texto(), c.createdAt()
+            ))
             .toList()
             : List.of();
 
         List<OrdenDetalleResponse.MultimediaResponse> multimedia = result.multimedia() != null
             ? result.multimedia().stream()
             .map(m -> new OrdenDetalleResponse.MultimediaResponse(
-                m.usuario(), m.tipoArchivo(), m.url(), m.etapa(), m.descripcion()
+                m.id(), m.usuarioId(), m.usuario(), m.tipoArchivo(), m.categoria(),
+                m.url(), m.etapa(), m.descripcion(), m.createdAt()
             ))
             .toList()
             : List.of();
@@ -286,7 +372,10 @@ public class OrdenController {
                 p.precioVenta(),
                 p.precioAplicado(),
                 p.notas(),
-                p.proporcionadoPorCliente()
+                p.proporcionadoPorCliente(),
+                p.usuarioId(),
+                p.usuario(),
+                p.createdAt()
             ))
             .toList()
             : List.of();
@@ -300,7 +389,10 @@ public class OrdenController {
                 s.precioBase(),
                 s.precioAplicado(),
                 s.descuentoAplicado(),
-                s.notas()
+                s.notas(),
+                s.usuarioId(),
+                s.usuario(),
+                s.createdAt()
             ))
             .toList()
             : List.of();
@@ -340,14 +432,36 @@ public class OrdenController {
                 result.clienteApellido(),
                 result.clienteTelefono(),
                 result.clienteEmail(),
-                result.clienteRut()
+                result.clienteRut(),
+                result.clienteDireccion()
             ),
             mecanico,
             result.prioridad(),
+            result.servicioResumen(),
+            result.montoTotal(),
             comentarios,
             multimedia,
             productos,
-            servicios
+            servicios,
+            result.historialEstados().stream()
+                    .map(history -> new OrdenDetalleResponse.EstadoHistoryResponse(
+                            history.id(),
+                            history.estadoAnteriorId() == null ? null : new OrdenDetalleResponse.CatalogoResponse(
+                                    history.estadoAnteriorId(),
+                                    history.estadoAnteriorCodigo(),
+                                    history.estadoAnteriorNombre()
+                            ),
+                            new OrdenDetalleResponse.CatalogoResponse(
+                                    history.estadoNuevoId(),
+                                    history.estadoNuevoCodigo(),
+                                    history.estadoNuevoNombre()
+                            ),
+                            history.observacion(),
+                            history.usuarioId(),
+                            history.usuario(),
+                            history.createdAt()
+                    ))
+                    .toList()
         );
     }
 
@@ -491,7 +605,10 @@ public class OrdenController {
                 result.precioVenta(),
                 result.precioAplicado(),
                 result.notas(),
-                result.proporcionadoPorCliente()
+                result.proporcionadoPorCliente(),
+                result.usuarioId(),
+                result.usuario(),
+                result.createdAt()
         );
     }
 
@@ -503,7 +620,10 @@ public class OrdenController {
                 result.precioBase(),
                 result.precioAplicado(),
                 result.descuentoAplicado(),
-                result.notas()
+                result.notas(),
+                result.usuarioId(),
+                result.usuario(),
+                result.createdAt()
         );
     }
 
@@ -558,10 +678,26 @@ public class OrdenController {
                         result.clienteApellido(),
                         result.clienteTelefono(),
                         result.clienteEmail(),
-                        result.clienteRut()
+                        result.clienteRut(),
+                        result.clienteDireccion()
                 ),
                 mecanico,
-                result.prioridad()
+                result.prioridad(),
+                result.servicioResumen(),
+                result.montoTotal()
+        );
+    }
+
+    private OrdenComentarioResponse toComentarioResponse(ComentarioResult result) {
+        return new OrdenComentarioResponse(
+                result.id(), result.usuarioId(), result.usuario(), result.texto(), result.createdAt()
+        );
+    }
+
+    private OrdenMultimediaResponse toMultimediaResponse(MultimediaResult result) {
+        return new OrdenMultimediaResponse(
+                result.id(), result.usuarioId(), result.usuario(), result.tipoArchivo(),
+                result.categoria(), result.url(), result.etapa(), result.descripcion(), result.createdAt()
         );
     }
 
@@ -572,5 +708,21 @@ public class OrdenController {
                 result.orden(),
                 result.activo()
         );
+    }
+
+    private void validarIdentificador(String id) {
+        if (parseUuid(id).isEmpty() && (id == null || !id.matches("(?i)(OT|AP)-[A-Z0-9-]{1,40}"))) {
+            throw new com.veloservice.shared.application.exception.BadRequestException(
+                    "id tiene un formato invalido"
+            );
+        }
+    }
+
+    private java.util.Optional<UUID> parseUuid(String id) {
+        try {
+            return java.util.Optional.of(UUID.fromString(id));
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            return java.util.Optional.empty();
+        }
     }
 }

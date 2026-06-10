@@ -7,6 +7,11 @@ import com.veloservice.ordenes.application.dto.OrdenCatalogoResult;
 import com.veloservice.ordenes.application.dto.OrdenCreateResult;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoResult;
+import com.veloservice.ordenes.application.dto.ComentarioResult;
+import com.veloservice.ordenes.application.dto.MultimediaResult;
+import com.veloservice.ordenes.application.dto.MultimediaConfirmationResult;
+import com.veloservice.ordenes.application.dto.MultimediaPresignResult;
+import com.veloservice.ordenes.application.dto.OrdenMetricasResult;
 import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
 import com.veloservice.ordenes.application.usecase.OrdenService;
 import com.veloservice.shared.application.exception.ResourceNotFoundException;
@@ -28,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -36,6 +42,7 @@ import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -60,6 +67,189 @@ class OrdenControllerErrorHandlingTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.message").value("Orden no encontrada"));
+    }
+
+    @Test
+    void metricasReturnsMobileCounters() throws Exception {
+        when(ordenService.metricas(null)).thenReturn(new OrdenMetricasResult(3, 8, 2, 24));
+
+        mockMvc.perform(get("/ordenes/metricas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recibidas").value(3))
+                .andExpect(jsonPath("$.enProceso").value(8))
+                .andExpect(jsonPath("$.listas").value(2))
+                .andExpect(jsonPath("$.entregadas").value(24));
+    }
+
+    @Test
+    void agregarComentarioTrimsInServiceAndReturnsTimelineRecord() throws Exception {
+        UUID comentarioId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-08T11:40:00-04:00");
+        when(ordenService.agregarComentario("OT-0343", "Comentario valido"))
+                .thenReturn(new ComentarioResult(
+                        comentarioId, usuarioId, "Rodrigo Soto", "Comentario valido", createdAt
+                ));
+
+        mockMvc.perform(post("/ordenes/OT-0343/comentarios")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"texto\":\"Comentario valido\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(comentarioId.toString()))
+                .andExpect(jsonPath("$.usuarioId").value(usuarioId.toString()))
+                .andExpect(jsonPath("$.usuario").value("Rodrigo Soto"))
+                .andExpect(jsonPath("$.createdAt").value("2026-06-08T11:40:00-04:00"));
+    }
+
+    @Test
+    void agregarComentarioRejectsBlankText() throws Exception {
+        mockMvc.perform(post("/ordenes/OT-0343/comentarios")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"texto\":\"   \"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.texto").exists());
+    }
+
+    @Test
+    void agregarMultimediaReturnsDetectedMetadata() throws Exception {
+        UUID mediaId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-08T11:05:00-04:00");
+        byte[] jpeg = new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff, 0x01};
+        when(ordenService.agregarMultimedia(
+                ArgumentMatchers.eq("OT-0343"),
+                ArgumentMatchers.any(byte[].class),
+                ArgumentMatchers.eq("image/jpeg"),
+                ArgumentMatchers.eq("Desgaste"),
+                ArgumentMatchers.eq("diagnostico")
+        )).thenReturn(new MultimediaResult(
+                mediaId, usuarioId, "Rodrigo Soto", "image/jpeg", "imagen",
+                "https://media.example/archivo.jpg", "diagnostico", "Desgaste", createdAt
+        ));
+
+        org.springframework.mock.web.MockMultipartFile file =
+                new org.springframework.mock.web.MockMultipartFile(
+                        "file", "foto.jpg", "image/jpeg", jpeg
+                );
+        org.springframework.mock.web.MockMultipartFile tipoArchivo =
+                new org.springframework.mock.web.MockMultipartFile(
+                        "tipoArchivo", "", "text/plain", "image/jpeg".getBytes()
+                );
+        org.springframework.mock.web.MockMultipartFile descripcion =
+                new org.springframework.mock.web.MockMultipartFile(
+                        "descripcion", "", "text/plain", "Desgaste".getBytes()
+                );
+        org.springframework.mock.web.MockMultipartFile etapa =
+                new org.springframework.mock.web.MockMultipartFile(
+                        "etapa", "", "text/plain", "diagnostico".getBytes()
+                );
+
+        mockMvc.perform(multipart("/ordenes/OT-0343/multimedia")
+                        .file(file)
+                        .file(tipoArchivo)
+                        .file(descripcion)
+                        .file(etapa))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tipoArchivo").value("image/jpeg"))
+                .andExpect(jsonPath("$.categoria").value("imagen"))
+                .andExpect(jsonPath("$.url").value("https://media.example/archivo.jpg"))
+                .andExpect(jsonPath("$.createdAt").value("2026-06-08T11:05:00-04:00"));
+    }
+
+    @Test
+    void prepararMultimediaReturnsPresignedUploadContract() throws Exception {
+        UUID ordenId = UUID.randomUUID();
+        String objectKey = "ordenes/" + ordenId + "/" + UUID.randomUUID() + ".jpg";
+        when(ordenService.prepararMultimedia(ordenId.toString(), "image/jpeg"))
+                .thenReturn(new MultimediaPresignResult(
+                        "https://r2.example/presigned",
+                        objectKey,
+                        "https://media.example/" + objectKey
+                ));
+
+        mockMvc.perform(post("/ordenes/{id}/multimedia/presign", ordenId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"tipoArchivo":"image/jpeg","nombre":"foto.jpg"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.presignedUrl").value("https://r2.example/presigned"))
+                .andExpect(jsonPath("$.objectKey").value(objectKey))
+                .andExpect(jsonPath("$.publicUrl").value("https://media.example/" + objectKey));
+    }
+
+    @Test
+    void confirmarMultimediaReturnsCreatedRecord() throws Exception {
+        UUID ordenId = UUID.randomUUID();
+        UUID mediaId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        String objectKey = "ordenes/" + ordenId + "/" + UUID.randomUUID() + ".jpg";
+        String publicUrl = "https://media.example/" + objectKey;
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-09T11:00:00-04:00");
+        MultimediaResult multimedia = new MultimediaResult(
+                mediaId, usuarioId, "Rodrigo Soto", "image/jpeg", "imagen",
+                publicUrl, "diagnostico", "Desgaste", createdAt
+        );
+        when(ordenService.confirmarMultimedia(
+                ordenId.toString(), objectKey, publicUrl, "image/jpeg", "Desgaste", "diagnostico"
+        )).thenReturn(new MultimediaConfirmationResult(multimedia, true));
+
+        mockMvc.perform(post("/ordenes/{id}/multimedia/confirm", ordenId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "objectKey", objectKey,
+                                "publicUrl", publicUrl,
+                                "tipoArchivo", "image/jpeg",
+                                "descripcion", "Desgaste",
+                                "etapa", "diagnostico"
+                        ))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(mediaId.toString()))
+                .andExpect(jsonPath("$.categoria").value("imagen"))
+                .andExpect(jsonPath("$.url").value(publicUrl));
+    }
+
+    @Test
+    void confirmarMultimediaReturnsOkWhenAlreadyConfirmed() throws Exception {
+        UUID ordenId = UUID.randomUUID();
+        UUID mediaId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        String objectKey = "ordenes/" + ordenId + "/" + UUID.randomUUID() + ".pdf";
+        String publicUrl = "https://media.example/" + objectKey;
+        MultimediaResult multimedia = new MultimediaResult(
+                mediaId, usuarioId, "Rodrigo Soto", "application/pdf", "documento",
+                publicUrl, null, null, OffsetDateTime.now()
+        );
+        when(ordenService.confirmarMultimedia(
+                ordenId.toString(), objectKey, publicUrl, "application/pdf", null, null
+        )).thenReturn(new MultimediaConfirmationResult(multimedia, false));
+
+        mockMvc.perform(post("/ordenes/{id}/multimedia/confirm", ordenId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "objectKey", objectKey,
+                                "publicUrl", publicUrl,
+                                "tipoArchivo", "application/pdf"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(mediaId.toString()));
+    }
+
+    @Test
+    void agregarProductosAcceptsNumeroOrden() throws Exception {
+        UUID productoId = UUID.randomUUID();
+        when(ordenService.agregarProductos(ArgumentMatchers.eq("OT-0343"), anyList()))
+                .thenReturn(List.of());
+
+        mockMvc.perform(post("/ordenes/OT-0343/productos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(List.of(Map.of(
+                                "productoId", productoId,
+                                "cantidad", 1
+                        )))))
+                .andExpect(status().isCreated());
+
+        verify(ordenService).agregarProductos(ArgumentMatchers.eq("OT-0343"), anyList());
     }
 
     @Test
@@ -199,17 +389,18 @@ class OrdenControllerErrorHandlingTest {
     }
 
     @Test
-    void listarPrioridadesCatalogoDoesNotExposeUrgente() throws Exception {
+    void listarPrioridadesCatalogoIncludesUrgente() throws Exception {
         when(ordenService.listarPrioridadesCatalogo()).thenReturn(List.of(
                 new OrdenCatalogoResult("baja", "Baja", null, true),
                 new OrdenCatalogoResult("media", "Media", null, true),
-                new OrdenCatalogoResult("alta", "Alta", null, true)
+                new OrdenCatalogoResult("alta", "Alta", null, true),
+                new OrdenCatalogoResult("urgente", "Urgente", null, true)
         ));
 
         mockMvc.perform(get("/ordenes/catalogos/prioridades"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].codigo").value(org.hamcrest.Matchers.contains("baja", "media", "alta")))
-                .andExpect(jsonPath("$[*].codigo").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("urgente"))));
+                .andExpect(jsonPath("$[*].codigo")
+                        .value(org.hamcrest.Matchers.contains("baja", "media", "alta", "urgente")));
     }
 
     @Test

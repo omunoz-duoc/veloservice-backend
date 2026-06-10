@@ -125,7 +125,7 @@ public class BicicletaController {
             .map(m -> HojaVidaBicicletaResponse.MultimediaDTO.builder()
                 .id(m.getId())
                 .url(m.getUrl())
-                .tipoArchivo(m.getTipoArchivo() != null ? m.getTipoArchivo().name() : null)
+                    .tipoArchivo(m.getTipoArchivo())
                 .descripcion(m.getDescripcion())
                 .createdAt(m.getCreatedAt())
                 .build())

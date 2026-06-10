@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -25,7 +26,7 @@ public interface ComentarioRepository extends JpaRepository<OrdenComentario, UUI
 
     @Query("""
         SELECT new com.veloservice.ordenes.application.dto.ComentarioResult(
-            CONCAT(u.nombre, ' ', u.apellido), c.texto, c.createdAt
+            c.id, c.usuarioId, CONCAT(u.nombre, ' ', u.apellido), c.texto, c.createdAt
         )
         FROM OrdenComentario c
         JOIN com.veloservice.auth.domain.model.Usuario u ON u.id = c.usuarioId
@@ -33,4 +34,14 @@ public interface ComentarioRepository extends JpaRepository<OrdenComentario, UUI
         ORDER BY c.createdAt ASC
         """)
     List<ComentarioResult> findResultByOrdenId(@Param("ordenId") UUID ordenId);
+
+    @Query("""
+        SELECT new com.veloservice.ordenes.application.dto.ComentarioResult(
+            c.id, c.usuarioId, CONCAT(u.nombre, ' ', u.apellido), c.texto, c.createdAt
+        )
+        FROM OrdenComentario c
+        JOIN com.veloservice.auth.domain.model.Usuario u ON u.id = c.usuarioId
+        WHERE c.id = :id
+        """)
+    Optional<ComentarioResult> findResultById(@Param("id") UUID id);
 }

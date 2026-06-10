@@ -68,6 +68,12 @@ class AuthControllerTest {
     }
 
     @Test
+    void logoutReturnsNoContent() throws Exception {
+        mockMvc.perform(post("/auth/logout"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
     void registerReturnsTokenAndRole() throws Exception {
         AuthRegisterRequest request = new AuthRegisterRequest();
         request.setNombre("Ana");

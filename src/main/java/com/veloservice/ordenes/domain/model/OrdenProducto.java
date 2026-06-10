@@ -46,6 +46,9 @@ public class OrdenProducto {
     @Column(name = "producto_id", nullable = false)
     private UUID productoId;
 
+    @Column(name = "usuario_id")
+    private UUID usuarioId;
+
     @Column(name = "cantidad", nullable = false)
     private Integer cantidad;
 

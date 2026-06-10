@@ -53,7 +53,11 @@ public final class ServicioMapper {
                 .id(result.getId())
                 .sucursalId(result.getSucursalId())
                 .servicioId(result.getServicioId())
+                .nombre(result.getNombre())
+                .descripcion(result.getDescripcion())
+                .precioBase(result.getPrecioBase())
                 .precioPersonalizado(result.getPrecioPersonalizado())
+                .precioVigente(result.getPrecioVigente())
                 .activo(result.getActivo())
                 .createdAt(result.getCreatedAt())
                 .build();

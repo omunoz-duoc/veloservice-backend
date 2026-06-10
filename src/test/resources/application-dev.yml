@@ -24,3 +24,11 @@ jwt:
 
 app:
   url: http://localhost:8080
+cloudflare:
+  r2:
+    account-id: test-account
+    access-key-id: test-access-key
+    secret-access-key: test-secret-key
+    bucket-name: test-bucket
+    public-base-url: https://media.example.test
+    presign-expiry: 15m

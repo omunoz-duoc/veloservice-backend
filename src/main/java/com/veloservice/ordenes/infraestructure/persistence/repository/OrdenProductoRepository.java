@@ -18,6 +18,8 @@ import java.util.UUID;
  */
 @Repository
 public interface OrdenProductoRepository extends JpaRepository<OrdenProducto, UUID> {
+    boolean existsByOrdenId(UUID ordenId);
+
     /**
      * Lists product lines for a work order.
      *
@@ -58,10 +60,14 @@ public interface OrdenProductoRepository extends JpaRepository<OrdenProducto, UU
             op.precioVentaSnapshot,
             op.precioAplicado,
             op.notas,
-            op.proporcionadoPorCliente
+            op.proporcionadoPorCliente,
+            op.usuarioId,
+            COALESCE(CONCAT(u.nombre, ' ', u.apellido), 'Sistema'),
+            op.createdAt
         )
         FROM OrdenProducto op
         JOIN com.veloservice.inventario.domain.model.Producto p ON p.id = op.productoId
+        LEFT JOIN com.veloservice.auth.domain.model.Usuario u ON u.id = op.usuarioId
         WHERE op.ordenId = :ordenId
         ORDER BY op.createdAt ASC
         """)
@@ -77,11 +83,18 @@ public interface OrdenProductoRepository extends JpaRepository<OrdenProducto, UU
             op.precioVentaSnapshot,
             op.precioAplicado,
             op.notas,
-            op.proporcionadoPorCliente
+            op.proporcionadoPorCliente,
+            op.usuarioId,
+            COALESCE(CONCAT(u.nombre, ' ', u.apellido), 'Sistema'),
+            op.createdAt
         )
         FROM OrdenProducto op
         JOIN com.veloservice.inventario.domain.model.Producto p ON p.id = op.productoId
+        LEFT JOIN com.veloservice.auth.domain.model.Usuario u ON u.id = op.usuarioId
         WHERE op.id IN :ids
         """)
     List<OrdenProductoResult> findResultByIdIn(@Param("ids") List<UUID> ids);
+
+    @Query("SELECT COALESCE(SUM(op.precioAplicado * op.cantidad), 0) FROM OrdenProducto op WHERE op.ordenId = :ordenId")
+    java.math.BigDecimal sumTotalByOrdenId(@Param("ordenId") UUID ordenId);
 }

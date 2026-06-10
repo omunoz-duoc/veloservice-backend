@@ -10,8 +10,10 @@ import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRe
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.UsuarioContext;
+import com.veloservice.config.storage.R2Properties;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
+import com.veloservice.ordenes.application.dto.MultimediaResult;
 import com.veloservice.ordenes.application.dto.OrdenDetalleBaseResult;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
@@ -28,6 +30,8 @@ import com.veloservice.ordenes.domain.model.Orden;
 import com.veloservice.ordenes.domain.model.OrdenEstado;
 import com.veloservice.ordenes.domain.model.OrdenProducto;
 import com.veloservice.ordenes.domain.model.OrdenServicio;
+import com.veloservice.ordenes.domain.model.Multimedia;
+import com.veloservice.ordenes.application.port.R2StoragePort;
 import com.veloservice.ordenes.domain.model.TipoOrden;
 import com.veloservice.ordenes.infraestructure.persistence.repository.ComentarioRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.EstadoOrdenCatalogRepository;
@@ -54,6 +58,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.List;
@@ -88,6 +94,7 @@ class OrdenServiceCreateScopeTest {
     @Mock private ClienteRepository clienteRepository;
     @Mock private SucursalRepository sucursalRepository;
     @Mock private UsuarioRepository usuarioRepository;
+    @Mock private R2StoragePort r2Storage;
 
     private OrdenService ordenService;
 
@@ -111,7 +118,17 @@ class OrdenServiceCreateScopeTest {
                 bicicletaRepository,
                 clienteRepository,
                 sucursalRepository,
-                usuarioRepository
+                usuarioRepository,
+                null,
+                r2Storage,
+                new R2Properties(
+                        "test-account",
+                        "test-key",
+                        "test-secret",
+                        "test-bucket",
+                        "https://media.example",
+                        Duration.ofMinutes(15)
+                )
         );
     }
 
@@ -332,18 +349,24 @@ class OrdenServiceCreateScopeTest {
     }
 
     @Test
-    void actualizarRejectsUrgentePriorityBeforePersisting() {
+    void actualizarAcceptsUrgentePriority() {
         UUID sucursalId = UUID.randomUUID();
         UUID ordenId = UUID.randomUUID();
+        UUID estadoId = UUID.randomUUID();
+        UUID tipoId = UUID.randomUUID();
         SucursalContext.setCurrentSucursal(sucursalId);
+        Orden orden = Orden.builder()
+                .id(ordenId)
+                .sucursalId(sucursalId)
+                .estadoId(estadoId)
+                .tipoId(tipoId)
+                .prioridad("media")
+                .build();
         given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId))
-                .willReturn(Optional.of(Orden.builder()
-                        .id(ordenId)
-                        .sucursalId(sucursalId)
-                        .prioridad("media")
-                        .build()));
+                .willReturn(Optional.of(orden));
+        stubDetalle(ordenId, sucursalId, estadoId, tipoId, null, "urgente");
 
-        assertThatThrownBy(() -> ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
+        ordenService.actualizar(ordenId.toString(), new OrdenUpdateCommand(
                 null,
                 null,
                 null,
@@ -355,13 +378,10 @@ class OrdenServiceCreateScopeTest {
                 null,
                 null,
                 null
-        )))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("Prioridad invalida: urgente");
+        ));
 
-        verifyNoInteractions(estadoOrdenRepository);
-        verifyNoInteractions(tipoOrdenRepository);
-        verifyNoInteractions(ordenEstadoRepository);
+        assertThat(orden.getPrioridad()).isEqualTo("urgente");
+        verify(ordenRepository).save(orden);
     }
 
     @Test
@@ -383,7 +403,7 @@ class OrdenServiceCreateScopeTest {
                 .containsExactly("mantencion", "reparacion");
         assertThat(ordenService.listarPrioridadesCatalogo())
                 .extracting("codigo")
-                .containsExactly("baja", "media", "alta");
+                .containsExactly("baja", "media", "alta", "urgente");
     }
 
     @Test
@@ -862,8 +882,8 @@ class OrdenServiceCreateScopeTest {
                 null,
                 null
         )))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("Stock insuficiente para producto: " + productoId);
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("Stock insuficiente para producto " + productoId + "; disponible: 1");
 
         verifyNoInteractions(ordenProductoRepository);
     }
@@ -884,7 +904,7 @@ class OrdenServiceCreateScopeTest {
                 .precioVenta(new BigDecimal("12500.00"))
                 .activo(true)
                 .build();
-        given(ordenRepository.findById(ordenId)).willReturn(Optional.of(orden));
+        given(ordenRepository.findByIdAndTallerId(ordenId, tallerId)).willReturn(Optional.of(orden));
         given(productoRepository.findById(productoId)).willReturn(Optional.of(producto));
         given(ordenProductoRepository.saveAll(anyList())).willAnswer(invocation -> {
             List<OrdenProducto> saved = invocation.getArgument(0);
@@ -956,7 +976,7 @@ class OrdenServiceCreateScopeTest {
                 .servicioId(servicioId)
                 .precioPersonalizado(new BigDecimal("9900.00"))
                 .build();
-        given(ordenRepository.findById(ordenId)).willReturn(Optional.of(orden));
+        given(ordenRepository.findByIdAndTallerId(ordenId, tallerId)).willReturn(Optional.of(orden));
         given(ordenServicioRepository.findByOrdenIdAndServicioId(ordenId, servicioId)).willReturn(Optional.empty());
         given(servicioRepository.findById(servicioId)).willReturn(Optional.of(servicio));
         given(sucursalServicioRepository.findBySucursalIdAndServicioId(sucursalId, servicioId))
@@ -1012,7 +1032,7 @@ class OrdenServiceCreateScopeTest {
         UUID ordenId = UUID.randomUUID();
         UUID productoId = UUID.randomUUID();
         TallerContext.setCurrentTaller(tallerId);
-        given(ordenRepository.findById(ordenId))
+        given(ordenRepository.findByIdAndTallerId(ordenId, tallerId))
                 .willReturn(Optional.of(Orden.builder().id(ordenId).tallerId(tallerId).sucursalId(sucursalId).build()));
         given(productoRepository.findById(productoId))
                 .willReturn(Optional.of(Producto.builder()
@@ -1037,7 +1057,7 @@ class OrdenServiceCreateScopeTest {
         UUID ordenId = UUID.randomUUID();
         UUID productoId = UUID.randomUUID();
         TallerContext.setCurrentTaller(tallerId);
-        given(ordenRepository.findById(ordenId))
+        given(ordenRepository.findByIdAndTallerId(ordenId, tallerId))
                 .willReturn(Optional.of(Orden.builder().id(ordenId).tallerId(tallerId).sucursalId(sucursalId).build()));
         given(productoRepository.findById(productoId))
                 .willReturn(Optional.of(Producto.builder()
@@ -1053,6 +1073,88 @@ class OrdenServiceCreateScopeTest {
                 .hasMessage("Producto no encontrado: " + productoId);
 
         verifyNoInteractions(ordenProductoRepository);
+    }
+
+    @Test
+    void prepararMultimediaGeneratesOrderScopedKeyAndPresignedUrl() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(Orden.builder().id(ordenId).sucursalId(sucursalId).build()));
+        given(r2Storage.presignPut(any(String.class), any(String.class), any(Duration.class)))
+                .willReturn(new R2StoragePort.PresignedUpload("https://r2.example/presigned"));
+
+        var result = ordenService.prepararMultimedia(ordenId.toString(), "image/jpeg");
+
+        assertThat(result.presignedUrl()).isEqualTo("https://r2.example/presigned");
+        assertThat(result.objectKey()).startsWith("ordenes/" + ordenId + "/").endsWith(".jpg");
+        assertThat(result.publicUrl()).isEqualTo("https://media.example/" + result.objectKey());
+        verify(r2Storage).presignPut(result.objectKey(), "image/jpeg", Duration.ofMinutes(15));
+    }
+
+    @Test
+    void confirmarMultimediaVerifiesR2MetadataAndPersistsCurrentUser() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        UUID mediaId = UUID.randomUUID();
+        String objectKey = "ordenes/" + ordenId + "/" + UUID.randomUUID() + ".jpg";
+        String publicUrl = "https://media.example/" + objectKey;
+        SucursalContext.setCurrentSucursal(sucursalId);
+        UsuarioContext.setCurrentUser(usuarioId);
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(Orden.builder().id(ordenId).sucursalId(sucursalId).build()));
+        given(r2Storage.head(objectKey))
+                .willReturn(Optional.of(new R2StoragePort.ObjectMetadata("image/jpeg", 1024)));
+        given(multimediaRepository.findByObjectKey(objectKey)).willReturn(Optional.empty());
+        given(multimediaRepository.save(any(Multimedia.class))).willAnswer(invocation -> {
+            Multimedia multimedia = invocation.getArgument(0);
+            multimedia.setId(mediaId);
+            return multimedia;
+        });
+        MultimediaResult persisted = new MultimediaResult(
+                mediaId, usuarioId, "Rodrigo Soto", "image/jpeg", "imagen",
+                publicUrl, "diagnostico", "Desgaste", OffsetDateTime.now()
+        );
+        given(multimediaRepository.findResultById(mediaId)).willReturn(Optional.of(persisted));
+
+        var result = ordenService.confirmarMultimedia(
+                ordenId.toString(), objectKey, publicUrl, "image/jpeg", "Desgaste", "diagnostico"
+        );
+
+        assertThat(result.created()).isTrue();
+        assertThat(result.multimedia()).isEqualTo(persisted);
+        ArgumentCaptor<Multimedia> captor = ArgumentCaptor.forClass(Multimedia.class);
+        verify(multimediaRepository).save(captor.capture());
+        assertThat(captor.getValue().getOrdenId()).isEqualTo(ordenId);
+        assertThat(captor.getValue().getUsuarioId()).isEqualTo(usuarioId);
+        assertThat(captor.getValue().getObjectKey()).isEqualTo(objectKey);
+        assertThat(captor.getValue().getUrl()).isEqualTo(publicUrl);
+    }
+
+    @Test
+    void confirmarMultimediaRejectsKeyFromAnotherOrderBeforeHead() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        String foreignKey = "ordenes/" + UUID.randomUUID() + "/" + UUID.randomUUID() + ".jpg";
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(Orden.builder().id(ordenId).sucursalId(sucursalId).build()));
+
+        assertThatThrownBy(() -> ordenService.confirmarMultimedia(
+                ordenId.toString(),
+                foreignKey,
+                "https://media.example/" + foreignKey,
+                "image/jpeg",
+                null,
+                null
+        ))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("objectKey invalido para la orden");
+
+        verifyNoInteractions(r2Storage);
+        verifyNoInteractions(multimediaRepository);
     }
 
     private OrdenCreateCommand baseCommand(UUID clienteId, UUID bicicletaId, UUID sucursalId) {

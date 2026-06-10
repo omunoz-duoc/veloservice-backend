@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Data
@@ -23,4 +24,7 @@ public class OrdenProductoResponse {
     private BigDecimal precioAplicado;
     private String notas;
     private Boolean proporcionadoPorCliente;
+    private UUID usuarioId;
+    private String usuario;
+    private OffsetDateTime createdAt;
 }

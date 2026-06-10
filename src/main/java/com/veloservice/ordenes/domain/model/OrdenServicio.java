@@ -45,6 +45,9 @@ public class OrdenServicio {
     @Column(name = "servicio_id", nullable = false)
     private UUID servicioId;
 
+    @Column(name = "usuario_id")
+    private UUID usuarioId;
+
     @Column(name = "precio_base_snapshot", nullable = false, precision = 12, scale = 2)
     private BigDecimal precioBaseSnapshot;
 
