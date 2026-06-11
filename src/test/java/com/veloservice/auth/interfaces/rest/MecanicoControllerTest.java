@@ -35,7 +35,7 @@ class MecanicoControllerTest {
     void listarActivosReturnsMechanics() throws Exception {
         UUID mecanicoId = UUID.randomUUID();
         when(mecanicoService.listarActivos()).thenReturn(List.of(
-                new MecanicoResult(mecanicoId, "Diego", "Pizarro", "mecanico@andespedal.cl", "mecanico")
+                new MecanicoResult(mecanicoId, "Diego", "Pizarro", "mecanico@andespedal.cl", "mecanico", 4)
         ));
 
         mockMvc.perform(get("/mecanicos/activos"))
@@ -44,7 +44,8 @@ class MecanicoControllerTest {
                 .andExpect(jsonPath("$[0].nombre").value("Diego"))
                 .andExpect(jsonPath("$[0].apellido").value("Pizarro"))
                 .andExpect(jsonPath("$[0].email").value("mecanico@andespedal.cl"))
-                .andExpect(jsonPath("$[0].rol").value("mecanico"));
+                .andExpect(jsonPath("$[0].rol").value("mecanico"))
+                .andExpect(jsonPath("$[0].ordenes_activas").value(4));
     }
 
     @Test

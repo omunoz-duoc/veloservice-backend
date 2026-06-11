@@ -269,6 +269,30 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
      */
     long countBySucursalIdAndEstadoId(UUID sucursalId, UUID estadoId);
 
+    @Query("""
+            select count(o)
+            from Orden o
+            join com.veloservice.ordenes.domain.model.EstadoOrden e on e.id = o.estadoId
+            where o.mecanicoId = :mecanicoId
+              and o.sucursalId = :sucursalId
+              and e.codigo in :codigos
+            """)
+    long countActivasByMecanicoIdAndSucursalId(@Param("mecanicoId") UUID mecanicoId,
+                                               @Param("sucursalId") UUID sucursalId,
+                                               @Param("codigos") List<String> codigos);
+
+    @Query("""
+            select count(o)
+            from Orden o
+            join com.veloservice.ordenes.domain.model.EstadoOrden e on e.id = o.estadoId
+            where o.mecanicoId = :mecanicoId
+              and o.tallerId = :tallerId
+              and e.codigo in :codigos
+            """)
+    long countActivasByMecanicoIdAndTallerId(@Param("mecanicoId") UUID mecanicoId,
+                                             @Param("tallerId") UUID tallerId,
+                                             @Param("codigos") List<String> codigos);
+
 
     /**
      * Encuentra todas las órdenes asociadas a una sucursal y a un mecánico específico, ordenadas por fecha de ingreso descendente.

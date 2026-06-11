@@ -1,5 +1,7 @@
 package com.veloservice.auth.application.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.UUID;
 
 public record MecanicoResult(
@@ -7,6 +9,8 @@ public record MecanicoResult(
         String nombre,
         String apellido,
         String email,
-        String rol
+        String rol,
+        @JsonProperty("ordenes_activas")
+        long ordenesActivas
 ) {
 }
