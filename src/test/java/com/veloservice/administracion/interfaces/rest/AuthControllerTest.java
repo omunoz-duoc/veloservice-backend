@@ -151,4 +151,14 @@ class AuthControllerTest {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message").value("Rol no encontrado"));
     }
+
+    @Test
+    void changeMyPasswordCallsAuthenticatedPasswordChange() throws Exception {
+        mockMvc.perform(post("/auth/me/change-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"actual\":\"Password1!\",\"nueva\":\"Newpass1!\"}"))
+            .andExpect(status().isNoContent());
+
+        verify(authService).changeCurrentUserPassword("Password1!", "Newpass1!");
+    }
 }

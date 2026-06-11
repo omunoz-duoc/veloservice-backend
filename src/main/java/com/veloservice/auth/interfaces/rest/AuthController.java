@@ -90,6 +90,13 @@ public class AuthController {
         return ResponseEntity.noContent().build(); 
     }
 
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/me/change-password")
+    public ResponseEntity<Void> changeMyPassword(@Valid @RequestBody AuthMeChangePasswordRequest request) {
+        authService.changeCurrentUserPassword(request.getActual(), request.getNueva());
+        return ResponseEntity.noContent().build();
+    }
+
     private String resolveClientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
         if (StringUtils.hasText(forwarded)) {

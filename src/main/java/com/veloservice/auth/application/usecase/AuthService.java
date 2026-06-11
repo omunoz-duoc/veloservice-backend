@@ -19,6 +19,8 @@ import com.veloservice.auth.infraestructure.persistence.repository.UsuarioPlataf
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.auth.infraestructure.ratelimit.PasswordResetRateLimiter;
 import com.veloservice.config.security.JwtTokenProvider;
+import com.veloservice.config.tenant.UsuarioContext;
+import com.veloservice.shared.application.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -274,6 +276,26 @@ public class AuthService {
 
         resetToken.setUsed(true);
         passwordResetTokenRepository.save(resetToken);
+    }
+
+    @Transactional
+    public void changeCurrentUserPassword(String actual, String nueva) {
+        UUID usuarioId = UsuarioContext.getCurrentUser();
+        if (usuarioId == null) {
+            throw new ResourceNotFoundException("Usuario autenticado no encontrado");
+        }
+
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario autenticado no encontrado"));
+
+        if (!passwordEncoder.matches(actual, usuario.getPasswordHash())) {
+            throw new IllegalArgumentException("Contrasena actual incorrecta");
+        }
+
+        validatePassword(nueva);
+        usuario.setPasswordHash(passwordEncoder.encode(nueva));
+        usuario.setUpdatedAt(OffsetDateTime.now());
+        usuarioRepository.save(usuario);
     }
 
     private String generateResetToken() {

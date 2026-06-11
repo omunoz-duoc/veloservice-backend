@@ -17,6 +17,8 @@ import com.veloservice.auth.infraestructure.persistence.repository.UsuarioPlataf
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.auth.infraestructure.ratelimit.PasswordResetRateLimiter;
 import com.veloservice.config.security.JwtTokenProvider;
+import com.veloservice.config.tenant.UsuarioContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -51,6 +53,11 @@ class AuthServiceTest {
 
     @InjectMocks
     private AuthService authService;
+
+    @AfterEach
+    void clearContext() {
+        UsuarioContext.clear();
+    }
 
     @Test
     void adminTallerWithoutSucursalAssignmentLogsInWithTallerOnlyToken() {
@@ -153,6 +160,50 @@ class AuthServiceTest {
 
         assertThat(result.getRol()).isEqualTo("admin_taller");
         assertThat(result.getAmbito()).isEqualTo("taller");
+    }
+
+    @Test
+    void changeCurrentUserPasswordUpdatesPasswordHashWhenActualPasswordMatches() {
+        UUID userId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, UUID.randomUUID(), rol("admin_taller", "taller"));
+        UsuarioContext.setCurrentUser(userId);
+        given(usuarioRepository.findById(userId)).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches("Password1!", "hash")).willReturn(true);
+        given(passwordEncoder.encode("Newpass1!")).willReturn("new-hash");
+
+        authService.changeCurrentUserPassword("Password1!", "Newpass1!");
+
+        assertThat(usuario.getPasswordHash()).isEqualTo("new-hash");
+        assertThat(usuario.getUpdatedAt()).isNotNull();
+        verify(usuarioRepository).save(usuario);
+    }
+
+    @Test
+    void changeCurrentUserPasswordRejectsIncorrectActualPassword() {
+        UUID userId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, UUID.randomUUID(), rol("admin_taller", "taller"));
+        UsuarioContext.setCurrentUser(userId);
+        given(usuarioRepository.findById(userId)).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches("wrong", "hash")).willReturn(false);
+
+        assertThatThrownBy(() -> authService.changeCurrentUserPassword("wrong", "Newpass1!"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Contrasena actual incorrecta");
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    void changeCurrentUserPasswordRejectsInvalidNewPassword() {
+        UUID userId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, UUID.randomUUID(), rol("admin_taller", "taller"));
+        UsuarioContext.setCurrentUser(userId);
+        given(usuarioRepository.findById(userId)).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches("Password1!", "hash")).willReturn(true);
+
+        assertThatThrownBy(() -> authService.changeCurrentUserPassword("Password1!", "sinreglas"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("INVALID_PASSWORD");
+        verify(usuarioRepository, never()).save(any());
     }
 
     private void givenSuccessfulCredentialCheck(Usuario usuario) {
