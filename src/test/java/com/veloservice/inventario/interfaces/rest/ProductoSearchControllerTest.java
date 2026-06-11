@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -16,7 +17,10 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -71,5 +75,43 @@ class ProductoSearchControllerTest {
         mockMvc.perform(get("/productos").param("sucursalId", sucursalId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.productos[0].nombre").value("Llanta MTB"));
+    }
+
+    @Test
+    void actualizarReturnsUpdatedProduct() throws Exception {
+        UUID productoId = UUID.fromString("24000000-0000-4000-8000-000000000001");
+        ProductoResult r = ProductoResult.builder()
+                .id(productoId)
+                .nombre("Cadena Shimano HG701")
+                .sku("SH-HG701")
+                .marca("Shimano")
+                .precioCosto(new BigDecimal("18000"))
+                .precioVenta(new BigDecimal("27900"))
+                .stock(6)
+                .stockMinimo(2)
+                .build();
+
+        when(productoService.actualizar(eq(productoId), any())).thenReturn(r);
+
+        mockMvc.perform(put("/productos/{id}", productoId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "nombre": "Cadena Shimano HG701",
+                                  "sku": "SH-HG701",
+                                  "marca": "Shimano",
+                                  "unidadMedida": "unidad",
+                                  "precioCosto": 18000,
+                                  "precioVenta": 27900,
+                                  "stock": 6,
+                                  "stockMinimo": 2
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(productoId.toString()))
+                .andExpect(jsonPath("$.nombre").value("Cadena Shimano HG701"))
+                .andExpect(jsonPath("$.precioVenta").value(27900))
+                .andExpect(jsonPath("$.precio_asignado").value(27900))
+                .andExpect(jsonPath("$.stock_minimo").value(2));
     }
 }

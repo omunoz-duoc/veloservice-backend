@@ -72,6 +72,41 @@ public class ProductoService {
     }
 
     @TenantOperation
+    @Transactional
+    public ProductoResult actualizar(UUID id, ProductoCreateCommand command) {
+        UUID sucursalId = resolveSucursalId(null);
+        validateSucursal(sucursalId);
+
+        int stock = command.getStock() == null ? 0 : command.getStock();
+        int stockMinimo = command.getStockMinimo() == null ? 0 : command.getStockMinimo();
+        validateStock(stock, stockMinimo);
+
+        Producto producto = productoRepository.findByIdAndSucursalId(id, sucursalId)
+                .orElseThrow(() -> new ProductoException(
+                        ProductoErrorCode.PRODUCTO_NO_ENCONTRADO,
+                        "Producto no encontrado"
+                ));
+
+        producto.setNombre(command.getNombre());
+        producto.setSku(command.getSku());
+        producto.setMarca(command.getMarca());
+        producto.setUnidadMedida(command.getUnidadMedida() == null || command.getUnidadMedida().isBlank()
+                ? producto.getUnidadMedida()
+                : command.getUnidadMedida());
+        producto.setPrecioCosto(command.getPrecioCosto());
+        producto.setPrecioVenta(command.getPrecioVenta());
+        producto.setStock(stock);
+        producto.setStockMinimo(stockMinimo);
+        if (command.getCategoriaId() != null) {
+            producto.setCategoriaId(command.getCategoriaId());
+        }
+        producto.setUpdatedAt(OffsetDateTime.now());
+
+        producto = productoRepository.save(producto);
+        return toResult(producto);
+    }
+
+    @TenantOperation
     @Transactional(readOnly = true)
     public List<ProductoResult> listar() {
         return listar(null);

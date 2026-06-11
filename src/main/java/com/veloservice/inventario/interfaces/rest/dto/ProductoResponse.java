@@ -24,9 +24,15 @@ public class ProductoResponse {
     private BigDecimal precioCosto;
     private BigDecimal precioVenta;
     private Integer stock;
+    private Integer stockMinimo;
 
     @JsonProperty("precio_asignado")
     public BigDecimal getPrecioAsignado() {
         return precioVenta;
+    }
+
+    @JsonProperty("stock_minimo")
+    public Integer getStockMinimoJson() {
+        return stockMinimo;
     }
 }

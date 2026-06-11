@@ -51,6 +51,7 @@ public final class ProductoMapper {
                 .precioCosto(result.getPrecioCosto())
                 .precioVenta(result.getPrecioVenta())
                 .stock(result.getStock())
+                .stockMinimo(result.getStockMinimo())
                 .build();
     }
 

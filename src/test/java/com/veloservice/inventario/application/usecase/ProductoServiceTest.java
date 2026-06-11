@@ -96,6 +96,36 @@ class ProductoServiceTest {
         assertThat(productoService.buscar("cadena")).isEmpty();
     }
 
+    @Test
+    void actualizarPersistsProductFromCurrentSucursal() {
+        UUID sucursalId = UUID.fromString("11000000-0000-4000-8000-000000000001");
+        UUID productoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        Producto existente = producto(sucursalId, null, "Cadena Shimano HG601 11v", "CAD-HG601", "Shimano");
+        existente.setId(productoId);
+        given(productoRepository.findByIdAndSucursalId(productoId, sucursalId)).willReturn(Optional.of(existente));
+        given(productoRepository.save(existente)).willReturn(existente);
+
+        var actualizado = productoService.actualizar(productoId, new com.veloservice.inventario.application.dto.ProductoCreateCommand(
+                "Cadena Shimano HG701",
+                "SH-HG701",
+                "Shimano",
+                "unidad",
+                new BigDecimal("18000"),
+                new BigDecimal("27900"),
+                6,
+                2,
+                null
+        ));
+
+        assertThat(actualizado.getNombre()).isEqualTo("Cadena Shimano HG701");
+        assertThat(actualizado.getSku()).isEqualTo("SH-HG701");
+        assertThat(actualizado.getPrecioCosto()).isEqualByComparingTo("18000");
+        assertThat(actualizado.getPrecioVenta()).isEqualByComparingTo("27900");
+        assertThat(actualizado.getStock()).isEqualTo(6);
+        verify(productoRepository).save(existente);
+    }
+
         @Test
         void listarUsesExplicitSucursalWhenProvided() {
                 UUID tallerId = UUID.fromString("10000000-0000-4000-8000-000000000001");

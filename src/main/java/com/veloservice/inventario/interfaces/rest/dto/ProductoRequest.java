@@ -30,4 +30,5 @@ public class ProductoRequest {
     @Min(0)
     private Integer stockMinimo = 0;
     private UUID categoriaId;
+    private Boolean activo;
 }
