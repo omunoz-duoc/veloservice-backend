@@ -12,10 +12,12 @@ import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.administracion.domain.model.Sucursal;
 import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
+import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenServicioRepository;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -26,23 +28,26 @@ public class ServicioService {
     private final ServicioRepository servicioRepository;
     private final SucursalServicioRepository sucursalServicioRepository;
     private final SucursalRepository sucursalRepository;
+    private final OrdenServicioRepository ordenServicioRepository;
 
     @org.springframework.beans.factory.annotation.Autowired
     public ServicioService(
             ServicioRepository servicioRepository,
             SucursalServicioRepository sucursalServicioRepository,
-            SucursalRepository sucursalRepository
+            SucursalRepository sucursalRepository,
+            OrdenServicioRepository ordenServicioRepository
     ) {
         this.servicioRepository = servicioRepository;
         this.sucursalServicioRepository = sucursalServicioRepository;
         this.sucursalRepository = sucursalRepository;
+        this.ordenServicioRepository = ordenServicioRepository;
     }
 
     public ServicioService(
             ServicioRepository servicioRepository,
             SucursalServicioRepository sucursalServicioRepository
     ) {
-        this(servicioRepository, sucursalServicioRepository, null);
+        this(servicioRepository, sucursalServicioRepository, null, null);
     }
 
     @Transactional(readOnly = true)
@@ -58,11 +63,18 @@ public class ServicioService {
 
     @Transactional
         public ServicioResult crear(ServicioCreateCommand command) {
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            throw new IllegalStateException("Taller no presente en contexto");
+        }
         Servicio s = Servicio.builder()
+            .tallerId(tallerId)
             .nombre(command.getNombre())
             .descripcion(command.getDescripcion())
             .precioBase(command.getPrecioBase())
+            .esGarantia(false)
             .activo(command.getActivo() == null ? true : command.getActivo())
+            .createdAt(OffsetDateTime.now())
                 .build();
         s = servicioRepository.save(s);
         return toResult(s);
@@ -70,8 +82,7 @@ public class ServicioService {
 
     @Transactional
     public ServicioResult actualizar(UUID id, ServicioCreateCommand command) {
-        Servicio s = servicioRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Servicio no encontrado"));
+        Servicio s = findServicioDelTaller(id);
         s.setNombre(command.getNombre());
         s.setDescripcion(command.getDescripcion());
         s.setPrecioBase(command.getPrecioBase());
@@ -82,8 +93,20 @@ public class ServicioService {
 
     @Transactional
     public void eliminar(UUID id) {
-        if (!servicioRepository.existsById(id)) throw new IllegalArgumentException("Servicio no encontrado");
-        servicioRepository.deleteById(id);
+        Servicio servicio = findServicioDelTaller(id);
+        if (ordenServicioRepository != null && ordenServicioRepository.existsByServicioId(id)) {
+            throw new IllegalArgumentException("No se puede eliminar un servicio con órdenes asociadas.");
+        }
+        servicioRepository.delete(servicio);
+    }
+
+    private Servicio findServicioDelTaller(UUID id) {
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            throw new IllegalStateException("Taller no presente en contexto");
+        }
+        return servicioRepository.findByIdAndTallerId(id, tallerId)
+                .orElseThrow(() -> new IllegalArgumentException("Servicio no encontrado"));
     }
 
     @Transactional

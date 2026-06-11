@@ -20,6 +20,8 @@ import java.util.UUID;
 public interface OrdenServicioRepository extends JpaRepository<OrdenServicio, UUID> {
     boolean existsByOrdenId(UUID ordenId);
 
+    boolean existsByServicioId(UUID servicioId);
+
     /**
      * Lists services for a work order.
      *
