@@ -2,6 +2,7 @@ package com.veloservice.administracion.application.usecase;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -11,6 +12,9 @@ import com.veloservice.administracion.application.dto.NuevoTallerCommand;
 import com.veloservice.administracion.application.dto.TallerResult;
 import com.veloservice.administracion.domain.model.Taller;
 import com.veloservice.administracion.infraestructure.persistence.repository.TallerRepository;
+import com.veloservice.config.tenant.TallerContext;
+import com.veloservice.config.tenant.TenantOperation;
+import com.veloservice.shared.application.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -54,6 +58,34 @@ public class TallerService {
                 .updatedAt(now)
                 .build();
         return toResult(tallerRepository.save(taller));
+    }
+
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public TallerResult obtenerActual() {
+        return toResult(obtenerTallerActual());
+    }
+
+    @TenantOperation
+    @Transactional
+    public TallerResult actualizarActual(String nombre, String rut, String telefono, String email, String logoUrl) {
+        Taller taller = obtenerTallerActual();
+        taller.setNombre(nombre);
+        taller.setRut(rut);
+        taller.setTelefono(telefono);
+        taller.setEmail(email);
+        taller.setLogoUrl(logoUrl);
+        taller.setUpdatedAt(OffsetDateTime.now());
+        return toResult(tallerRepository.save(taller));
+    }
+
+    private Taller obtenerTallerActual() {
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            throw new ResourceNotFoundException("Taller no encontrado");
+        }
+        return tallerRepository.findById(tallerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Taller no encontrado"));
     }
 
     private TallerResult toResult(Taller taller) {
