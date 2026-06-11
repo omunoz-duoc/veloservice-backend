@@ -96,20 +96,24 @@ class OrdenControllerErrorHandlingTest {
     }
 
     @Test
-    void listarUrgentesReturnsAltaAndUrgenteOrdersWithListContract() throws Exception {
+    void listarUrgentesReturnsOnlyAltaOrdersPromisedWithinNextThreeDays() throws Exception {
+        OffsetDateTime now = OffsetDateTime.now();
         when(ordenService.listar(null)).thenReturn(List.of(
-                ordenReadResult("OT-000001", "alta"),
-                ordenReadResult("OT-000002", "urgente"),
-                ordenReadResult("OT-000003", "media")
+                ordenReadResult("OT-000001", "alta", now.plusDays(1), "recibida"),
+                ordenReadResult("OT-000002", "alta", now.plusDays(4), "recibida"),
+                ordenReadResult("OT-000003", "media", now.plusDays(1), "recibida"),
+                ordenReadResult("OT-000004", "baja", now.plusDays(1), "recibida"),
+                ordenReadResult("OT-000005", "alta", now.plusDays(1), "entregada"),
+                ordenReadResult("OT-000006", "alta", now.plusDays(1), "cancelada"),
+                ordenReadResult("OT-000007", "alta", null, "recibida"),
+                ordenReadResult("OT-000008", "urgente", now.plusDays(1), "recibida")
         ));
 
         mockMvc.perform(get("/ordenes/urgentes"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.total").value(1))
                 .andExpect(jsonPath("$.ordenes[0].numeroOrden").value("OT-000001"))
-                .andExpect(jsonPath("$.ordenes[0].prioridad").value("alta"))
-                .andExpect(jsonPath("$.ordenes[1].numeroOrden").value("OT-000002"))
-                .andExpect(jsonPath("$.ordenes[1].prioridad").value("urgente"));
+                .andExpect(jsonPath("$.ordenes[0].prioridad").value("alta"));
 
         verify(ordenService).listar(null);
         verify(ordenService, never()).obtenerDetalle("urgentes");
@@ -119,7 +123,7 @@ class OrdenControllerErrorHandlingTest {
     void listarUrgentesAcceptsSucursalIdAndDoesNotEnterIdHandler() throws Exception {
         UUID sucursalId = UUID.randomUUID();
         when(ordenService.listar(sucursalId)).thenReturn(List.of(
-                ordenReadResult("OT-000001", "alta")
+                ordenReadResult("OT-000001", "alta", OffsetDateTime.now().plusDays(1), "recibida")
         ));
 
         mockMvc.perform(get("/ordenes/urgentes").param("sucursalId", sucursalId.toString()))
@@ -677,19 +681,28 @@ class OrdenControllerErrorHandlingTest {
     }
 
     private OrdenReadResult ordenReadResult(String numeroOrden, String prioridad) {
+        return ordenReadResult(numeroOrden, prioridad, null, "recibida");
+    }
+
+    private OrdenReadResult ordenReadResult(
+            String numeroOrden,
+            String prioridad,
+            OffsetDateTime fechaPrometida,
+            String estadoCodigo
+    ) {
         return new OrdenReadResult(
                 UUID.randomUUID(),
                 numeroOrden,
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 UUID.randomUUID(),
-                "recibida",
-                "Recibida",
+                estadoCodigo,
+                estadoCodigo,
                 UUID.randomUUID(),
                 "mantencion",
                 "Mantencion",
                 OffsetDateTime.parse("2026-06-08T10:00:00-04:00"),
-                null,
+                fechaPrometida,
                 null,
                 "Diagnostico",
                 null,

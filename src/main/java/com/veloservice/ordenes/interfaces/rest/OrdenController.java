@@ -66,6 +66,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -117,8 +118,10 @@ public class OrdenController {
 
     @GetMapping("/urgentes")
     public ResponseEntity<OrdenReadListResponse> listarUrgentes(@RequestParam(required = false) UUID sucursalId) {
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime maxFechaPrometida = now.plusDays(3);
         List<OrdenReadResponse> ordenes = ordenService.listar(sucursalId).stream()
-                .filter(orden -> isPrioridadUrgente(orden.prioridad()))
+                .filter(orden -> isOrdenUrgente(orden, now, maxFechaPrometida))
                 .map(this::toResponse)
                 .toList();
         return ResponseEntity.ok(new OrdenReadListResponse(ordenes.size(), ordenes));
@@ -723,10 +726,15 @@ public class OrdenController {
         );
     }
 
-    private boolean isPrioridadUrgente(String prioridad) {
-        return prioridad != null && (
-                "alta".equalsIgnoreCase(prioridad) || "urgente".equalsIgnoreCase(prioridad)
-        );
+    private boolean isOrdenUrgente(OrdenReadResult orden, OffsetDateTime now, OffsetDateTime maxFechaPrometida) {
+        if (orden.fechaPrometida() == null || !"alta".equalsIgnoreCase(orden.prioridad())) {
+            return false;
+        }
+        String estadoCodigo = orden.estadoCodigo();
+        if ("entregada".equalsIgnoreCase(estadoCodigo) || "cancelada".equalsIgnoreCase(estadoCodigo)) {
+            return false;
+        }
+        return !orden.fechaPrometida().isBefore(now) && orden.fechaPrometida().isBefore(maxFechaPrometida);
     }
 
     private void validarIdentificador(String id) {
