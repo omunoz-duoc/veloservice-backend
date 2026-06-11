@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.veloservice.finanzas.interfaces.rest.dto.RentabilidadResponse;
 
 @RestController
 @RequestMapping("/finanzas")
@@ -21,4 +22,8 @@ public class FinanzasController {
                 .cobrosDelDia(cobroService.ingresosHoy())
                 .build());
     }
+    @GetMapping("/rentabilidad")
+    public ResponseEntity<RentabilidadResponse> rentabilidad() {
+        return ResponseEntity.ok(cobroService.rentabilidad());
+}
 }

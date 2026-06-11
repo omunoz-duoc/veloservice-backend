@@ -21,6 +21,10 @@ import com.veloservice.config.tenant.UsuarioContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.veloservice.finanzas.interfaces.rest.dto.RentabilidadResponse;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -209,4 +213,41 @@ public class CobroService {
                 .createdAt(cobro.getCreatedAt())
                 .build();
     }
+    public RentabilidadResponse rentabilidad() {
+    OffsetDateTime now = OffsetDateTime.now();
+    List<RentabilidadResponse.PuntoRentabilidad> historico = new ArrayList<>();
+
+    BigDecimal ingresosTotal = BigDecimal.ZERO;
+    BigDecimal costosTotal = BigDecimal.ZERO;
+
+    for (int i = 5; i >= 0; i--) {
+        OffsetDateTime start = now.minusWeeks(i).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        OffsetDateTime end = start.plusWeeks(1);
+
+        Object[] row = cobroRepository.sumRentabilidadByCreatedAtBetween(start, end);
+        Object[] values = row.length > 0 && row[0] instanceof Object[] nested ? nested : row;
+
+        BigDecimal ingresos = (BigDecimal) values[0];
+        BigDecimal subtotalProductos = (BigDecimal) values[1];
+        BigDecimal subtotalServicios = (BigDecimal) values[2];
+
+        BigDecimal costos = subtotalProductos.add(subtotalServicios);
+        ingresosTotal = ingresosTotal.add(ingresos);
+        costosTotal = costosTotal.add(costos);
+
+        historico.add(new RentabilidadResponse.PuntoRentabilidad(
+                "Sem " + start.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR),
+                ingresos,
+                costos
+        ));
+    }
+
+    BigDecimal margen = ingresosTotal.compareTo(BigDecimal.ZERO) == 0
+            ? BigDecimal.ZERO
+            : ingresosTotal.subtract(costosTotal)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(ingresosTotal, 2, RoundingMode.HALF_UP);
+
+    return new RentabilidadResponse(ingresosTotal, costosTotal, margen, historico);
+}
 }
