@@ -74,6 +74,25 @@ public class ClienteService {
         return toResult(cliente);
     }
 
+    @TenantOperation
+    @Transactional
+    public ClienteResult actualizar(UUID id, ClienteCreateCommand command) {
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            throw new IllegalStateException("Operacion requiere contexto de taller");
+        }
+        Cliente cliente = clienteRepository.findByIdAndTallerId(id, tallerId)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+        cliente.setNombre(command.getNombre());
+        cliente.setApellido(command.getApellido());
+        cliente.setRut(command.getRut());
+        cliente.setTelefono(command.getTelefono());
+        cliente.setEmail(command.getEmail());
+        cliente.setDireccion(command.getDireccion());
+        cliente.setUpdatedAt(OffsetDateTime.now());
+        return toResult(clienteRepository.save(cliente));
+    }
+
     private Cliente nuevoCliente(ClienteCreateCommand command, UUID tallerId) {
         OffsetDateTime now = OffsetDateTime.now();
         return Cliente.builder()

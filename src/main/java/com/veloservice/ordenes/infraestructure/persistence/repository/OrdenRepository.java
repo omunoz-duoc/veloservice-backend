@@ -222,6 +222,8 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
      */
     List<Orden> findAllByBicicletaIdOrderByFechaIngresoDesc(UUID bicicletaId);
 
+    boolean existsByBicicletaId(UUID bicicletaId);
+
     /**
      * Encuentra todas las órdenes asociadas a un mecánico específico, ordenadas por fecha de ingreso descendente.
      * @param mecanicoId

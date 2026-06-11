@@ -20,6 +20,7 @@ public class ClienteResponse {
     private String rut;
     private String email;
     private String telefono;
+    private String direccion;
     @JsonProperty("bicicletas_count")
     private int bicicletasCount;
     @JsonProperty("ordenes_count")

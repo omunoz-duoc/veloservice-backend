@@ -26,4 +26,8 @@ public interface BicicletaRepository extends JpaRepository<Bicicleta, UUID> {
 
     @Query("select b from Bicicleta b join b.cliente c where c.tallerId = :tallerId")
     List<Bicicleta> findAllByClienteTallerId(@Param("tallerId") UUID tallerId);
+
+    @Query("select b from Bicicleta b join b.cliente c where b.id = :id and c.tallerId = :tallerId")
+    Optional<Bicicleta> findByIdAndClienteTallerId(@Param("id") UUID id,
+                                                   @Param("tallerId") UUID tallerId);
 }

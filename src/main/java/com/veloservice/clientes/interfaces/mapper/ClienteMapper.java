@@ -47,6 +47,7 @@ public final class ClienteMapper {
                 .rut(result.getRut())
                 .email(result.getEmail())
                 .telefono(result.getTelefono())
+                .direccion(result.getDireccion())
                 .bicicletasCount(result.getBicicletasCount())
                 .ordenesCount(result.getOrdenesCount())
                 .totalGastado(result.getTotalGastado())

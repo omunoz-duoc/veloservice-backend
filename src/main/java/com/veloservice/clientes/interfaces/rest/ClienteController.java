@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,6 +42,15 @@ public class ClienteController {
     public ResponseEntity<ClienteResponse> crear(@Valid @RequestBody ClienteRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ClienteMapper.toResponse(clienteService.crear(ClienteMapper.toCommand(request)))
+        );
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<ClienteResponse> actualizar(
+            @PathVariable UUID id,
+            @Valid @RequestBody ClienteRequest request) {
+        return ResponseEntity.ok(
+                ClienteMapper.toResponse(clienteService.actualizar(id, ClienteMapper.toCommand(request)))
         );
     }
 

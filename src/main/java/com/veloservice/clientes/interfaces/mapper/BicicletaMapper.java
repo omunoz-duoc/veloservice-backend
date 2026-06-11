@@ -37,6 +37,7 @@ public final class BicicletaMapper {
                 .color(result.getColor())
                 .numeroSerie(result.getNumeroSerie())
                 .anio(result.getAnio())
+                .notas(result.getNotas())
                 .build();
     }
 
