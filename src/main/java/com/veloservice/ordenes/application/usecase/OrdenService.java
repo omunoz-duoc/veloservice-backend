@@ -693,6 +693,7 @@ public class OrdenService {
         return agregarProductosAOrden(orden, items, now);
     }
 
+    @Transactional
     public List<OrdenProductoResult> agregarProductos(UUID ordenId, List<OrdenProductoAddCommand> items) {
         Orden orden = buscarOrdenPorIdParaMutacion(ordenId);
         validarOrdenPermiteModificarProductos(orden);
@@ -832,6 +833,7 @@ public class OrdenService {
         return agregarServiciosAOrden(orden, items, now);
     }
 
+    @Transactional
     public List<OrdenServicioResult> agregarServicios(UUID ordenId, List<OrdenServicioAddCommand> items) {
         Orden orden = buscarOrdenPorIdParaMutacion(ordenId);
         validarOrdenPermiteModificarServicios(orden);
