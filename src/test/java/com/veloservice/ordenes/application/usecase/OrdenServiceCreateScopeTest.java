@@ -25,6 +25,7 @@ import com.veloservice.ordenes.application.dto.OrdenServicioAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenServicioResult;
 import com.veloservice.ordenes.application.dto.OrdenServicioUpdateCommand;
 import com.veloservice.ordenes.application.dto.OrdenUpdateCommand;
+import com.veloservice.ordenes.domain.AccionHistorialEnum;
 import com.veloservice.ordenes.domain.PrioridadOrdenEnum;
 import com.veloservice.ordenes.domain.model.EstadoOrden;
 import com.veloservice.ordenes.domain.model.Orden;
@@ -69,6 +70,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -97,6 +100,7 @@ class OrdenServiceCreateScopeTest {
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private UsuarioSucursalRepository usuarioSucursalRepository;
     @Mock private R2StoragePort r2Storage;
+    @Mock private OrdenHistorialService ordenHistorialService;
 
     private OrdenService ordenService;
 
@@ -131,7 +135,8 @@ class OrdenServiceCreateScopeTest {
                         "test-bucket",
                         "https://media.example",
                         Duration.ofMinutes(15)
-                )
+                ),
+                ordenHistorialService
         );
     }
 
@@ -228,6 +233,7 @@ class OrdenServiceCreateScopeTest {
         assertThat(history.getEstadoNuevoId()).isEqualTo(estadoNuevoId);
         assertThat(history.getObservacion()).isEqualTo("Diagnostico iniciado");
         assertThat(history.getCreatedAt()).isNotNull();
+        verify(ordenHistorialService).registrar(eq(ordenId), eq(AccionHistorialEnum.ESTADO_CAMBIADO), eq("orden"), isNull(), any());
     }
 
     @Test
@@ -349,6 +355,7 @@ class OrdenServiceCreateScopeTest {
         assertThat(orden.getMecanicoId()).isEqualTo(mecanicoId);
         verify(ordenRepository).save(orden);
         verify(ordenEstadoRepository).save(any(OrdenEstado.class));
+        verify(ordenHistorialService).registrar(eq(ordenId), eq(AccionHistorialEnum.ORDEN_EDITADA), eq("orden"), isNull(), any());
     }
 
     @Test
@@ -579,6 +586,7 @@ class OrdenServiceCreateScopeTest {
         assertThat(lineItem.getPrecioAplicado()).isEqualByComparingTo("12500.00");
         verify(ordenProductoRepository).saveAll(List.of(lineItem));
         verify(ordenRepository).save(orden);
+        verify(ordenHistorialService).registrar(eq(ordenId), eq(AccionHistorialEnum.PRODUCTO_MODIFICADO), eq("producto"), eq(productoId), any());
     }
 
     @Test
@@ -617,6 +625,7 @@ class OrdenServiceCreateScopeTest {
 
         verify(ordenProductoRepository).deleteByIdAndOrdenId(lineId, ordenId);
         verify(ordenRepository).save(orden);
+        verify(ordenHistorialService).registrar(eq(ordenId), eq(AccionHistorialEnum.PRODUCTO_QUITADO), eq("producto"), isNull(), any());
     }
 
     @Test
@@ -736,6 +745,7 @@ class OrdenServiceCreateScopeTest {
         assertThat(lineItem.getNotas()).isEqualTo("Nueva nota");
         verify(ordenServicioRepository).saveAll(List.of(lineItem));
         verify(ordenRepository).save(orden);
+        verify(ordenHistorialService).registrar(eq(ordenId), eq(AccionHistorialEnum.SERVICIO_MODIFICADO), eq("servicio"), eq(servicioId), any());
     }
 
     @Test
@@ -767,6 +777,7 @@ class OrdenServiceCreateScopeTest {
 
         verify(ordenServicioRepository).deleteByIdAndOrdenId(lineId, ordenId);
         verify(ordenRepository).save(orden);
+        verify(ordenHistorialService).registrar(eq(ordenId), eq(AccionHistorialEnum.SERVICIO_QUITADO), eq("servicio"), isNull(), any());
     }
 
     @Test
@@ -957,6 +968,7 @@ class OrdenServiceCreateScopeTest {
         assertThat(saved.getProporcionadoPorCliente()).isTrue();
         assertThat(saved.getNotas()).isEqualTo("Cliente trajo repuesto");
         assertThat(saved.getCreatedAt()).isNotNull();
+        verify(ordenHistorialService).registrar(eq(ordenId), eq(AccionHistorialEnum.PRODUCTO_AGREGADO), eq("producto"), eq(productoId), any());
     }
 
     @Test
@@ -1026,6 +1038,7 @@ class OrdenServiceCreateScopeTest {
         assertThat(saved.getDescuentoAplicado()).isEqualByComparingTo("0.00");
         assertThat(saved.getNotas()).isEqualTo("Ajustar delantero");
         assertThat(saved.getCreatedAt()).isNotNull();
+        verify(ordenHistorialService).registrar(eq(ordenId), eq(AccionHistorialEnum.SERVICIO_AGREGADO), eq("servicio"), eq(servicioId), any());
     }
 
     @Test

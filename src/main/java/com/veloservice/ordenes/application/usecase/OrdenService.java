@@ -15,6 +15,8 @@ import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.TenantOperation;
 import com.veloservice.config.tenant.UsuarioContext;
+import com.veloservice.ordenes.domain.AccionHistorialEnum;
+import com.veloservice.ordenes.application.dto.OrdenHistorialResult;
 import com.veloservice.config.storage.R2Properties;
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.inventario.domain.model.Producto;
@@ -116,6 +118,7 @@ public class OrdenService {
     private final MediaStoragePort mediaStorage;
     private final R2StoragePort r2Storage;
     private final R2Properties r2Properties;
+    private final OrdenHistorialService ordenHistorialService;
 
     @org.springframework.beans.factory.annotation.Autowired
     public OrdenService(
@@ -140,7 +143,8 @@ public class OrdenService {
             UsuarioSucursalRepository usuarioSucursalRepository,
             MediaStoragePort mediaStorage,
             R2StoragePort r2Storage,
-            R2Properties r2Properties
+            R2Properties r2Properties,
+            OrdenHistorialService ordenHistorialService
     ) {
         this.ordenRepository = ordenRepository;
         this.comentarioRepository = comentarioRepository;
@@ -164,6 +168,7 @@ public class OrdenService {
         this.mediaStorage = mediaStorage;
         this.r2Storage = r2Storage;
         this.r2Properties = r2Properties;
+        this.ordenHistorialService = ordenHistorialService;
     }
 
     public OrdenService(
@@ -185,14 +190,15 @@ public class OrdenService {
             ClienteRepository clienteRepository,
             SucursalRepository sucursalRepository,
             UsuarioRepository usuarioRepository,
-            UsuarioSucursalRepository usuarioSucursalRepository
+            UsuarioSucursalRepository usuarioSucursalRepository,
+            OrdenHistorialService ordenHistorialService
     ) {
         this(ordenRepository, comentarioRepository, multimediaRepository, estadoOrdenRepository,
                 ordenEstadoRepository, tipoOrdenRepository, servicioRepository,
                 sucursalServicioRepository, productoRepository, ordenServicioRepository,
                 ordenProductoRepository, secuenciaService, clienteService, bicicletaService,
                 bicicletaRepository, clienteRepository, sucursalRepository, usuarioRepository,
-                usuarioSucursalRepository, null, null, null);
+                usuarioSucursalRepository, null, null, null, ordenHistorialService);
     }
 
     /**
@@ -436,6 +442,15 @@ public class OrdenService {
                     .descripcion(descripcionNormalizada)
                     .createdAt(OffsetDateTime.now())
                     .build());
+            ordenHistorialService.registrar(
+                    orden.getId(),
+                    AccionHistorialEnum.MULTIMEDIA_AGREGADA,
+                    "multimedia",
+                    saved.getId(),
+                    java.util.Map.of(
+                            "tipoArchivo", saved.getTipoArchivo() == null ? "" : saved.getTipoArchivo(),
+                            "etapa", saved.getEtapa() == null ? "" : saved.getEtapa().name()
+                    ));
             return multimediaRepository.findResultById(saved.getId())
                     .orElseThrow(() -> new IllegalStateException("No fue posible leer el archivo creado"));
         } catch (RuntimeException ex) {
@@ -508,6 +523,15 @@ public class OrdenService {
                 .descripcion(normalizarOpcional(descripcion, 500, "descripcion"))
                 .createdAt(OffsetDateTime.now())
                 .build());
+        ordenHistorialService.registrar(
+                orden.getId(),
+                AccionHistorialEnum.MULTIMEDIA_AGREGADA,
+                "multimedia",
+                saved.getId(),
+                java.util.Map.of(
+                        "tipoArchivo", saved.getTipoArchivo() == null ? "" : saved.getTipoArchivo(),
+                        "etapa", saved.getEtapa() == null ? "" : saved.getEtapa().name()
+                ));
         MultimediaResult result = multimediaRepository.findResultById(saved.getId())
                 .orElseThrow(() -> new IllegalStateException("No fue posible leer el archivo creado"));
         return new MultimediaConfirmationResult(result, true);
@@ -555,6 +579,7 @@ public class OrdenService {
         Orden orden = buscarOrdenParaMutacion(id);
         OffsetDateTime now = OffsetDateTime.now();
         boolean changed = false;
+        java.util.Map<String, Object> camposEditados = new java.util.LinkedHashMap<>();
 
         if (hasText(command.getEstadoCodigo())) {
             aplicarCambioEstado(orden, command.getEstadoCodigo(), command.getEstadoObservacion(), now, requerirUsuarioContext());
@@ -567,6 +592,7 @@ public class OrdenService {
             TipoOrden tipo = tipoOrdenRepository.findByCodigo(command.getTipoCodigo())
                     .orElseThrow(() -> new ResourceNotFoundException("Tipo de orden no encontrado: " + command.getTipoCodigo()));
             orden.setTipoId(tipo.getId());
+            camposEditados.put("tipoCodigo", command.getTipoCodigo());
             changed = true;
         } else if (command.getTipoCodigo() != null) {
             throw new BadRequestException("tipoCodigo no puede estar vacio");
@@ -580,6 +606,7 @@ public class OrdenService {
                 throw new BadRequestException("Prioridad invalida: " + command.getPrioridad());
             }
             orden.setPrioridad(prioridad);
+            camposEditados.put("prioridad", prioridad);
             changed = true;
         } else if (command.getPrioridad() != null) {
             throw new BadRequestException("prioridad no puede estar vacia");
@@ -590,6 +617,7 @@ public class OrdenService {
                 throw new ResourceNotFoundException("Mecanico no encontrado: " + command.getMecanicoId());
             }
             orden.setMecanicoId(command.getMecanicoId());
+            camposEditados.put("mecanicoId", command.getMecanicoId().toString());
             changed = true;
         }
 
@@ -634,7 +662,26 @@ public class OrdenService {
             ordenRepository.save(orden);
         }
 
+        if (!camposEditados.isEmpty()) {
+            ordenHistorialService.registrar(
+                    orden.getId(),
+                    AccionHistorialEnum.ORDEN_EDITADA,
+                    "orden",
+                    null,
+                    camposEditados);
+        }
+
         return obtenerDetalle(id);
+    }
+
+    /**
+     * Lista el historial de auditoría de una orden, resuelta dentro del contexto de taller/sucursal actual.
+     */
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<OrdenHistorialResult> listarHistorial(String id) {
+        Orden orden = buscarOrdenParaMutacion(id);
+        return ordenHistorialService.listar(orden.getId());
     }
 
     @TenantOperation
@@ -696,6 +743,17 @@ public class OrdenService {
                 producto.setUpdatedAt(now);
                 productoRepository.save(producto);
             }
+
+            ordenHistorialService.registrar(
+                    orden.getId(),
+                    AccionHistorialEnum.PRODUCTO_AGREGADO,
+                    "producto",
+                    item.getProductoId(),
+                    java.util.Map.of(
+                            "nombre", producto.getNombre() == null ? "" : producto.getNombre(),
+                            "cantidad", item.getCantidad(),
+                            "proporcionadoPorCliente", proporcionadoPorCliente
+                    ));
         }
 
         List<OrdenProducto> lineItems = new ArrayList<>(lineItemsByProducto.values());
@@ -730,6 +788,16 @@ public class OrdenService {
                     if (item.getNotas() != null) {
                         lineItem.setNotas(item.getNotas());
                     }
+                    ordenHistorialService.registrar(
+                            orden.getId(),
+                            AccionHistorialEnum.PRODUCTO_MODIFICADO,
+                            "producto",
+                            lineItem.getProductoId(),
+                            java.util.Map.of(
+                                    "lineItemId", item.getId().toString(),
+                                    "cantidad", cantidad,
+                                    "proporcionadoPorCliente", proporcionadoPorCliente
+                            ));
                     return lineItem;
                 })
                 .toList();
@@ -746,6 +814,12 @@ public class OrdenService {
             if (deleted == 0) {
                 throw new ResourceNotFoundException("Producto asociado no encontrado: " + lineItemId);
             }
+            ordenHistorialService.registrar(
+                    orden.getId(),
+                    AccionHistorialEnum.PRODUCTO_QUITADO,
+                    "producto",
+                    null,
+                    java.util.Map.of("lineItemId", lineItemId.toString()));
         }
     }
 
@@ -781,6 +855,16 @@ public class OrdenService {
 
                     Servicio servicio = buscarServicioDisponible(item.getServicioId(), orden.getTallerId());
                     BigDecimal precioBase = resolverPrecioServicio(orden, item.getServicioId(), servicio);
+
+                    ordenHistorialService.registrar(
+                            orden.getId(),
+                            AccionHistorialEnum.SERVICIO_AGREGADO,
+                            "servicio",
+                            item.getServicioId(),
+                            java.util.Map.of(
+                                    "nombre", servicio.getNombre() == null ? "" : servicio.getNombre(),
+                                    "precioBase", precioBase.toPlainString()
+                            ));
 
                     return OrdenServicio.builder()
                             .ordenId(orden.getId())
@@ -824,6 +908,16 @@ public class OrdenService {
                     if (item.getNotas() != null) {
                         lineItem.setNotas(item.getNotas());
                     }
+                    ordenHistorialService.registrar(
+                            orden.getId(),
+                            AccionHistorialEnum.SERVICIO_MODIFICADO,
+                            "servicio",
+                            lineItem.getServicioId(),
+                            java.util.Map.of(
+                                    "lineItemId", item.getId().toString(),
+                                    "precioAplicado", lineItem.getPrecioAplicado().toPlainString(),
+                                    "descuentoAplicado", lineItem.getDescuentoAplicado().toPlainString()
+                            ));
                     return lineItem;
                 })
                 .toList();
@@ -840,6 +934,12 @@ public class OrdenService {
             if (deleted == 0) {
                 throw new ResourceNotFoundException("Servicio asociado no encontrado: " + lineItemId);
             }
+            ordenHistorialService.registrar(
+                    orden.getId(),
+                    AccionHistorialEnum.SERVICIO_QUITADO,
+                    "servicio",
+                    null,
+                    java.util.Map.of("lineItemId", lineItemId.toString()));
         }
     }
 
@@ -1096,6 +1196,17 @@ public class OrdenService {
                 .observacion(observacion)
                 .createdAt(now)
                 .build());
+
+        ordenHistorialService.registrar(
+                orden.getId(),
+                AccionHistorialEnum.ESTADO_CAMBIADO,
+                "orden",
+                null,
+                java.util.Map.of(
+                        "estadoAnterior", estadoAnterior.map(EstadoOrden::getCodigo).orElse("desconocido"),
+                        "estadoNuevo", nuevoEstado.getCodigo(),
+                        "observacion", observacion == null ? "" : observacion
+                ));
     }
 
     private UUID requerirUsuarioContext() {

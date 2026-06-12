@@ -8,6 +8,7 @@ import com.veloservice.ordenes.domain.model.TipoOrden;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.OrdenDetalleResult;
 import com.veloservice.ordenes.application.dto.OrdenEstadoChangeCommand;
+import com.veloservice.ordenes.application.dto.OrdenHistorialResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoAddCommand;
 import com.veloservice.ordenes.application.dto.OrdenProductoResult;
 import com.veloservice.ordenes.application.dto.OrdenProductoUpdateCommand;
@@ -27,6 +28,7 @@ import com.veloservice.ordenes.interfaces.rest.dto.OrdenCreateResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenCatalogoResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenDetalleResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenEstadoChangeRequest;
+import com.veloservice.ordenes.interfaces.rest.dto.OrdenHistorialResponse;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenProductoAddRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenProductoCambioRequest;
 import com.veloservice.ordenes.interfaces.rest.dto.OrdenProductoResponse;
@@ -187,6 +189,18 @@ public class OrdenController {
     })
     public ResponseEntity<OrdenDetalleResponse> obtener(@PathVariable String id) {
         return ResponseEntity.ok(toDetalleResponse(ordenService.obtenerDetalle(id)));
+    }
+
+    @GetMapping("/{id}/historial")
+    public ResponseEntity<List<OrdenHistorialResponse>> historial(@PathVariable String id) {
+        validarIdentificador(id);
+        List<OrdenHistorialResult> results = ordenService.listarHistorial(id);
+        List<OrdenHistorialResponse> response = results.stream()
+                .map(h -> new OrdenHistorialResponse(
+                        h.id(), h.accion(), h.entidad(), h.entidadId(),
+                        h.detalle(), h.usuarioId(), h.usuario(), h.createdAt()))
+                .toList();
+        return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/{id}")
