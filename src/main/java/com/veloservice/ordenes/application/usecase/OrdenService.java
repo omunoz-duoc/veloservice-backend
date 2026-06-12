@@ -1,6 +1,8 @@
 package com.veloservice.ordenes.application.usecase;
 
+import com.veloservice.administracion.domain.model.UsuarioSucursal;
 import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
+import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioSucursalRepository;
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.clientes.application.dto.BicicletaCreateCommand;
 import com.veloservice.clientes.application.dto.ClienteCreateCommand;
@@ -110,6 +112,7 @@ public class OrdenService {
     private final ClienteRepository clienteRepository;
     private final SucursalRepository sucursalRepository;
     private final UsuarioRepository usuarioRepository;
+    private final UsuarioSucursalRepository usuarioSucursalRepository;
     private final MediaStoragePort mediaStorage;
     private final R2StoragePort r2Storage;
     private final R2Properties r2Properties;
@@ -134,6 +137,7 @@ public class OrdenService {
             ClienteRepository clienteRepository,
             SucursalRepository sucursalRepository,
             UsuarioRepository usuarioRepository,
+            UsuarioSucursalRepository usuarioSucursalRepository,
             MediaStoragePort mediaStorage,
             R2StoragePort r2Storage,
             R2Properties r2Properties
@@ -156,6 +160,7 @@ public class OrdenService {
         this.clienteRepository = clienteRepository;
         this.sucursalRepository = sucursalRepository;
         this.usuarioRepository = usuarioRepository;
+        this.usuarioSucursalRepository = usuarioSucursalRepository;
         this.mediaStorage = mediaStorage;
         this.r2Storage = r2Storage;
         this.r2Properties = r2Properties;
@@ -179,14 +184,15 @@ public class OrdenService {
             BicicletaRepository bicicletaRepository,
             ClienteRepository clienteRepository,
             SucursalRepository sucursalRepository,
-            UsuarioRepository usuarioRepository
+            UsuarioRepository usuarioRepository,
+            UsuarioSucursalRepository usuarioSucursalRepository
     ) {
         this(ordenRepository, comentarioRepository, multimediaRepository, estadoOrdenRepository,
                 ordenEstadoRepository, tipoOrdenRepository, servicioRepository,
                 sucursalServicioRepository, productoRepository, ordenServicioRepository,
                 ordenProductoRepository, secuenciaService, clienteService, bicicletaService,
                 bicicletaRepository, clienteRepository, sucursalRepository, usuarioRepository,
-                null, null, null);
+                usuarioSucursalRepository, null, null, null);
     }
 
     /**
@@ -215,6 +221,25 @@ public class OrdenService {
             results = ordenRepository.findReadByTallerId(tallerId);
         }
         return results.stream().map(this::enriquecerResumen).toList();
+    }
+
+    /**
+     * Lista las órdenes asignadas a un mecánico. La sucursal se deriva de la sucursal principal del propio mecánico y se valida
+     * contra el alcance autorizado del solicitante (contexto de sucursal o taller), garantizando aislamiento multi-tenant.
+     */
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public List<OrdenReadResult> listarPorMecanico(UUID mecanicoId) {
+        UUID mecanicoSucursalId = usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(mecanicoId)
+                .map(UsuarioSucursal::getSucursalId)
+                .orElseThrow(() -> new IllegalArgumentException("El mecánico no tiene una sucursal principal asignada"));
+        UUID resolvedSucursalId = resolverSucursalConsulta(mecanicoSucursalId);
+        if (resolvedSucursalId == null) {
+            throw new IllegalStateException("Contexto de taller o sucursal requerido");
+        }
+        return ordenRepository.findReadBySucursalIdAndMecanicoId(resolvedSucursalId, mecanicoId).stream()
+                .map(this::enriquecerResumen)
+                .toList();
     }
 
     private UUID resolverSucursalConsulta(UUID requestedSucursalId) {

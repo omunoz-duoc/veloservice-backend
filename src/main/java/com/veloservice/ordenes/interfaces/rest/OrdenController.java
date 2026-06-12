@@ -109,8 +109,12 @@ public class OrdenController {
      * @return
      */
     @GetMapping
-    public ResponseEntity<OrdenReadListResponse> listar(@RequestParam(required = false) UUID sucursalId) {
-        List<OrdenReadResponse> ordenes = ordenService.listar(sucursalId).stream()
+    public ResponseEntity<OrdenReadListResponse> listar(@RequestParam(required = false) UUID sucursalId,
+                                                        @RequestParam(required = false) UUID mecanico) {
+        List<OrdenReadResult> results = mecanico != null
+                ? ordenService.listarPorMecanico(mecanico)
+                : ordenService.listar(sucursalId);
+        List<OrdenReadResponse> ordenes = results.stream()
                 .map(this::toResponse)
                 .toList();
         return ResponseEntity.ok(new OrdenReadListResponse(ordenes.size(), ordenes));

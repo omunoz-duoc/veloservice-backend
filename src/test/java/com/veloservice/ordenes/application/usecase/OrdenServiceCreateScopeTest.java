@@ -1,6 +1,7 @@
 package com.veloservice.ordenes.application.usecase;
 
 import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
+import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioSucursalRepository;
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.clientes.application.usecase.BicicletaService;
 import com.veloservice.clientes.application.usecase.ClienteService;
@@ -94,6 +95,7 @@ class OrdenServiceCreateScopeTest {
     @Mock private ClienteRepository clienteRepository;
     @Mock private SucursalRepository sucursalRepository;
     @Mock private UsuarioRepository usuarioRepository;
+    @Mock private UsuarioSucursalRepository usuarioSucursalRepository;
     @Mock private R2StoragePort r2Storage;
 
     private OrdenService ordenService;
@@ -119,6 +121,7 @@ class OrdenServiceCreateScopeTest {
                 clienteRepository,
                 sucursalRepository,
                 usuarioRepository,
+                usuarioSucursalRepository,
                 null,
                 r2Storage,
                 new R2Properties(

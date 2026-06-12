@@ -152,6 +152,14 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
     List<OrdenReadResult> findReadBySucursalId(@Param("sucursalId") UUID sucursalId);
 
     @Query(READ_SELECT + """
+            where o.sucursalId = :sucursalId
+              and o.mecanicoId = :mecanicoId
+            order by o.fechaIngreso desc
+            """)
+    List<OrdenReadResult> findReadBySucursalIdAndMecanicoId(@Param("sucursalId") UUID sucursalId,
+                                                            @Param("mecanicoId") UUID mecanicoId);
+
+    @Query(READ_SELECT + """
             where o.id = :id
               and o.tallerId = :tallerId
             """)
