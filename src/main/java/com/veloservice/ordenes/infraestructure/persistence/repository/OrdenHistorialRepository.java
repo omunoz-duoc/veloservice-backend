@@ -30,5 +30,6 @@ public interface OrdenHistorialRepository extends JpaRepository<OrdenHistorial, 
         WHERE h.ordenId = :ordenId
         ORDER BY h.createdAt DESC
         """)
+    // Orden descendente: eventos más recientes primero, para mostrar el timeline en la UI.
     List<OrdenHistorialResult> findResultByOrdenId(@Param("ordenId") UUID ordenId);
 }

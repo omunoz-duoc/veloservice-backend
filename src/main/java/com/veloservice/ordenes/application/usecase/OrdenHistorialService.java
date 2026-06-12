@@ -5,6 +5,8 @@ import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.ordenes.domain.AccionHistorialEnum;
 import com.veloservice.ordenes.domain.model.OrdenHistorial;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenHistorialRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
@@ -18,12 +20,14 @@ import java.util.UUID;
 @Service
 public class OrdenHistorialService {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Logger log = LoggerFactory.getLogger(OrdenHistorialService.class);
 
     private final OrdenHistorialRepository repository;
+    private final ObjectMapper mapper;
 
-    public OrdenHistorialService(OrdenHistorialRepository repository) {
+    public OrdenHistorialService(OrdenHistorialRepository repository, ObjectMapper mapper) {
         this.repository = repository;
+        this.mapper = mapper;
     }
 
     /**
@@ -50,9 +54,10 @@ public class OrdenHistorialService {
             return null;
         }
         try {
-            return MAPPER.writeValueAsString(detalle);
+            return mapper.writeValueAsString(detalle);
         } catch (Exception ex) {
             // El historial nunca debe romper la operación de negocio.
+            log.warn("orden_historial: no se pudo serializar detalle para accion, se omite el campo", ex);
             return null;
         }
     }
