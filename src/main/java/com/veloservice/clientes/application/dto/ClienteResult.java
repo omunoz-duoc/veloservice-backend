@@ -14,6 +14,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class ClienteResult {
     private UUID id;
+    private String codigoCliente;
     private String nombre;
     private String apellido;
     private String rut;

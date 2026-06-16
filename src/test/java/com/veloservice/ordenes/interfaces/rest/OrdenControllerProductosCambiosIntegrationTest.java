@@ -98,6 +98,7 @@ class OrdenControllerProductosCambiosIntegrationTest {
                 .build());
         Cliente cliente = clienteRepository.save(Cliente.builder()
                 .tallerId(tallerId)
+                .codigoCliente("CL-0001")
                 .nombre("Cliente")
                 .apellido("Demo")
                 .createdAt(now)

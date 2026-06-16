@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -33,6 +34,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ClienteService {
+
+    private static final Pattern CODIGO_CLIENTE_PATTERN = Pattern.compile("^CL-(\\d+)$");
 
     private final ClienteRepository clienteRepository;
     private final MembresiaRepository membresiaRepository;
@@ -144,6 +147,7 @@ public class ClienteService {
         OffsetDateTime now = OffsetDateTime.now();
         return Cliente.builder()
                 .tallerId(tallerId)
+                .codigoCliente(generarCodigoCliente(tallerId))
                 .nombre(command.getNombre())
                 .apellido(command.getApellido())
                 .rut(RutUtils.normalize(command.getRut()))
@@ -153,6 +157,22 @@ public class ClienteService {
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
+    }
+
+    private synchronized String generarCodigoCliente(UUID tallerId) {
+        int siguiente = clienteRepository.findCodigosClienteByTallerId(tallerId).stream()
+                .map(CODIGO_CLIENTE_PATTERN::matcher)
+                .filter(java.util.regex.Matcher::matches)
+                .mapToInt(matcher -> Integer.parseInt(matcher.group(1)))
+                .max()
+                .orElse(0) + 1;
+
+        String codigoCliente;
+        do {
+            codigoCliente = String.format("CL-%04d", siguiente++);
+        } while (clienteRepository.existsByTallerIdAndCodigoCliente(tallerId, codigoCliente));
+
+        return codigoCliente;
     }
 
     private ClienteResult toResult(Cliente cliente) {
@@ -178,6 +198,7 @@ public class ClienteService {
 
         return ClienteResult.builder()
                 .id(cliente.getId())
+                .codigoCliente(cliente.getCodigoCliente())
                 .nombre(cliente.getNombre())
                 .apellido(cliente.getApellido())
                 .rut(cliente.getRut())
@@ -195,6 +216,7 @@ public class ClienteService {
     private ClienteResult toBusquedaResult(Cliente cliente) {
         return ClienteResult.builder()
                 .id(cliente.getId())
+                .codigoCliente(cliente.getCodigoCliente())
                 .nombre(cliente.getNombre())
                 .apellido(cliente.getApellido())
                 .rut(cliente.getRut())

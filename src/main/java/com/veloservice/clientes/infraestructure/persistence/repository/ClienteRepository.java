@@ -58,9 +58,14 @@ public interface ClienteRepository extends JpaRepository<Cliente, UUID> {
 
     List<Cliente> findAllByTallerIdOrderByCreatedAtDesc(UUID tallerId);
 
+    @Query("select c.codigoCliente from Cliente c where c.tallerId = :tallerId and c.codigoCliente is not null")
+    List<String> findCodigosClienteByTallerId(@Param("tallerId") UUID tallerId);
+
     Optional<Cliente> findByIdAndTallerId(UUID id, UUID tallerId);
 
     boolean existsByIdAndTallerId(UUID id, UUID tallerId);
+
+    boolean existsByTallerIdAndCodigoCliente(UUID tallerId, String codigoCliente);
 
     /**
      * Finds a customer by email.

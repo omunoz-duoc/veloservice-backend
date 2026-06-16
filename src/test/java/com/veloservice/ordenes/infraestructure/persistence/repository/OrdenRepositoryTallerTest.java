@@ -93,6 +93,7 @@ class OrdenRepositoryTallerTest {
                 .build());
         Cliente cliente1 = em.persist(Cliente.builder()
                 .tallerId(t1.getId())
+                .codigoCliente("CL-0001")
                 .nombre("Cliente")
                 .apellido("Uno")
                 .createdAt(now)
@@ -100,6 +101,7 @@ class OrdenRepositoryTallerTest {
                 .build());
         Cliente cliente2 = em.persist(Cliente.builder()
                 .tallerId(t1.getId())
+                .codigoCliente("CL-0002")
                 .nombre("Cliente")
                 .apellido("Dos")
                 .createdAt(now)
@@ -107,6 +109,7 @@ class OrdenRepositoryTallerTest {
                 .build());
         Cliente cliente3 = em.persist(Cliente.builder()
                 .tallerId(t2.getId())
+                .codigoCliente("CL-0001")
                 .nombre("Cliente")
                 .apellido("Tres")
                 .createdAt(now)
