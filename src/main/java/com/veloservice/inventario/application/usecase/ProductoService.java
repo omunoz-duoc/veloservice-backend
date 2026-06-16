@@ -2,9 +2,13 @@ package com.veloservice.inventario.application.usecase;
 
 import com.veloservice.administracion.domain.model.Sucursal;
 import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
+import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.config.tenant.TallerContext;
+import com.veloservice.inventario.application.dto.MovimientoStockResult;
 import com.veloservice.inventario.application.dto.ProductoCreateCommand;
 import com.veloservice.inventario.application.dto.ProductoResult;
+import com.veloservice.inventario.domain.TipoMovimientoEnum;
+import com.veloservice.inventario.domain.model.MovimientoStock;
 import com.veloservice.inventario.application.exception.ProductoErrorCode;
 import com.veloservice.inventario.application.exception.ProductoException;
 import com.veloservice.shared.application.exception.ConflictException;
@@ -125,6 +129,71 @@ public class ProductoService {
         }
 
         return toResult(producto);
+    }
+
+    @TenantOperation
+    @Transactional
+    public MovimientoStockResult ajustarStock(UUID id, TipoMovimientoEnum tipo, Integer cantidad, String motivo, UUID requestedSucursalId) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId == null && requestedSucursalId != null) {
+            validateSucursalBelongsToTaller(requestedSucursalId);
+            sucursalId = requestedSucursalId;
+            SucursalContext.setCurrentSucursal(sucursalId);
+            entityManager.createNativeQuery("SELECT set_config('app.current_sucursal_id', ?, false)")
+                    .setParameter(1, sucursalId.toString())
+                    .getSingleResult();
+        }
+        UUID usuarioId = UsuarioContext.getCurrentUser();
+        if (sucursalId == null || usuarioId == null) {
+            throw new IllegalStateException("Contexto de sucursal/usuario requerido");
+        }
+        if (!TipoMovimientoEnum.entrada.equals(tipo) && !TipoMovimientoEnum.salida.equals(tipo)) {
+            throw new IllegalArgumentException("Tipo de movimiento no soportado");
+        }
+        if (cantidad == null || cantidad <= 0) {
+            throw new IllegalArgumentException("Cantidad debe ser mayor que cero");
+        }
+
+        Producto producto = productoRepository.findByIdAndSucursalId(id, sucursalId)
+                .orElseThrow(() -> new ProductoException(
+                        ProductoErrorCode.PRODUCTO_NO_ENCONTRADO,
+                        "Producto no encontrado"
+                ));
+
+        int stockAnterior = producto.getStock();
+        int stockNuevo = TipoMovimientoEnum.entrada.equals(tipo)
+                ? stockAnterior + cantidad
+                : stockAnterior - cantidad;
+        if (stockNuevo < 0) {
+            throw new IllegalStateException("Stock negativo no permitido");
+        }
+
+        producto.setStock(stockNuevo);
+        producto.setUpdatedAt(OffsetDateTime.now());
+        productoRepository.save(producto);
+
+        MovimientoStock movimiento = MovimientoStock.builder()
+                .productoId(producto.getId())
+                .usuarioId(usuarioId)
+                .tipo(tipo)
+                .cantidad(cantidad)
+                .stockAnterior(stockAnterior)
+                .stockPosterior(stockNuevo)
+                .motivo(motivo)
+                .createdAt(OffsetDateTime.now())
+                .build();
+        movimiento = movimientoRepository.save(movimiento);
+
+        return MovimientoStockResult.builder()
+                .id(movimiento.getId())
+                .productoId(movimiento.getProductoId())
+                .tipo(movimiento.getTipo())
+                .cantidad(movimiento.getCantidad())
+                .stockAnterior(movimiento.getStockAnterior())
+                .stockPosterior(movimiento.getStockPosterior())
+                .motivo(movimiento.getMotivo())
+                .createdAt(movimiento.getCreatedAt())
+                .build();
     }
 
     @TenantOperation

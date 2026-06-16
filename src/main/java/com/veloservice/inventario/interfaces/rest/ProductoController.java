@@ -4,6 +4,8 @@ import com.veloservice.inventario.application.dto.ProductoResult;
 import com.veloservice.inventario.application.usecase.ProductoService;
 import com.veloservice.inventario.interfaces.mapper.ProductoMapper;
 import com.veloservice.inventario.interfaces.rest.dto.InventarioMetricasResponse;
+import com.veloservice.inventario.interfaces.rest.dto.MovimientoStockRequest;
+import com.veloservice.inventario.interfaces.rest.dto.MovimientoStockResponse;
 import com.veloservice.inventario.interfaces.rest.dto.ProductoRequest;
 import com.veloservice.inventario.interfaces.rest.dto.ProductoResponse;
 import com.veloservice.inventario.interfaces.rest.dto.ProductoStockMinimoResponse;
@@ -61,6 +63,28 @@ public class ProductoController {
                 productoService.actualizar(id, ProductoMapper.toCommand(request))
         );
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/movimientos-stock")
+    public ResponseEntity<MovimientoStockResponse> ajustarStock(@PathVariable UUID id,
+                                                                @Valid @RequestBody MovimientoStockRequest request) {
+        var result = productoService.ajustarStock(
+                id,
+                request.getTipo(),
+                request.getCantidad(),
+                request.getMotivo(),
+                request.getSucursalId()
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(MovimientoStockResponse.builder()
+                .id(result.getId())
+                .productoId(result.getProductoId())
+                .tipo(result.getTipo())
+                .cantidad(result.getCantidad())
+                .stockAnterior(result.getStockAnterior())
+                .stockPosterior(result.getStockPosterior())
+                .motivo(result.getMotivo())
+                .createdAt(result.getCreatedAt())
+                .build());
     }
 
     /**
