@@ -750,11 +750,10 @@ public class OrdenController {
             return false;
         }
         boolean prioridadAlta = "alta".equalsIgnoreCase(orden.prioridad());
-        boolean fechaVencida = orden.fechaPrometida() != null && orden.fechaPrometida().isBefore(now);
         boolean fechaProxima = orden.fechaPrometida() != null
                 && !orden.fechaPrometida().isBefore(now)
                 && orden.fechaPrometida().isBefore(maxFechaPrometida);
-        return prioridadAlta || fechaVencida || fechaProxima;
+        return prioridadAlta || fechaProxima;
     }
 
     private void validarIdentificador(String id) {
