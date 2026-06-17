@@ -21,6 +21,7 @@ import com.veloservice.auth.infraestructure.ratelimit.PasswordResetRateLimiter;
 import com.veloservice.config.security.JwtTokenProvider;
 import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.shared.application.exception.ResourceNotFoundException;
+import com.veloservice.shared.application.util.RutUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -47,20 +48,27 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final UsuarioPlataformaRepository usuarioPlataformaRepository;
     private final UsuarioSucursalRepository usuarioSucursalRepository;
-        private final PasswordResetTokenRepository passwordResetTokenRepository;
-        private final PasswordResetRateLimiter passwordResetRateLimiter;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final PasswordResetRateLimiter passwordResetRateLimiter;
     private final RolRepository rolRepository;
     private final SucursalPort sucursalPort;
     private final JwtTokenProvider jwtProvider;
     private final PasswordEncoder passwordEncoder;
     private final LoginAttemptService loginAttemptService;
-        private final ResendEmailService resendEmailService;
+    private final ResendEmailService resendEmailService;
 
-        @Value("${jwt.reset-expiration:900000}")
-        private long resetExpirationMs;
+    @Value("${jwt.reset-expiration:900000}")
+    private long resetExpirationMs;
 
-        private static final int RESET_TOKEN_BYTES = 32;
-        private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int RESET_TOKEN_BYTES = 32;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    public boolean rutExists(String rut) {
+        if (!StringUtils.hasText(rut)) {
+            return false;
+        }
+        return usuarioRepository.existsByNormalizedRut(RutUtils.normalize(rut));
+    }
 
     /**
      * Authenticates a user and returns a JWT token.
@@ -225,50 +233,54 @@ public class AuthService {
      * Resets the user's password.
      *
      * @param email the user's email
-         * @param clientIp client IP address
+     * @param clientIp client IP address
      * @return true when request is allowed
      */
-        @Transactional
+    @Transactional
     public boolean resetPassword(String email, String clientIp) {
-                if (!passwordResetRateLimiter.allow(email, clientIp)) {
+        if (!passwordResetRateLimiter.allow(email, clientIp)) {
             return false;
-                }
+        }
 
-                Usuario usuario = usuarioRepository.findByEmailAndActivoTrue(email).orElse(null);
-                if (usuario == null) {
-            return true;
-                }
+        Usuario usuario = usuarioRepository.findByEmailAndActivoTrue(email).orElse(null);
+        if (usuario == null) {
+            return false;
+        }
 
-                passwordResetTokenRepository.deleteByUsuarioId(usuario.getId());
+        passwordResetTokenRepository.deleteByUsuarioId(usuario.getId());
 
-                String rawToken = generateResetToken();
-                String tokenHash = hashToken(rawToken);
-                OffsetDateTime expiresAt = OffsetDateTime.now().plus(Duration.ofMillis(resetExpirationMs));
+        String rawToken = generateResetToken();
+        String tokenHash = hashToken(rawToken);
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime expiresAt = now.plus(Duration.ofMillis(resetExpirationMs));
 
-                PasswordResetToken resetToken = PasswordResetToken.builder()
-                                .usuario(usuario)
-                                .tokenHash(tokenHash)
-                                .expiresAt(expiresAt)
-                                .build();
-                passwordResetTokenRepository.save(resetToken);
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .userId(usuario.getId())
+                .usuario(usuario)
+                .tokenHash(tokenHash)
+                .expiresAt(expiresAt)
+                .used(false)
+                .createdAt(now)
+                .build();
+        passwordResetTokenRepository.save(resetToken);
 
-                resendEmailService.sendPasswordResetEmail(usuario.getEmail(), usuario.getNombre(), rawToken);
-                return true;
+        resendEmailService.sendPasswordResetEmail(usuario.getEmail(), usuario.getNombre(), rawToken);
+        return true;
     }
 
-        /**
-         * Changes the user's password using a reset token.
-         *
-         * @param token reset token
-         * @param newPassword new password
-         */
+    /**
+     * Changes the user's password using a reset token.
+     *
+     * @param token reset token
+     * @param newPassword new password
+     */
     @Transactional
     public void changePassword(String token, String newPassword) {
         validatePassword(newPassword);
         String tokenHash = hashToken(token);
         PasswordResetToken resetToken = passwordResetTokenRepository
                 .findByTokenHashAndUsedFalseAndExpiresAtAfter(tokenHash, OffsetDateTime.now())
-                .orElseThrow(() -> new IllegalArgumentException("TOKEN_INVALID"));
+                .orElseThrow(() -> new IllegalArgumentException("Token inválido o expirado"));
 
         Usuario usuario = resetToken.getUsuario();
         usuario.setPasswordHash(passwordEncoder.encode(newPassword));
@@ -407,10 +419,7 @@ public class AuthService {
         if (!StringUtils.hasText(rut)) {
             return false;
         }
-        String cleaned = rut.replace(".", "")
-                .replace("-", "")
-                .replace(" ", "")
-                .toUpperCase(Locale.ROOT);
+        String cleaned = RutUtils.normalize(rut);
         if (cleaned.length() < 2) {
             return false;
         }

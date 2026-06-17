@@ -1,6 +1,7 @@
 package com.veloservice.config.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -23,6 +24,26 @@ public class JwtTokenProvider {
     private final SecretKey jwtSecret;
     private final long jwtExpirationMs;
     private final long resetExpirationMs;
+
+    public enum TokenValidationStatus {
+        VALID(null),
+        EXPIRED("JWT expirado"),
+        INVALID("JWT inválido");
+
+        private final String responseMessage;
+
+        TokenValidationStatus(String responseMessage) {
+            this.responseMessage = responseMessage;
+        }
+
+        public boolean isValid() {
+            return this == VALID;
+        }
+
+        public String getResponseMessage() {
+            return responseMessage;
+        }
+    }
 
     /**
      * Creates a provider using configuration properties.
@@ -109,7 +130,7 @@ public class JwtTokenProvider {
      * @return token claims
      */
     public Claims getClaims(String token) {
-        return Jwts.parser().verifyWith(jwtSecret).build().parseSignedClaims(token).getPayload();
+        return parseClaims(token);
     }
 
     /**
@@ -119,12 +140,19 @@ public class JwtTokenProvider {
      * @return true if the token is valid
      */
     public boolean validateToken(String token) {
+        return validateTokenStatus(token).isValid();
+    }
+
+    public TokenValidationStatus validateTokenStatus(String token) {
         try {
-            Jwts.parser().verifyWith(jwtSecret).build().parseSignedClaims(token);
-            return true;
+            parseClaims(token);
+            return TokenValidationStatus.VALID;
+        } catch (ExpiredJwtException e) {
+            log.error("JWT expirado: {}", e.getMessage());
+            return TokenValidationStatus.EXPIRED;
         } catch (JwtException | IllegalArgumentException e) {
             log.error("JWT invalido: {}", e.getMessage());
-            return false;
+            return TokenValidationStatus.INVALID;
         }
     }
 
@@ -172,5 +200,9 @@ public class JwtTokenProvider {
     public UUID getTallerId(String token) {
         String tid = getClaims(token).get("tallerId", String.class);
         return tid != null ? UUID.fromString(tid) : null;
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser().verifyWith(jwtSecret).build().parseSignedClaims(token).getPayload();
     }
 }

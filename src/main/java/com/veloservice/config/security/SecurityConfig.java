@@ -26,6 +26,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -58,12 +59,12 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Permitir preflight CORS
-                .requestMatchers("/auth/login", "/auth/login_admin", "/auth/reset-password", "/auth/change-password", "/health", "/productos").permitAll()
+                .requestMatchers("/auth/login", "/auth/login_admin", "/auth/rut-exists", "/auth/reset-password", "/auth/change-password", "/health", "/productos").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, exception) ->
-                        writeSecurityError(response, HttpStatus.UNAUTHORIZED, "Autenticacion requerida"))
+                        writeSecurityError(response, HttpStatus.UNAUTHORIZED, authenticationErrorMessage(request)))
                 .accessDeniedHandler((request, response, exception) ->
                         writeSecurityError(response, HttpStatus.FORBIDDEN, "Acceso denegado"))
             )
@@ -105,6 +106,14 @@ public class SecurityConfig {
         provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return new ProviderManager(provider);
+    }
+
+    private String authenticationErrorMessage(HttpServletRequest request) {
+        Object message = request.getAttribute(JwtAuthenticationFilter.AUTH_ERROR_MESSAGE_ATTRIBUTE);
+        if (message instanceof String tokenMessage && !tokenMessage.isBlank()) {
+            return tokenMessage;
+        }
+        return "Autenticacion requerida";
     }
 
     private void writeSecurityError(

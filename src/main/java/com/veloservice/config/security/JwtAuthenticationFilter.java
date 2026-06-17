@@ -3,6 +3,7 @@ package com.veloservice.config.security;
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.UsuarioContext;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,6 +30,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    public static final String AUTH_ERROR_MESSAGE_ATTRIBUTE =
+            JwtAuthenticationFilter.class.getName() + ".AUTH_ERROR_MESSAGE";
+
     private final JwtTokenProvider tokenProvider;
 
     /**
@@ -38,9 +42,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        String jwt = null;
         try {
-            String jwt = getJwtFromRequest(request);
-            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
+            jwt = getJwtFromRequest(request);
+            if (StringUtils.hasText(jwt)) {
+                JwtTokenProvider.TokenValidationStatus validationStatus = tokenProvider.validateTokenStatus(jwt);
+                if (!validationStatus.isValid()) {
+                    request.setAttribute(AUTH_ERROR_MESSAGE_ATTRIBUTE, validationStatus.getResponseMessage());
+                    return;
+                }
+
                 UUID userId = tokenProvider.getUserId(jwt);
                 String rol = tokenProvider.getRol(jwt);
                 UUID sucursalId = tokenProvider.getSucursalId(jwt);
@@ -68,7 +79,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SucursalContext.setCurrentSucursal(sucursalId);
                 }
             }
+        } catch (ExpiredJwtException e) {
+            if (StringUtils.hasText(jwt)) {
+                request.setAttribute(
+                        AUTH_ERROR_MESSAGE_ATTRIBUTE,
+                        JwtTokenProvider.TokenValidationStatus.EXPIRED.getResponseMessage()
+                );
+            }
+            log.error("Error procesando JWT", e);
         } catch (Exception e) {
+            if (StringUtils.hasText(jwt)) {
+                request.setAttribute(
+                        AUTH_ERROR_MESSAGE_ATTRIBUTE,
+                        JwtTokenProvider.TokenValidationStatus.INVALID.getResponseMessage()
+                );
+            }
             log.error("Error procesando JWT", e);
         } finally {
             try {

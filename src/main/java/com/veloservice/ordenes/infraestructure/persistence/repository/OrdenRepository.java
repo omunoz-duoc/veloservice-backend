@@ -1,11 +1,13 @@
 package com.veloservice.ordenes.infraestructure.persistence.repository;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import com.veloservice.ordenes.application.dto.OrdenDetalleBaseResult;
 import com.veloservice.ordenes.application.dto.OrdenReadResult;
+import com.veloservice.ordenes.application.dto.OrdenResumenClienteResult;
 import com.veloservice.ordenes.domain.model.Orden;
 
 import java.time.OffsetDateTime;
@@ -341,4 +343,30 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
 
     @Query("select o.numeroOrden from Orden o where o.tallerId = :tallerId")
     List<String> findNumerosOrdenByTallerId(@Param("tallerId") UUID tallerId);
+
+    @Query("""
+            select count(o)
+            from Orden o
+            join com.veloservice.clientes.domain.model.Bicicleta b on b.id = o.bicicletaId
+            where b.clienteId = :clienteId
+              and o.tallerId = :tallerId
+            """)
+    long countByClienteIdAndTallerId(@Param("clienteId") UUID clienteId,
+                                     @Param("tallerId") UUID tallerId);
+
+    @Query("""
+            select new com.veloservice.ordenes.application.dto.OrdenResumenClienteResult(
+                o.numeroOrden, t.nombre, e.nombre, o.fechaIngreso)
+            from Orden o
+            join com.veloservice.ordenes.domain.model.TipoOrden t on t.id = o.tipoId
+            join com.veloservice.ordenes.domain.model.EstadoOrden e on e.id = o.estadoId
+            join com.veloservice.clientes.domain.model.Bicicleta b on b.id = o.bicicletaId
+            where b.clienteId = :clienteId
+              and o.tallerId = :tallerId
+            order by o.fechaIngreso desc
+            """)
+    List<OrdenResumenClienteResult> findResumenByClienteIdAndTallerId(
+            @Param("clienteId") UUID clienteId,
+            @Param("tallerId") UUID tallerId,
+            Pageable pageable);
 }

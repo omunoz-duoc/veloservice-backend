@@ -8,6 +8,7 @@ import com.veloservice.auth.application.exception.AuthErrorCode;
 import com.veloservice.auth.application.exception.AuthException;
 import com.veloservice.auth.application.port.SucursalPort;
 import com.veloservice.auth.application.security.LoginAttemptService;
+import com.veloservice.auth.domain.model.PasswordResetToken;
 import com.veloservice.auth.domain.model.Rol;
 import com.veloservice.auth.domain.model.Usuario;
 import com.veloservice.auth.infraestructure.email.ResendEmailService;
@@ -21,6 +22,7 @@ import com.veloservice.config.tenant.UsuarioContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -32,6 +34,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -204,6 +207,51 @@ class AuthServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("INVALID_PASSWORD");
         verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    void resetPasswordPersistsTokenWithRequiredColumns() {
+        UUID userId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, UUID.randomUUID(), rol("admin_taller", "taller"));
+        String clientIp = "127.0.0.1";
+        given(passwordResetRateLimiter.allow(usuario.getEmail(), clientIp)).willReturn(true);
+        given(usuarioRepository.findByEmailAndActivoTrue(usuario.getEmail())).willReturn(Optional.of(usuario));
+        ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
+
+        boolean allowed = authService.resetPassword(usuario.getEmail(), clientIp);
+
+        assertThat(allowed).isTrue();
+        verify(passwordResetTokenRepository).deleteByUsuarioId(userId);
+        verify(passwordResetTokenRepository).save(tokenCaptor.capture());
+        PasswordResetToken resetToken = tokenCaptor.getValue();
+        assertThat(resetToken.getUserId()).isEqualTo(userId);
+        assertThat(resetToken.getUsuario()).isSameAs(usuario);
+        assertThat(resetToken.getTokenHash()).hasSize(64);
+        assertThat(resetToken.getExpiresAt()).isNotNull();
+        assertThat(resetToken.getUsed()).isFalse();
+        assertThat(resetToken.getCreatedAt()).isNotNull();
+        verify(resendEmailService).sendPasswordResetEmail(
+                eq(usuario.getEmail()),
+                eq(usuario.getNombre()),
+                any(String.class)
+        );
+    }
+
+    @Test
+    void rutExistsNormalizesRutBeforeLookup() {
+        given(usuarioRepository.existsByNormalizedRut("123456785")).willReturn(true);
+
+        boolean exists = authService.rutExists("12.345.678-5");
+
+        assertThat(exists).isTrue();
+        verify(usuarioRepository).existsByNormalizedRut("123456785");
+    }
+
+    @Test
+    void rutExistsReturnsFalseForBlankRut() {
+        assertThat(authService.rutExists(" ")).isFalse();
+
+        verify(usuarioRepository, never()).existsByNormalizedRut(any());
     }
 
     private void givenSuccessfulCredentialCheck(Usuario usuario) {

@@ -37,4 +37,23 @@ class JwtTokenProviderTest {
         String token = provider.generateToken(userId, "a@b.com", "admin_taller", null, tallerId);
         assertThat(provider.getRol(token)).isEqualTo("admin_taller");
     }
+
+    @Test
+    void validateTokenStatusReturnsInvalidForMalformedToken() {
+        assertThat(provider.validateTokenStatus("not-a-jwt"))
+                .isEqualTo(JwtTokenProvider.TokenValidationStatus.INVALID);
+    }
+
+    @Test
+    void validateTokenStatusReturnsExpiredForExpiredToken() {
+        JwtTokenProvider expiredProvider = new JwtTokenProvider(
+                "test-secret-key-at-least-32-chars!!",
+                -60000L,
+                900000L
+        );
+        String token = expiredProvider.generateToken(userId, "a@b.com", "admin_taller", null, tallerId);
+
+        assertThat(provider.validateTokenStatus(token))
+                .isEqualTo(JwtTokenProvider.TokenValidationStatus.EXPIRED);
+    }
 }

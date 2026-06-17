@@ -1,14 +1,18 @@
 package com.veloservice.clientes.interfaces.mapper;
 
 import com.veloservice.clientes.application.dto.ClienteCreateCommand;
+import com.veloservice.clientes.application.dto.ClienteDetalleResult;
 import com.veloservice.clientes.application.dto.ClienteResult;
 import com.veloservice.clientes.application.dto.ClienteResumenResult;
 import com.veloservice.clientes.application.dto.MembresiaActualResult;
+import com.veloservice.clientes.interfaces.rest.dto.BicicletaDetalleItem;
 import com.veloservice.clientes.interfaces.rest.dto.ClienteBusquedaResponse;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteDetalleResponse;
 import com.veloservice.clientes.interfaces.rest.dto.ClienteRequest;
 import com.veloservice.clientes.interfaces.rest.dto.ClienteResponse;
 import com.veloservice.clientes.interfaces.rest.dto.ClienteResumenResponse;
 import com.veloservice.clientes.interfaces.rest.dto.MembresiaActualResponse;
+import com.veloservice.clientes.interfaces.rest.dto.OrdenResumenItem;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -59,6 +63,28 @@ public final class ClienteMapper {
         return results.stream()
                 .map(ClienteMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    public static ClienteDetalleResponse toDetalleResponse(ClienteDetalleResult result) {
+        return ClienteDetalleResponse.builder()
+                .nombre(buildNombreCompleto(result.getNombre(), result.getApellido()))
+                .email(result.getEmail())
+                .telefono(result.getTelefono())
+                .direccion(result.getDireccion())
+                .rut(result.getRut())
+                .clienteDesde(result.getClienteDesde())
+                .bicicletasCount(result.getBicicletasCount())
+                .bicicletas(result.getBicicletas().stream()
+                        .map(b -> new BicicletaDetalleItem(
+                                b.id(), b.marca(), b.modelo(), b.tipo(), b.aro(),
+                                b.color(), b.numeroSerie(), b.anio(), b.notas()))
+                        .toList())
+                .otsCount(result.getOtsCount())
+                .lastOts(result.getLastOts().stream()
+                        .map(o -> new OrdenResumenItem(
+                                o.numeroOrden(), o.tipoOrden(), o.estadoOrden(), o.fechaIngreso()))
+                        .toList())
+                .build();
     }
 
     public static ClienteBusquedaResponse toBusquedaResponse(ClienteResult result) {

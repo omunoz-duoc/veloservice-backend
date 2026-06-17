@@ -36,6 +36,13 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
      */
     boolean existsByEmail(String email);
 
+    @Query("""
+            select count(u) > 0
+            from Usuario u
+            where upper(replace(replace(replace(u.rut, '.', ''), '-', ''), ' ', '')) = :rut
+            """)
+    boolean existsByNormalizedRut(@Param("rut") String rut);
+
     /**
      * Verifica si existe un usuario activo con el ID dado y rol de mecánico.
      * @param id

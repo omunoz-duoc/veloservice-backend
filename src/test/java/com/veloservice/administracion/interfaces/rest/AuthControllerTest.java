@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -71,6 +72,30 @@ class AuthControllerTest {
     void logoutReturnsNoContent() throws Exception {
         mockMvc.perform(post("/auth/logout"))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void rutExistsReturnsTrueWhenUserRutExists() throws Exception {
+        when(authService.rutExists("12.345.678-5")).thenReturn(true);
+
+        mockMvc.perform(get("/auth/rut-exists")
+                .param("rut", "12.345.678-5"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").value(true));
+
+        verify(authService).rutExists("12.345.678-5");
+    }
+
+    @Test
+    void rutExistsReturnsFalseWhenUserRutDoesNotExist() throws Exception {
+        when(authService.rutExists("12.345.678-5")).thenReturn(false);
+
+        mockMvc.perform(get("/auth/rut-exists")
+                .param("rut", "12.345.678-5"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").value(false));
+
+        verify(authService).rutExists("12.345.678-5");
     }
 
     @Test

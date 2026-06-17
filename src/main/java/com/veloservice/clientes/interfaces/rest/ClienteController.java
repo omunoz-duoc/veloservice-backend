@@ -4,6 +4,7 @@ import com.veloservice.clientes.application.usecase.ClienteService;
 import com.veloservice.clientes.application.usecase.BicicletaService;
 import com.veloservice.clientes.interfaces.mapper.ClienteMapper;
 import com.veloservice.clientes.interfaces.rest.dto.ClienteBusquedaResponse;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteDetalleResponse;
 import com.veloservice.clientes.interfaces.rest.dto.ClienteRequest;
 import com.veloservice.clientes.interfaces.rest.dto.ClienteResponse;
 import com.veloservice.clientes.interfaces.rest.dto.ClienteResumenResponse;
@@ -102,8 +103,8 @@ public class ClienteController {
      * Retrieves a customer by identifier.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ClienteResponse> obtener(@PathVariable UUID id) {
-        return ResponseEntity.ok(ClienteMapper.toResponse(clienteService.obtener(id)));
+    public ResponseEntity<ClienteDetalleResponse> obtener(@PathVariable UUID id) {
+        return ResponseEntity.ok(ClienteMapper.toDetalleResponse(clienteService.obtenerDetalle(id)));
     }
 
     /**
