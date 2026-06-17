@@ -14,13 +14,17 @@ import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenServi
 import com.veloservice.clientes.infraestructure.persistence.repository.BicicletaRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.MembresiaRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.SucursalClienteRepository;
+import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
 import com.veloservice.finanzas.domain.EstadoCobroEnum;
 import com.veloservice.ordenes.domain.EstadoOrdenEnum;
 import com.veloservice.config.tenant.SucursalContext;
+import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.UsuarioContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.veloservice.finanzas.interfaces.rest.dto.MetricasResponse;
 import com.veloservice.finanzas.interfaces.rest.dto.RentabilidadResponse;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -47,6 +51,7 @@ public class CobroService {
     private final BicicletaRepository bicicletaRepository;
     private final SucursalClienteRepository sucursalClienteRepository;
     private final MembresiaRepository membresiaRepository;
+    private final SucursalRepository sucursalRepository;
 
     @Transactional
     public CobroResult liquidar(CobroCreateCommand command) {
@@ -150,22 +155,58 @@ public class CobroService {
 
     @Transactional(readOnly = true)
     public BigDecimal ingresosHoy() {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        return metricas(null).getCobrosDelDia();
+    }
+
+    @Transactional(readOnly = true)
+    public MetricasResponse metricas(UUID requestedSucursalId) {
+        UUID sucursalId = resolverSucursalConsulta(requestedSucursalId);
         if (sucursalId == null) {
-            return BigDecimal.ZERO;
+            return MetricasResponse.builder()
+                    .cobrosDelDia(BigDecimal.ZERO)
+                    .cantidadCobrosDia(0)
+                    .build();
         }
         Set<UUID> ordenesSucursal = ordenRepository.findAllBySucursalIdOrderByFechaIngresoDesc(sucursalId)
                 .stream()
                 .map(Orden::getId)
                 .collect(Collectors.toSet());
         LocalDate hoy = LocalDate.now();
-        return cobroRepository.findAll().stream()
+        List<Cobro> cobrosDia = cobroRepository.findAll().stream()
                 .filter(c -> ordenesSucursal.contains(c.getOrdenId()))
                 .filter(c -> EstadoCobroEnum.pagado.equals(c.getEstado()))
-                .filter(c -> c.getFechaPago() != null && hoy.equals(c.getFechaPago().toLocalDate()))
+                .filter(c -> c.getAnuladaAt() == null)
+                .filter(c -> {
+                    OffsetDateTime fechaOperacion = c.getFechaPago() != null ? c.getFechaPago() : c.getCreatedAt();
+                    return fechaOperacion != null && hoy.equals(fechaOperacion.toLocalDate());
+                })
+                .toList();
+        BigDecimal total = cobrosDia.stream()
                 .map(Cobro::getTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
+        return MetricasResponse.builder()
+                .cobrosDelDia(total)
+                .cantidadCobrosDia(cobrosDia.size())
+                .build();
+    }
+
+    private UUID resolverSucursalConsulta(UUID requestedSucursalId) {
+        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        if (sucursalId != null) {
+            if (requestedSucursalId != null && !sucursalId.equals(requestedSucursalId)) {
+                throw new AccessDeniedException("Sucursal fuera del alcance autorizado");
+            }
+            return sucursalId;
+        }
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (requestedSucursalId != null) {
+            if (tallerId == null || !sucursalRepository.existsByIdAndTallerId(requestedSucursalId, tallerId)) {
+                throw new AccessDeniedException("Sucursal fuera del alcance autorizado");
+            }
+            return requestedSucursalId;
+        }
+        return null;
     }
 
     @Transactional(readOnly = true)
@@ -213,32 +254,39 @@ public class CobroService {
                 .createdAt(cobro.getCreatedAt())
                 .build();
     }
-    public RentabilidadResponse rentabilidad() {
+    public RentabilidadResponse rentabilidad(UUID requestedSucursalId) {
+    UUID sucursalId = resolverSucursalConsulta(requestedSucursalId);
     OffsetDateTime now = OffsetDateTime.now();
     List<RentabilidadResponse.PuntoRentabilidad> historico = new ArrayList<>();
 
     BigDecimal ingresosTotal = BigDecimal.ZERO;
     BigDecimal costosTotal = BigDecimal.ZERO;
+    long cantidadCobrosTotal = 0;
 
     for (int i = 5; i >= 0; i--) {
         OffsetDateTime start = now.minusWeeks(i).withHour(0).withMinute(0).withSecond(0).withNano(0);
         OffsetDateTime end = start.plusWeeks(1);
 
-        Object[] row = cobroRepository.sumRentabilidadByCreatedAtBetween(start, end);
+        Object[] row = sucursalId == null
+                ? new Object[]{BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0L}
+                : cobroRepository.sumRentabilidadByCreatedAtBetween(start, end, EstadoCobroEnum.pagado, sucursalId);
         Object[] values = row.length > 0 && row[0] instanceof Object[] nested ? nested : row;
 
         BigDecimal ingresos = (BigDecimal) values[0];
         BigDecimal subtotalProductos = (BigDecimal) values[1];
         BigDecimal subtotalServicios = (BigDecimal) values[2];
+        long cantidadCobros = ((Number) values[3]).longValue();
 
         BigDecimal costos = subtotalProductos.add(subtotalServicios);
         ingresosTotal = ingresosTotal.add(ingresos);
         costosTotal = costosTotal.add(costos);
+        cantidadCobrosTotal += cantidadCobros;
 
         historico.add(new RentabilidadResponse.PuntoRentabilidad(
                 "Sem " + start.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR),
                 ingresos,
-                costos
+                costos,
+                cantidadCobros
         ));
     }
 
@@ -248,6 +296,10 @@ public class CobroService {
                 .multiply(BigDecimal.valueOf(100))
                 .divide(ingresosTotal, 2, RoundingMode.HALF_UP);
 
-    return new RentabilidadResponse(ingresosTotal, costosTotal, margen, historico);
+    BigDecimal ticketPromedio = cantidadCobrosTotal == 0
+            ? BigDecimal.ZERO
+            : ingresosTotal.divide(BigDecimal.valueOf(cantidadCobrosTotal), 2, RoundingMode.HALF_UP);
+
+    return new RentabilidadResponse(ingresosTotal, costosTotal, margen, cantidadCobrosTotal, ticketPromedio, historico);
 }
 }

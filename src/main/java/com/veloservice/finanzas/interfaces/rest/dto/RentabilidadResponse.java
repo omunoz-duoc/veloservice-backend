@@ -7,11 +7,14 @@ public record RentabilidadResponse(
         BigDecimal ingresos,
         BigDecimal costos,
         BigDecimal margen,
+        long cantidadCobros,
+        BigDecimal ticketPromedio,
         List<PuntoRentabilidad> historico
 ) {
     public record PuntoRentabilidad(
             String periodo,
             BigDecimal ingresos,
-            BigDecimal costos
+            BigDecimal costos,
+            long cantidadCobros
     ) {}
 }
