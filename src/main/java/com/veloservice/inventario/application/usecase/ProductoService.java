@@ -9,7 +9,7 @@ import com.veloservice.inventario.application.exception.ProductoErrorCode;
 import com.veloservice.inventario.application.exception.ProductoException;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.inventario.infraestructure.persistence.repository.CategoriaProductoRepository;
-import com.veloservice.inventario.infraestructure.persistence.repository.MovimientoStockRepository;
+import com.veloservice.inventario.domain.TipoMovimientoEnum;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import com.veloservice.inventario.interfaces.mapper.ProductoMapper;
 import com.veloservice.config.tenant.TenantOperation;
@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 public class ProductoService {
 
     private final ProductoRepository productoRepository;
-    private final MovimientoStockRepository movimientoRepository;
+    private final StockMovimientoService stockMovimientoService;
     private final CategoriaProductoRepository categoriaProductoRepository;
     private final SucursalRepository sucursalRepository;
     private final EntityManager entityManager;
@@ -87,6 +87,8 @@ public class ProductoService {
                         "Producto no encontrado"
                 ));
 
+        int stockAnterior = producto.getStock() == null ? 0 : producto.getStock();
+
         producto.setNombre(command.getNombre());
         producto.setSku(command.getSku());
         producto.setMarca(command.getMarca());
@@ -103,6 +105,19 @@ public class ProductoService {
         producto.setUpdatedAt(OffsetDateTime.now());
 
         producto = productoRepository.save(producto);
+
+        if (stockAnterior != stock) {
+            stockMovimientoService.registrar(
+                    producto.getId(),
+                    null, null, null,
+                    TipoMovimientoEnum.ajuste,
+                    Math.abs(stock - stockAnterior),
+                    stockAnterior,
+                    stock,
+                    "Ajuste manual de stock"
+            );
+        }
+
         return toResult(producto);
     }
 

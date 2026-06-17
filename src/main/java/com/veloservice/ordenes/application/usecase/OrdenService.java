@@ -18,6 +18,8 @@ import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.ordenes.domain.AccionHistorialEnum;
 import com.veloservice.ordenes.application.dto.OrdenHistorialResult;
 import com.veloservice.config.storage.R2Properties;
+import com.veloservice.inventario.application.usecase.StockMovimientoService;
+import com.veloservice.inventario.domain.TipoMovimientoEnum;
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
@@ -119,6 +121,7 @@ public class OrdenService {
     private final R2StoragePort r2Storage;
     private final R2Properties r2Properties;
     private final OrdenHistorialService ordenHistorialService;
+    private final StockMovimientoService stockMovimientoService;
 
     @org.springframework.beans.factory.annotation.Autowired
     public OrdenService(
@@ -144,7 +147,8 @@ public class OrdenService {
             MediaStoragePort mediaStorage,
             R2StoragePort r2Storage,
             R2Properties r2Properties,
-            OrdenHistorialService ordenHistorialService
+            OrdenHistorialService ordenHistorialService,
+            StockMovimientoService stockMovimientoService
     ) {
         this.ordenRepository = ordenRepository;
         this.comentarioRepository = comentarioRepository;
@@ -169,6 +173,7 @@ public class OrdenService {
         this.r2Storage = r2Storage;
         this.r2Properties = r2Properties;
         this.ordenHistorialService = ordenHistorialService;
+        this.stockMovimientoService = stockMovimientoService;
     }
 
     public OrdenService(
@@ -198,7 +203,7 @@ public class OrdenService {
                 sucursalServicioRepository, productoRepository, ordenServicioRepository,
                 ordenProductoRepository, secuenciaService, clienteService, bicicletaService,
                 bicicletaRepository, clienteRepository, sucursalRepository, usuarioRepository,
-                usuarioSucursalRepository, null, null, null, ordenHistorialService);
+                usuarioSucursalRepository, null, null, null, ordenHistorialService, null);
     }
 
     /**
@@ -740,9 +745,20 @@ public class OrdenService {
                 lineItem.setNotas(item.getNotas());
             }
             if (!proporcionadoPorCliente && producto.getStock() != null) {
-                producto.setStock(producto.getStock() - item.getCantidad());
+                int stockAnterior = producto.getStock();
+                int stockPosterior = stockAnterior - item.getCantidad();
+                producto.setStock(stockPosterior);
                 producto.setUpdatedAt(now);
                 productoRepository.save(producto);
+                stockMovimientoService.registrar(
+                        producto.getId(),
+                        orden.getId(), null, null,
+                        TipoMovimientoEnum.salida,
+                        item.getCantidad(),
+                        stockAnterior,
+                        stockPosterior,
+                        "Producto agregado a orden: " + orden.getNumeroOrden()
+                );
             }
 
             ordenHistorialService.registrar(
@@ -1014,6 +1030,22 @@ public class OrdenService {
                         .proporcionadoPorCliente(false)
                         .createdAt(now)
                         .build());
+                if (producto.getStock() != null) {
+                    int stockAnterior = producto.getStock();
+                    int stockPosterior = stockAnterior - item.getCantidad();
+                    producto.setStock(stockPosterior);
+                    producto.setUpdatedAt(now);
+                    productoRepository.save(producto);
+                    stockMovimientoService.registrar(
+                            producto.getId(),
+                            ordenId, null, null,
+                            TipoMovimientoEnum.salida,
+                            item.getCantidad(),
+                            stockAnterior,
+                            stockPosterior,
+                            "Orden creada: " + numeroOrden
+                    );
+                }
             }
         }
 
@@ -1199,6 +1231,10 @@ public class OrdenService {
                 .createdAt(now)
                 .build());
 
+        if (EstadoOrdenEnum.cancelada.name().equals(nuevoEstado.getCodigo())) {
+            restaurarStockPorCancelacion(orden, now);
+        }
+
         ordenHistorialService.registrar(
                 orden.getId(),
                 AccionHistorialEnum.ESTADO_CAMBIADO,
@@ -1209,6 +1245,34 @@ public class OrdenService {
                         "estadoNuevo", nuevoEstado.getCodigo(),
                         "observacion", observacion == null ? "" : observacion
                 ));
+    }
+
+    private void restaurarStockPorCancelacion(Orden orden, OffsetDateTime now) {
+        List<OrdenProducto> lineas = ordenProductoRepository.findByOrdenId(orden.getId());
+        for (OrdenProducto linea : lineas) {
+            if (Boolean.TRUE.equals(linea.getProporcionadoPorCliente())) {
+                continue;
+            }
+            productoRepository.findById(linea.getProductoId()).ifPresent(producto -> {
+                if (producto.getStock() == null) {
+                    return;
+                }
+                int stockAnterior = producto.getStock();
+                int stockPosterior = stockAnterior + linea.getCantidad();
+                producto.setStock(stockPosterior);
+                producto.setUpdatedAt(now);
+                productoRepository.save(producto);
+                stockMovimientoService.registrar(
+                        producto.getId(),
+                        orden.getId(), null, null,
+                        TipoMovimientoEnum.devolucion,
+                        linea.getCantidad(),
+                        stockAnterior,
+                        stockPosterior,
+                        "Devolucion por cancelacion de orden: " + orden.getNumeroOrden()
+                );
+            });
+        }
     }
 
     private UUID requerirUsuarioContext() {

@@ -7,7 +7,7 @@ import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.inventario.domain.model.CategoriaProducto;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.inventario.infraestructure.persistence.repository.CategoriaProductoRepository;
-import com.veloservice.inventario.infraestructure.persistence.repository.MovimientoStockRepository;
+import com.veloservice.inventario.application.usecase.StockMovimientoService;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class ProductoServiceTest {
 
     @Mock private ProductoRepository productoRepository;
-    @Mock private MovimientoStockRepository movimientoStockRepository;
+    @Mock private StockMovimientoService stockMovimientoService;
     @Mock private CategoriaProductoRepository categoriaProductoRepository;
     @Mock private SucursalRepository sucursalRepository;
     @Mock private EntityManager entityManager;
@@ -45,7 +45,7 @@ class ProductoServiceTest {
 
     @BeforeEach
     void setUp() {
-        productoService = new ProductoService(productoRepository, movimientoStockRepository, categoriaProductoRepository, sucursalRepository, entityManager);
+        productoService = new ProductoService(productoRepository, stockMovimientoService, categoriaProductoRepository, sucursalRepository, entityManager);
     }
 
     @AfterEach
