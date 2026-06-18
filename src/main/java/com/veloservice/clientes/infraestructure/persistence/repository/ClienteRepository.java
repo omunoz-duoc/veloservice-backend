@@ -58,6 +58,8 @@ public interface ClienteRepository extends JpaRepository<Cliente, UUID> {
 
     List<Cliente> findAllByTallerIdOrderByCreatedAtDesc(UUID tallerId);
 
+    long countByTallerId(UUID tallerId);
+
     @Query("select c.codigoCliente from Cliente c where c.tallerId = :tallerId and c.codigoCliente is not null")
     List<String> findCodigosClienteByTallerId(@Param("tallerId") UUID tallerId);
 

@@ -5,8 +5,10 @@ import com.veloservice.administracion.domain.model.PlanSaas;
 import com.veloservice.administracion.domain.model.Taller;
 import com.veloservice.administracion.infraestructure.persistence.repository.ModuloRepository;
 import com.veloservice.administracion.infraestructure.persistence.repository.PlanSaasRepository;
+import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
 import com.veloservice.administracion.infraestructure.persistence.repository.TallerRepository;
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
+import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.text.Normalizer;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -35,6 +38,8 @@ public class AdminSaasController {
     private final PlanSaasRepository planSaasRepository;
     private final ModuloRepository moduloRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ClienteRepository clienteRepository;
+    private final SucursalRepository sucursalRepository;
     private final OrdenRepository ordenRepository;
 
     @GetMapping("/talleres")
@@ -97,6 +102,24 @@ public class AdminSaasController {
                 "N/A",
                 "N/A",
                 "N/A"
+        );
+    }
+
+    @GetMapping("/metrics/historical")
+    public AdminMetricasDetalleResponse obtenerMetricasHistoricas() {
+        List<Taller> talleres = tallerRepository.findAll();
+        Map<UUID, PlanSaas> planesById = planSaasRepository.findAll().stream()
+                .collect(Collectors.toMap(PlanSaas::getId, Function.identity()));
+
+        return new AdminMetricasDetalleResponse(
+                List.of(),
+                List.of(),
+                List.of(),
+                distribucionPlanes(talleres, planesById),
+                conteosPorTaller(talleres, TipoConteo.USUARIOS),
+                conteosPorTaller(talleres, TipoConteo.CLIENTES),
+                conteosPorTaller(talleres, TipoConteo.SUCURSALES),
+                conteosPorTaller(talleres, TipoConteo.ORDENES)
         );
     }
 
@@ -182,6 +205,40 @@ public class AdminSaasController {
                 .sum();
     }
 
+    private List<AdminPlanDistribucionResponse> distribucionPlanes(List<Taller> talleres, Map<UUID, PlanSaas> planesById) {
+        Map<String, Integer> conteos = new LinkedHashMap<>();
+        conteos.put("starter", 0);
+        conteos.put("pro", 0);
+        conteos.put("enterprise", 0);
+
+        talleres.forEach(taller -> {
+            PlanSaas plan = planesById.get(taller.getPlanId());
+            String planNormalizado = normalizePlanCodigo(plan != null ? plan.getCodigo() : null);
+            if (conteos.containsKey(planNormalizado)) {
+                conteos.put(planNormalizado, conteos.get(planNormalizado) + 1);
+            }
+        });
+
+        return conteos.entrySet().stream()
+                .map(entry -> new AdminPlanDistribucionResponse(entry.getKey(), entry.getValue()))
+                .toList();
+    }
+
+    private List<AdminTallerConteoResponse> conteosPorTaller(List<Taller> talleres, TipoConteo tipo) {
+        return talleres.stream()
+                .map(taller -> new AdminTallerConteoResponse(taller.getNombre(), countFor(taller.getId(), tipo)))
+                .toList();
+    }
+
+    private long countFor(UUID tallerId, TipoConteo tipo) {
+        return switch (tipo) {
+            case USUARIOS -> usuarioRepository.countByTallerId(tallerId);
+            case CLIENTES -> clienteRepository.countByTallerId(tallerId);
+            case SUCURSALES -> sucursalRepository.countByTallerId(tallerId);
+            case ORDENES -> ordenRepository.countByTallerId(tallerId);
+        };
+    }
+
     private boolean isCoreModulo(String nombre) {
         if (nombre == null) {
             return false;
@@ -263,5 +320,39 @@ public class AdminSaasController {
             String churnRate,
             String trialToPaidRate
     ) {
+    }
+
+    public record AdminMetricasDetalleResponse(
+            List<AdminMrrHistoricoResponse> mrrHistorico,
+            List<AdminNuevosTalleresHistoricoResponse> nuevosTalleresHistorico,
+            List<AdminChurnHistoricoResponse> churnHistorico,
+            List<AdminPlanDistribucionResponse> distribucionPlanes,
+            List<AdminTallerConteoResponse> usuariosPorTaller,
+            List<AdminTallerConteoResponse> clientesPorTaller,
+            List<AdminTallerConteoResponse> sucursalesPorTaller,
+            List<AdminTallerConteoResponse> ordenesPorTaller
+    ) {
+    }
+
+    public record AdminMrrHistoricoResponse(String mes, int mrr) {
+    }
+
+    public record AdminNuevosTalleresHistoricoResponse(String mes, int count) {
+    }
+
+    public record AdminChurnHistoricoResponse(String mes, double rate) {
+    }
+
+    public record AdminPlanDistribucionResponse(String plan, int count) {
+    }
+
+    public record AdminTallerConteoResponse(String tallerNombre, long count) {
+    }
+
+    private enum TipoConteo {
+        USUARIOS,
+        CLIENTES,
+        SUCURSALES,
+        ORDENES
     }
 }
