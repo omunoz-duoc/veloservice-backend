@@ -6,6 +6,8 @@ import com.veloservice.administracion.domain.model.Taller;
 import com.veloservice.administracion.infraestructure.persistence.repository.ModuloRepository;
 import com.veloservice.administracion.infraestructure.persistence.repository.PlanSaasRepository;
 import com.veloservice.administracion.infraestructure.persistence.repository.TallerRepository;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
+import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,14 +34,17 @@ public class AdminSaasController {
     private final TallerRepository tallerRepository;
     private final PlanSaasRepository planSaasRepository;
     private final ModuloRepository moduloRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final OrdenRepository ordenRepository;
 
     @GetMapping("/talleres")
     public List<AdminTallerResponse> listarTalleres() {
         Map<UUID, PlanSaas> planesById = planSaasRepository.findAll().stream()
                 .collect(Collectors.toMap(PlanSaas::getId, Function.identity()));
+        OffsetDateTime inicioMes = inicioMesActual();
 
         return tallerRepository.findAll().stream()
-                .map(taller -> toTallerResponse(taller, planesById.get(taller.getPlanId())))
+                .map(taller -> toTallerResponse(taller, planesById.get(taller.getPlanId()), inicioMes))
                 .toList();
     }
 
@@ -50,7 +55,7 @@ public class AdminSaasController {
         PlanSaas plan = taller.getPlanId() != null
                 ? planSaasRepository.findById(taller.getPlanId()).orElse(null)
                 : null;
-        return toTallerResponse(taller, plan);
+        return toTallerResponse(taller, plan, inicioMesActual());
     }
 
     @GetMapping("/modulos")
@@ -60,10 +65,22 @@ public class AdminSaasController {
                 .toList();
     }
 
+    @GetMapping("/suscripciones")
+    public List<AdminSuscripcionResponse> listarSuscripciones() {
+        Map<UUID, PlanSaas> planesById = planSaasRepository.findAll().stream()
+                .collect(Collectors.toMap(PlanSaas::getId, Function.identity()));
+
+        return tallerRepository.findAll().stream()
+                .map(taller -> toSuscripcionResponse(taller, planesById.get(taller.getPlanId())))
+                .toList();
+    }
+
     @GetMapping("/metrics/saas-kpis")
     public AdminSaasKpisResponse obtenerSaasKpis() {
         List<Taller> talleres = tallerRepository.findAll();
-        OffsetDateTime inicioMes = YearMonth.now().atDay(1).atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
+        Map<UUID, PlanSaas> planesById = planSaasRepository.findAll().stream()
+                .collect(Collectors.toMap(PlanSaas::getId, Function.identity()));
+        OffsetDateTime inicioMes = inicioMesActual();
 
         long talleresActivos = talleres.stream()
                 .filter(taller -> Boolean.TRUE.equals(taller.getActivo()))
@@ -76,15 +93,16 @@ public class AdminSaasController {
                 talleres.size(),
                 talleresActivos,
                 talleresNuevosMes,
-                0,
+                calcularMrrTotal(talleres, planesById),
                 "N/A",
                 "N/A",
                 "N/A"
         );
     }
 
-    private AdminTallerResponse toTallerResponse(Taller taller, PlanSaas plan) {
+    private AdminTallerResponse toTallerResponse(Taller taller, PlanSaas plan, OffsetDateTime inicioMes) {
         boolean activo = Boolean.TRUE.equals(taller.getActivo());
+        String planNormalizado = normalizePlanCodigo(plan != null ? plan.getCodigo() : null);
         return new AdminTallerResponse(
                 taller.getId(),
                 taller.getNombre(),
@@ -95,12 +113,13 @@ public class AdminSaasController {
                 activo,
                 activo ? "activo" : "inactivo",
                 taller.getPlanId(),
+                planNormalizado,
                 plan != null ? plan.getCodigo() : null,
                 plan != null ? plan.getNombre() : null,
                 taller.getCreatedAt(),
                 null,
-                0,
-                0,
+                (int) usuarioRepository.countByTallerId(taller.getId()),
+                (int) ordenRepository.countByTallerIdAndFechaIngresoGreaterThanEqual(taller.getId(), inicioMes),
                 List.of()
         );
     }
@@ -115,6 +134,52 @@ public class AdminSaasController {
                 isCoreModulo(modulo.getNombre()) ? "core" : "add-on",
                 iconKeyFor(modulo.getNombre())
         );
+    }
+
+    private AdminSuscripcionResponse toSuscripcionResponse(Taller taller, PlanSaas plan) {
+        String planNormalizado = normalizePlanCodigo(plan != null ? plan.getCodigo() : null);
+        int precioMensual = precioMensual(planNormalizado);
+        boolean activo = Boolean.TRUE.equals(taller.getActivo());
+
+        return new AdminSuscripcionResponse(
+                taller.getId(),
+                taller.getNombre(),
+                planNormalizado,
+                precioMensual,
+                activo ? "activa" : "vencida",
+                taller.getCreatedAt(),
+                null,
+                0,
+                activo ? precioMensual : 0
+        );
+    }
+
+    private String normalizePlanCodigo(String codigo) {
+        String normalizado = normalize(codigo);
+        return switch (normalizado) {
+            case "basico" -> "starter";
+            case "profesional" -> "pro";
+            case "enterprise" -> "enterprise";
+            default -> normalizado;
+        };
+    }
+
+    private int precioMensual(String plan) {
+        return switch (plan) {
+            case "starter" -> 14990;
+            case "pro" -> 29990;
+            case "enterprise" -> 59990;
+            default -> 0;
+        };
+    }
+
+    private int calcularMrrTotal(List<Taller> talleres, Map<UUID, PlanSaas> planesById) {
+        return talleres.stream()
+                .filter(taller -> Boolean.TRUE.equals(taller.getActivo()))
+                .map(taller -> planesById.get(taller.getPlanId()))
+                .map(plan -> normalizePlanCodigo(plan != null ? plan.getCodigo() : null))
+                .mapToInt(this::precioMensual)
+                .sum();
     }
 
     private boolean isCoreModulo(String nombre) {
@@ -140,6 +205,10 @@ public class AdminSaasController {
         return normalized.replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
     }
 
+    private OffsetDateTime inicioMesActual() {
+        return YearMonth.now().atDay(1).atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
+    }
+
     public record AdminTallerResponse(
             UUID id,
             String nombre,
@@ -150,6 +219,7 @@ public class AdminSaasController {
             boolean activo,
             String estado,
             UUID planId,
+            String plan,
             String planCodigo,
             String planNombre,
             OffsetDateTime fechaRegistro,
@@ -168,6 +238,19 @@ public class AdminSaasController {
             boolean activo,
             String categoria,
             String iconKey
+    ) {
+    }
+
+    public record AdminSuscripcionResponse(
+            UUID tallerId,
+            String tallerNombre,
+            String plan,
+            int precioMensual,
+            String estado,
+            OffsetDateTime fechaInicio,
+            OffsetDateTime fechaRenovacion,
+            int diasRestantes,
+            int mrr
     ) {
     }
 
