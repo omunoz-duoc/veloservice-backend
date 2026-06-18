@@ -22,11 +22,16 @@ import com.veloservice.proveedores_compras.infraestructure.persistence.repositor
 import com.veloservice.proveedores_compras.infraestructure.persistence.repository.SucursalProveedorRepository;
 import com.veloservice.servicios.infraestructure.persistence.repository.ServicioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.text.Normalizer;
 import java.time.OffsetDateTime;
@@ -88,6 +93,51 @@ public class AdminSaasController {
         return moduloRepository.findAllByActivoTrueOrderByNombreAsc().stream()
                 .map(this::toModuloResponse)
                 .toList();
+    }
+
+    @GetMapping("/planes")
+    public List<AdminPlanResponse> listarPlanes() {
+        return planSaasRepository.findAllByActivoTrueOrderByOrdenAsc().stream()
+                .map(this::toPlanResponse)
+                .toList();
+    }
+
+    @PostMapping("/talleres")
+    public AdminTallerResponse crearTaller(@RequestBody AdminCrearTallerRequest request) {
+        validarCrearTaller(request);
+        PlanSaas plan = planSaasRepository.findById(request.planId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Plan no encontrado"));
+
+        OffsetDateTime now = OffsetDateTime.now();
+        Taller taller = Taller.builder()
+                .nombre(request.nombre().trim())
+                .rut(request.rut().trim())
+                .telefono(normalizeOptional(request.telefono()))
+                .email(normalizeOptional(request.email()))
+                .planId(plan.getId())
+                .activo(request.activo())
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+
+        Taller saved = tallerRepository.save(taller);
+        return toTallerResponse(saved, plan, inicioMesActual());
+    }
+
+    @PatchMapping("/talleres/{id}/estado")
+    public AdminTallerResponse actualizarEstadoTaller(
+            @PathVariable UUID id,
+            @RequestBody AdminActualizarEstadoTallerRequest request
+    ) {
+        Taller taller = tallerRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Taller no encontrado"));
+        taller.setActivo(request.activo());
+        taller.setUpdatedAt(OffsetDateTime.now());
+        Taller saved = tallerRepository.save(taller);
+        PlanSaas plan = saved.getPlanId() != null
+                ? planSaasRepository.findById(saved.getPlanId()).orElse(null)
+                : null;
+        return toTallerResponse(saved, plan, inicioMesActual());
     }
 
     @GetMapping("/suscripciones")
@@ -207,6 +257,17 @@ public class AdminSaasController {
         );
     }
 
+    private AdminPlanResponse toPlanResponse(PlanSaas plan) {
+        return new AdminPlanResponse(
+                plan.getId(),
+                plan.getCodigo(),
+                plan.getNombre(),
+                plan.getDescripcion(),
+                Boolean.TRUE.equals(plan.getActivo()),
+                plan.getOrden()
+        );
+    }
+
     private AdminSuscripcionResponse toSuscripcionResponse(Taller taller, PlanSaas plan) {
         String planNormalizado = normalizePlanCodigo(plan != null ? plan.getCodigo() : null);
         int precioMensual = precioMensual(planNormalizado);
@@ -314,6 +375,33 @@ public class AdminSaasController {
         return YearMonth.now().atDay(1).atStartOfDay().atOffset(OffsetDateTime.now().getOffset());
     }
 
+    private void validarCrearTaller(AdminCrearTallerRequest request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payload requerido");
+        }
+        if (isBlank(request.nombre())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nombre requerido");
+        }
+        if (isBlank(request.rut())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "RUT requerido");
+        }
+        if (request.planId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Plan requerido");
+        }
+        tallerRepository.findByRut(request.rut().trim())
+                .ifPresent(taller -> {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un taller con ese RUT");
+                });
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private String normalizeOptional(String value) {
+        return isBlank(value) ? null : value.trim();
+    }
+
     public record AdminTallerResponse(
             UUID id,
             String nombre,
@@ -363,6 +451,29 @@ public class AdminSaasController {
             String categoria,
             String iconKey
     ) {
+    }
+
+    public record AdminPlanResponse(
+            UUID id,
+            String codigo,
+            String nombre,
+            String descripcion,
+            boolean activo,
+            Integer orden
+    ) {
+    }
+
+    public record AdminCrearTallerRequest(
+            String nombre,
+            String rut,
+            String telefono,
+            String email,
+            UUID planId,
+            boolean activo
+    ) {
+    }
+
+    public record AdminActualizarEstadoTallerRequest(boolean activo) {
     }
 
     public record AdminSuscripcionResponse(
