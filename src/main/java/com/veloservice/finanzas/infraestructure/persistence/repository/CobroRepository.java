@@ -18,6 +18,9 @@ public interface CobroRepository extends JpaRepository<Cobro, UUID> {
 
     Optional<Cobro> findByOrdenId(UUID ordenId);
 
+    @Query("select count(c) from Cobro c join Orden o on o.id = c.ordenId where o.tallerId = :tallerId")
+    long countByTallerId(@Param("tallerId") UUID tallerId);
+
     @Query("select coalesce(sum(c.total), 0) from Cobro c where c.createdAt >= :start and c.createdAt < :end")
     BigDecimal sumTotalByCreatedAtBetween(@Param("start") OffsetDateTime start,
                                           @Param("end") OffsetDateTime end);

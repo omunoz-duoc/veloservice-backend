@@ -24,5 +24,7 @@ public interface ServicioRepository extends JpaRepository<Servicio, UUID> {
 
     List<Servicio> findByTallerIdAndActivoTrueOrderByNombreAsc(UUID tallerId);
 
+    long countByTallerId(UUID tallerId);
+
     Optional<Servicio> findByIdAndTallerId(UUID id, UUID tallerId);
 }

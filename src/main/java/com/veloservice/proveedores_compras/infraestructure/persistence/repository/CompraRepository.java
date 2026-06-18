@@ -2,6 +2,7 @@ package com.veloservice.proveedores_compras.infraestructure.persistence.reposito
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.veloservice.proveedores_compras.domain.model.Compra;
@@ -22,7 +23,10 @@ public interface CompraRepository extends JpaRepository<Compra, UUID> {
      * @return branch purchases
      */
     @Query("select c from Compra c join SucursalProveedor sp on sp.id = c.sucursalProveedorId where sp.sucursalId = :sucursalId order by c.fechaCompra desc")
-    List<Compra> findBySucursalIdOrderByFechaCompraDesc(UUID sucursalId);
+    List<Compra> findBySucursalIdOrderByFechaCompraDesc(@Param("sucursalId") UUID sucursalId);
+
+    @Query("select count(c) from Compra c join SucursalProveedor sp on sp.id = c.sucursalProveedorId join Sucursal s on s.id = sp.sucursalId where s.tallerId = :tallerId")
+    long countByTallerId(@Param("tallerId") UUID tallerId);
 
     /**
      * Lists purchases for a tenant ordered by purchase date.

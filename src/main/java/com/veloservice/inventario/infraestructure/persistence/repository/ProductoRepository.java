@@ -26,6 +26,9 @@ public interface ProductoRepository extends JpaRepository<Producto, UUID> {
 
     List<Producto> findBySucursalIdAndActivoTrueOrderByNombreAsc(UUID sucursalId);
 
+    @Query("select count(p) from Producto p join Sucursal s on s.id = p.sucursalId where s.tallerId = :tallerId")
+    long countByTallerId(@Param("tallerId") UUID tallerId);
+
     /**
      * Finds a product by identifier.
      *

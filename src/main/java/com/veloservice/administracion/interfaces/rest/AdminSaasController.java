@@ -1,5 +1,6 @@
 package com.veloservice.administracion.interfaces.rest;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.veloservice.administracion.domain.model.Modulo;
 import com.veloservice.administracion.domain.model.PlanSaas;
 import com.veloservice.administracion.domain.model.Taller;
@@ -8,8 +9,18 @@ import com.veloservice.administracion.infraestructure.persistence.repository.Pla
 import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
 import com.veloservice.administracion.infraestructure.persistence.repository.TallerRepository;
 import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
+import com.veloservice.clientes.infraestructure.persistence.repository.BicicletaRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRepository;
+import com.veloservice.clientes.infraestructure.persistence.repository.MembresiaRepository;
+import com.veloservice.finanzas.infraestructure.persistence.repository.CobroRepository;
+import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
+import com.veloservice.notificaciones.domain.EstadoNotificacionEnum;
+import com.veloservice.notificaciones.infraestructure.persistence.repository.NotificacionRepository;
+import com.veloservice.ordenes.infraestructure.persistence.repository.GarantiaRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
+import com.veloservice.proveedores_compras.infraestructure.persistence.repository.CompraRepository;
+import com.veloservice.proveedores_compras.infraestructure.persistence.repository.SucursalProveedorRepository;
+import com.veloservice.servicios.infraestructure.persistence.repository.ServicioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +50,15 @@ public class AdminSaasController {
     private final ModuloRepository moduloRepository;
     private final UsuarioRepository usuarioRepository;
     private final ClienteRepository clienteRepository;
+    private final BicicletaRepository bicicletaRepository;
+    private final ServicioRepository servicioRepository;
+    private final ProductoRepository productoRepository;
+    private final SucursalProveedorRepository sucursalProveedorRepository;
+    private final CompraRepository compraRepository;
+    private final GarantiaRepository garantiaRepository;
+    private final MembresiaRepository membresiaRepository;
+    private final CobroRepository cobroRepository;
+    private final NotificacionRepository notificacionRepository;
     private final SucursalRepository sucursalRepository;
     private final OrdenRepository ordenRepository;
 
@@ -60,7 +80,7 @@ public class AdminSaasController {
         PlanSaas plan = taller.getPlanId() != null
                 ? planSaasRepository.findById(taller.getPlanId()).orElse(null)
                 : null;
-        return toTallerResponse(taller, plan, inicioMesActual());
+        return toTallerResponse(taller, plan, inicioMesActual(), toOperacionResponse(taller.getId()));
     }
 
     @GetMapping("/modulos")
@@ -124,6 +144,15 @@ public class AdminSaasController {
     }
 
     private AdminTallerResponse toTallerResponse(Taller taller, PlanSaas plan, OffsetDateTime inicioMes) {
+        return toTallerResponse(taller, plan, inicioMes, null);
+    }
+
+    private AdminTallerResponse toTallerResponse(
+            Taller taller,
+            PlanSaas plan,
+            OffsetDateTime inicioMes,
+            AdminTallerOperacionResponse operacion
+    ) {
         boolean activo = Boolean.TRUE.equals(taller.getActivo());
         String planNormalizado = normalizePlanCodigo(plan != null ? plan.getCodigo() : null);
         return new AdminTallerResponse(
@@ -143,7 +172,26 @@ public class AdminSaasController {
                 null,
                 (int) usuarioRepository.countByTallerId(taller.getId()),
                 (int) ordenRepository.countByTallerIdAndFechaIngresoGreaterThanEqual(taller.getId(), inicioMes),
-                List.of()
+                List.of(),
+                operacion
+        );
+    }
+
+    private AdminTallerOperacionResponse toOperacionResponse(UUID tallerId) {
+        return new AdminTallerOperacionResponse(
+                sucursalRepository.countByTallerId(tallerId),
+                usuarioRepository.countByTallerId(tallerId),
+                clienteRepository.countByTallerId(tallerId),
+                bicicletaRepository.countByClienteTallerId(tallerId),
+                servicioRepository.countByTallerId(tallerId),
+                productoRepository.countByTallerId(tallerId),
+                sucursalProveedorRepository.countByTallerId(tallerId),
+                compraRepository.countByTallerId(tallerId),
+                ordenRepository.countByTallerId(tallerId),
+                garantiaRepository.countByTallerId(tallerId),
+                membresiaRepository.countByTallerId(tallerId),
+                cobroRepository.countByTallerId(tallerId),
+                notificacionRepository.countByTallerIdAndEstado(tallerId, EstadoNotificacionEnum.pendiente)
         );
     }
 
@@ -283,7 +331,26 @@ public class AdminSaasController {
             OffsetDateTime fechaRenovacion,
             int cantidadUsuarios,
             int cantidadOTsMes,
-            List<UUID> moduloIds
+            List<UUID> moduloIds,
+            @JsonInclude(JsonInclude.Include.NON_NULL)
+            AdminTallerOperacionResponse operacion
+    ) {
+    }
+
+    public record AdminTallerOperacionResponse(
+            long sucursales,
+            long usuarios,
+            long clientes,
+            long bicicletas,
+            long servicios,
+            long productos,
+            long proveedores,
+            long compras,
+            long ordenes,
+            long garantias,
+            long membresias,
+            long cobros,
+            long notificacionesPendientes
     ) {
     }
 
