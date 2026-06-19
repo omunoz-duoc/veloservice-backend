@@ -14,7 +14,7 @@ import com.veloservice.inventario.application.exception.ProductoException;
 import com.veloservice.shared.application.exception.ConflictException;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.inventario.infraestructure.persistence.repository.CategoriaProductoRepository;
-import com.veloservice.inventario.domain.TipoMovimientoEnum;
+import com.veloservice.inventario.infraestructure.persistence.repository.MovimientoStockRepository;
 import com.veloservice.inventario.infraestructure.persistence.repository.ProductoRepository;
 import com.veloservice.inventario.interfaces.mapper.ProductoMapper;
 import com.veloservice.config.tenant.TenantOperation;
@@ -39,6 +39,7 @@ public class ProductoService {
     private final ProductoRepository productoRepository;
     private final StockMovimientoService stockMovimientoService;
     private final CategoriaProductoRepository categoriaProductoRepository;
+    private final MovimientoStockRepository movimientoRepository;
     private final SucursalRepository sucursalRepository;
     private final EntityManager entityManager;
 
