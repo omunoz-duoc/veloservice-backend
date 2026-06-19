@@ -55,25 +55,30 @@ public class PlanSaas {
     @Column(name = "activo", nullable = false)
     private Boolean activo;
 
+    @Builder.Default
     @Column(name = "max_sucursales", nullable = false)
-    private Integer maxSucursales;
+    private Integer maxSucursales = 1;
 
+    @Builder.Default
     @Column(name = "max_usuarios", nullable = false)
-    private Integer maxUsuarios;
+    private Integer maxUsuarios = 1;
 
     @Column(name = "max_ordenes_mes")
     private Integer maxOrdenesMes;
 
+    @Builder.Default
     @Column(name = "precio_mensual", nullable = false, precision = 10, scale = 2)
-    private BigDecimal precioMensual;
+    private BigDecimal precioMensual = BigDecimal.ZERO;
 
     @Column(name = "precio_anual", precision = 10, scale = 2)
     private BigDecimal precioAnual;
 
+    @Builder.Default
     @Column(name = "trial_dias", nullable = false)
-    private Integer trialDias;
+    private Integer trialDias = 0;
 
+    @Builder.Default
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "features", nullable = false, columnDefinition = "jsonb")
-    private String features;
+    @Column(name = "features", nullable = false)
+    private String features = "{}";
 }

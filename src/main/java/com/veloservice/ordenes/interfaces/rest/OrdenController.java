@@ -753,7 +753,7 @@ public class OrdenController {
         boolean fechaProxima = orden.fechaPrometida() != null
                 && !orden.fechaPrometida().isBefore(now)
                 && orden.fechaPrometida().isBefore(maxFechaPrometida);
-        return prioridadAlta || fechaProxima;
+        return prioridadAlta && fechaProxima;
     }
 
     private void validarIdentificador(String id) {
