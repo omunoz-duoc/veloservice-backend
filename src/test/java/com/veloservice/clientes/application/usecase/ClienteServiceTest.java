@@ -5,6 +5,7 @@ import com.veloservice.clientes.domain.model.Cliente;
 import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.MembresiaRepository;
 import com.veloservice.config.tenant.TallerContext;
+import com.veloservice.shared.application.exception.ConflictException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class ClienteServiceTest {
@@ -41,7 +43,7 @@ class ClienteServiceTest {
     void crearScopesClienteToCurrentTaller() {
         UUID tallerId = UUID.randomUUID();
         TallerContext.setCurrentTaller(tallerId);
-        given(clienteRepository.findByTallerIdAndRut(tallerId, "11.111.111-1")).willReturn(Optional.empty());
+        given(clienteRepository.findByTallerIdAndRut(tallerId, "111111111")).willReturn(Optional.empty());
         given(clienteRepository.findCodigosClienteByTallerId(tallerId)).willReturn(List.of("CL-0001"));
         given(clienteRepository.existsByTallerIdAndCodigoCliente(tallerId, "CL-0002")).willReturn(false);
         given(clienteRepository.save(any(Cliente.class))).willAnswer(invocation -> {
@@ -62,7 +64,7 @@ class ClienteServiceTest {
     }
 
     @Test
-    void crearReusesRutOnlyWithinSameTaller() {
+    void cp007_crearClienteConRutDuplicado_debeLanzarConflictSinGuardar() {
         UUID tallerId = UUID.randomUUID();
         UUID clienteId = UUID.randomUUID();
         TallerContext.setCurrentTaller(tallerId);
@@ -74,13 +76,13 @@ class ClienteServiceTest {
                 .apellido("Perez")
                 .rut("11.111.111-1")
                 .build();
-        given(clienteRepository.findByTallerIdAndRut(tallerId, "11.111.111-1")).willReturn(Optional.of(existente));
+        given(clienteRepository.findByTallerIdAndRut(tallerId, "111111111")).willReturn(Optional.of(existente));
 
-        var result = clienteService.crear(new ClienteCreateCommand(
-                "Ana", "Perez", "11.111.111-1", "999999999", "ana@test.cl", "Calle 1"));
-
-        assertThat(result.getId()).isEqualTo(clienteId);
-        assertThat(result.getCodigoCliente()).isEqualTo("CL-0007");
+        assertThatThrownBy(() -> clienteService.crear(new ClienteCreateCommand(
+                "Ana", "Perez", "11.111.111-1", "999999999", "ana@test.cl", "Calle 1")))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("Ya existe un cliente");
+        verify(clienteRepository, never()).save(any());
     }
 
     @Test
@@ -109,7 +111,7 @@ class ClienteServiceTest {
         assertThat(result.getCodigoCliente()).isEqualTo("CL-0003");
         assertThat(result.getNombre()).isEqualTo("Paula");
         assertThat(result.getApellido()).isEqualTo("Soto");
-        assertThat(result.getRut()).isEqualTo("22.222.222-2");
+        assertThat(result.getRut()).isEqualTo("222222222");
         assertThat(result.getTelefono()).isEqualTo("988888888");
         assertThat(result.getEmail()).isEqualTo("paula@test.cl");
         assertThat(result.getDireccion()).isEqualTo("Calle 2");
