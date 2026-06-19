@@ -1,8 +1,12 @@
 package com.veloservice.servicios.application.usecase;
 
 import com.veloservice.config.tenant.TallerContext;
+import com.veloservice.config.tenant.SucursalContext;
+import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
 import com.veloservice.servicios.application.dto.ServicioCreateCommand;
+import com.veloservice.servicios.application.dto.SucursalServicioPrecioCommand;
 import com.veloservice.servicios.domain.model.Servicio;
+import com.veloservice.servicios.domain.model.SucursalServicio;
 import com.veloservice.servicios.infraestructure.persistence.repository.ServicioRepository;
 import com.veloservice.servicios.infraestructure.persistence.repository.SucursalServicioRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenServicioRepository;
@@ -30,10 +34,33 @@ class ServicioServiceTest {
     @Mock private ServicioRepository servicioRepository;
     @Mock private SucursalServicioRepository sucursalServicioRepository;
     @Mock private OrdenServicioRepository ordenServicioRepository;
+    @Mock private SucursalRepository sucursalRepository;
 
     @AfterEach
     void cleanup() {
         TallerContext.clear();
+        SucursalContext.clear();
+    }
+
+    @Test
+    void cp031_configurarTarifaPersonalizada_debeGuardarPrecioParaSucursalActual() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID servicioId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        ServicioService service = new ServicioService(
+                servicioRepository, sucursalServicioRepository, sucursalRepository, ordenServicioRepository);
+        given(sucursalServicioRepository.findBySucursalIdAndServicioId(sucursalId, servicioId))
+                .willReturn(Optional.empty());
+
+        service.asignarPrecioSucursal(new SucursalServicioPrecioCommand(
+                servicioId, new BigDecimal("17990.00")));
+
+        verify(sucursalServicioRepository).save(org.mockito.ArgumentMatchers.argThat(link ->
+                sucursalId.equals(link.getSucursalId())
+                        && servicioId.equals(link.getServicioId())
+                        && new BigDecimal("17990.00").compareTo(link.getPrecioPersonalizado()) == 0
+                        && Boolean.TRUE.equals(link.getActivo())
+        ));
     }
 
     @Test

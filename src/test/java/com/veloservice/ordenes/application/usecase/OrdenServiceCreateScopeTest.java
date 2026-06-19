@@ -12,6 +12,7 @@ import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.config.storage.R2Properties;
+import com.veloservice.inventario.application.usecase.StockMovimientoService;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.ordenes.application.dto.OrdenCreateCommand;
 import com.veloservice.ordenes.application.dto.MultimediaResult;
@@ -101,6 +102,7 @@ class OrdenServiceCreateScopeTest {
     @Mock private UsuarioSucursalRepository usuarioSucursalRepository;
     @Mock private R2StoragePort r2Storage;
     @Mock private OrdenHistorialService ordenHistorialService;
+    @Mock private StockMovimientoService stockMovimientoService;
 
     private OrdenService ordenService;
 
@@ -136,7 +138,8 @@ class OrdenServiceCreateScopeTest {
                         "https://media.example",
                         Duration.ofMinutes(15)
                 ),
-                ordenHistorialService
+                ordenHistorialService,
+                stockMovimientoService
         );
     }
 

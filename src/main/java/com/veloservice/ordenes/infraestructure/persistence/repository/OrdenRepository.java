@@ -273,6 +273,10 @@ public interface OrdenRepository extends JpaRepository<Orden, UUID> {
      */
     long countByTallerIdAndEstadoId(UUID tallerId, UUID estadoId);
 
+    long countByTallerId(UUID tallerId);
+
+    long countByTallerIdAndFechaIngresoGreaterThanEqual(UUID tallerId, OffsetDateTime desde);
+
     /**
      * Cuenta el número de órdenes asociadas a una sucursal y a un estado en específico.
      * @param sucursalId

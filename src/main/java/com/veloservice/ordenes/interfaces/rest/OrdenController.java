@@ -745,14 +745,15 @@ public class OrdenController {
     }
 
     private boolean isOrdenUrgente(OrdenReadResult orden, OffsetDateTime now, OffsetDateTime maxFechaPrometida) {
-        if (orden.fechaPrometida() == null || !"alta".equalsIgnoreCase(orden.prioridad())) {
-            return false;
-        }
         String estadoCodigo = orden.estadoCodigo();
         if ("entregada".equalsIgnoreCase(estadoCodigo) || "cancelada".equalsIgnoreCase(estadoCodigo)) {
             return false;
         }
-        return !orden.fechaPrometida().isBefore(now) && orden.fechaPrometida().isBefore(maxFechaPrometida);
+        boolean prioridadAlta = "alta".equalsIgnoreCase(orden.prioridad());
+        boolean fechaProxima = orden.fechaPrometida() != null
+                && !orden.fechaPrometida().isBefore(now)
+                && orden.fechaPrometida().isBefore(maxFechaPrometida);
+        return prioridadAlta && fechaProxima;
     }
 
     private void validarIdentificador(String id) {

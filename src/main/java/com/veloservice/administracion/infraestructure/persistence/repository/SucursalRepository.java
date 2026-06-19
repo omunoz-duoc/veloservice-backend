@@ -26,6 +26,8 @@ public interface SucursalRepository extends JpaRepository<Sucursal, UUID> {
 
 	Optional<Sucursal> findFirstByTallerIdAndActivoTrueOrderByCreatedAtAsc(UUID tallerId);
 
+	long countByTallerId(UUID tallerId);
+
 	boolean existsByIdAndTallerId(UUID id, UUID tallerId);
 
 

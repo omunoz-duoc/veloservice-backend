@@ -104,6 +104,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
      */
     boolean existsByIdAndActivoTrueAndRol_Nombre(UUID id, String rolNombre);
 
+    long countByTallerId(UUID tallerId);
+
 
     /**
      * Busca todos los usuarios activos con rol de mecánico asociados a una sucursal específica.

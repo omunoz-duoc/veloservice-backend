@@ -3,6 +3,7 @@ package com.veloservice.finanzas.application.usecase;
 import com.veloservice.clientes.infraestructure.persistence.repository.BicicletaRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.MembresiaRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.SucursalClienteRepository;
+import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.finanzas.application.dto.CobroCreateCommand;
@@ -43,6 +44,7 @@ class CobroServiceTest {
     @Mock private BicicletaRepository bicicletaRepository;
     @Mock private SucursalClienteRepository sucursalClienteRepository;
     @Mock private MembresiaRepository membresiaRepository;
+    @Mock private SucursalRepository sucursalRepository;
 
     private CobroService cobroService;
 
@@ -55,7 +57,8 @@ class CobroServiceTest {
                 ordenProductoRepository,
                 bicicletaRepository,
                 sucursalClienteRepository,
-                membresiaRepository
+                membresiaRepository,
+                sucursalRepository
         );
     }
 

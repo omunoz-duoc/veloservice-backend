@@ -11,6 +11,19 @@ import java.math.BigDecimal;
 @Builder
 @AllArgsConstructor
 public class MetricasResponse {
-    @JsonProperty("cobros_del_dia")
+    @JsonProperty("cobrosDelDia")
     private BigDecimal cobrosDelDia;
+
+    @JsonProperty("cantidadCobrosDia")
+    private long cantidadCobrosDia;
+
+    @JsonProperty("cobros_del_dia")
+    public BigDecimal getCobrosDelDiaLegacy() {
+        return cobrosDelDia;
+    }
+
+    @JsonProperty("cantidad_cobros_dia")
+    public long getCantidadCobrosDiaLegacy() {
+        return cantidadCobrosDia;
+    }
 }

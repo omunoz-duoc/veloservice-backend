@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class ClienteResponse {
     private String id;
+    private String codigoCliente;
     private String nombre;
     private String apellido;
     private String tipo;

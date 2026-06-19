@@ -29,6 +29,7 @@ import java.util.List;
     indexes = {
         @Index(name = "idx_clientes_taller", columnList = "taller_id"),
         @Index(name = "idx_clientes_membresia", columnList = "membresia_id"),
+        @Index(name = "idx_clientes_taller_codigo_cliente", columnList = "taller_id, codigo_cliente", unique = true),
         @Index(name = "idx_clientes_taller_rut", columnList = "taller_id, rut", unique = true)
 }
 )
@@ -46,6 +47,9 @@ public class Cliente {
 
     @Column(name = "taller_id", nullable = false)
     private UUID tallerId;
+
+    @Column(name = "codigo_cliente", nullable = false, length = 20)
+    private String codigoCliente;
 
     @Column(name = "membresia_id")
     private UUID membresiaId;

@@ -30,10 +30,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -56,6 +58,70 @@ class AuthServiceTest {
 
     @InjectMocks
     private AuthService authService;
+
+    @Test
+    void cp001_loginConCredencialesValidas_debeRetornarToken() {
+        UUID userId = UUID.randomUUID();
+        UUID tallerId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, tallerId, rol("admin_taller", "taller"));
+        givenSuccessfulCredentialCheck(usuario);
+        given(usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(userId)).willReturn(Optional.empty());
+        given(jwtProvider.generateToken(userId, usuario.getEmail(), "admin_taller", null, tallerId))
+                .willReturn("jwt-valido");
+
+        AuthLoginResult result = authService.login(new AuthLoginCommand(usuario.getEmail(), "Password1!"));
+
+        assertThat(result.getToken()).isEqualTo("jwt-valido");
+        verify(loginAttemptService).resetAttempts(usuario.getEmail());
+        verify(usuarioRepository).save(usuario);
+    }
+
+    @Test
+    void cp002_loginConCredencialesInvalidas_debeLanzarUnauthorized() {
+        Usuario usuario = usuario(UUID.randomUUID(), UUID.randomUUID(), rol("mecanico", "sucursal"));
+        given(loginAttemptService.isBlocked(usuario.getEmail())).willReturn(false);
+        given(usuarioRepository.findByEmail(usuario.getEmail())).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches("incorrecta", usuario.getPasswordHash())).willReturn(false);
+
+        assertThatThrownBy(() -> authService.login(new AuthLoginCommand(usuario.getEmail(), "incorrecta")))
+                .isInstanceOfSatisfying(AuthException.class,
+                        ex -> assertThat(ex.getCode()).isEqualTo(AuthErrorCode.INVALID_PASSWORD));
+        verify(loginAttemptService).recordFailedAttempt(usuario.getEmail());
+        verify(usuarioRepository, never()).save(any());
+        verify(jwtProvider, never()).generateToken(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void cp004_recuperarPasswordConTokenValido_debeActualizarPasswordYConsumirToken() {
+        Usuario usuario = usuario(UUID.randomUUID(), UUID.randomUUID(), rol("admin_taller", "taller"));
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .usuario(usuario)
+                .used(false)
+                .expiresAt(OffsetDateTime.now().plusMinutes(10))
+                .build();
+        given(passwordResetTokenRepository.findByTokenHashAndUsedFalseAndExpiresAtAfter(
+                anyString(), any(OffsetDateTime.class))).willReturn(Optional.of(resetToken));
+        given(passwordEncoder.encode("NuevaClave1!")).willReturn("nuevo-hash");
+
+        authService.changePassword("token-valido", "NuevaClave1!");
+
+        assertThat(usuario.getPasswordHash()).isEqualTo("nuevo-hash");
+        assertThat(resetToken.getUsed()).isTrue();
+        verify(usuarioRepository).save(usuario);
+        verify(passwordResetTokenRepository).save(resetToken);
+    }
+
+    @Test
+    void cp005_recuperarPasswordConTokenExpirado_debeRechazarSinPersistir() {
+        given(passwordResetTokenRepository.findByTokenHashAndUsedFalseAndExpiresAtAfter(
+                anyString(), any(OffsetDateTime.class))).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.changePassword("token-expirado", "NuevaClave1!"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("expirado");
+        verify(usuarioRepository, never()).save(any());
+        verify(passwordResetTokenRepository, never()).save(any());
+    }
 
     @AfterEach
     void clearContext() {

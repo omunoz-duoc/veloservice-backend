@@ -42,9 +42,8 @@ public final class ClienteMapper {
 
     public static ClienteResponse toResponse(ClienteResult result) {
         return ClienteResponse.builder()
-                .id(result.getId() != null
-                        ? "CL-" + result.getId().toString().substring(0, 8).toUpperCase()
-                        : null)
+                .id(result.getId() != null ? result.getId().toString() : null)
+                .codigoCliente(result.getCodigoCliente())
                 .nombre(result.getNombre())
                 .apellido(result.getApellido())
                 .tipo(result.getTipo())
