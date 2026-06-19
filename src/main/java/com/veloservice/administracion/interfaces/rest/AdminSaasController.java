@@ -1,6 +1,8 @@
 package com.veloservice.administracion.interfaces.rest;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.veloservice.administracion.domain.model.Modulo;
 import com.veloservice.administracion.domain.model.PlanSaas;
 import com.veloservice.administracion.domain.model.Taller;
@@ -34,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.text.Normalizer;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.util.LinkedHashMap;
@@ -66,6 +69,7 @@ public class AdminSaasController {
     private final NotificacionRepository notificacionRepository;
     private final SucursalRepository sucursalRepository;
     private final OrdenRepository ordenRepository;
+    private final ObjectMapper objectMapper;
 
     @GetMapping("/talleres")
     public List<AdminTallerResponse> listarTalleres() {
@@ -100,6 +104,32 @@ public class AdminSaasController {
         return planSaasRepository.findAllByActivoTrueOrderByOrdenAsc().stream()
                 .map(this::toPlanResponse)
                 .toList();
+    }
+
+    @PostMapping("/planes")
+    public AdminPlanResponse crearPlan(@RequestBody AdminCrearPlanRequest request) {
+        validarCrearPlan(request);
+        String codigo = normalizePlanCode(request.codigo());
+        if (planSaasRepository.existsByCodigoIgnoreCase(codigo)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un plan con ese codigo");
+        }
+
+        PlanSaas plan = PlanSaas.builder()
+                .codigo(codigo)
+                .nombre(request.nombre().trim())
+                .descripcion(normalizeOptional(request.descripcion()))
+                .orden(request.orden())
+                .activo(request.activo() == null || request.activo())
+                .maxSucursales(request.maxSucursales())
+                .maxUsuarios(request.maxUsuarios())
+                .maxOrdenesMes(request.maxOrdenesMes())
+                .precioMensual(request.precioMensual())
+                .precioAnual(request.precioAnual())
+                .trialDias(request.trialDias())
+                .features(normalizeFeatures(request.features()))
+                .build();
+
+        return toPlanResponse(planSaasRepository.save(plan));
     }
 
     @PostMapping("/talleres")
@@ -264,7 +294,14 @@ public class AdminSaasController {
                 plan.getNombre(),
                 plan.getDescripcion(),
                 Boolean.TRUE.equals(plan.getActivo()),
-                plan.getOrden()
+                plan.getOrden(),
+                plan.getMaxSucursales(),
+                plan.getMaxUsuarios(),
+                plan.getMaxOrdenesMes(),
+                plan.getPrecioMensual(),
+                plan.getPrecioAnual(),
+                plan.getTrialDias(),
+                plan.getFeatures()
         );
     }
 
@@ -394,6 +431,78 @@ public class AdminSaasController {
                 });
     }
 
+    private void validarCrearPlan(AdminCrearPlanRequest request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payload requerido");
+        }
+        String codigo = normalizePlanCode(request.codigo());
+        if (codigo.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Codigo requerido");
+        }
+        if (isBlank(request.nombre())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nombre requerido");
+        }
+        requireMin(request.orden(), 0, "orden");
+        requireMin(request.maxSucursales(), 1, "maxSucursales");
+        requireMin(request.maxUsuarios(), 1, "maxUsuarios");
+        requireOptionalMin(request.maxOrdenesMes(), 0, "maxOrdenesMes");
+        requireMin(request.precioMensual(), BigDecimal.ZERO, "precioMensual");
+        requireOptionalMin(request.precioAnual(), BigDecimal.ZERO, "precioAnual");
+        requireMin(request.trialDias(), 0, "trialDias");
+        normalizeFeatures(request.features());
+    }
+
+    private void requireMin(Integer value, int min, String field) {
+        if (value == null || value < min) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " invalido");
+        }
+    }
+
+    private void requireOptionalMin(Integer value, int min, String field) {
+        if (value != null && value < min) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " invalido");
+        }
+    }
+
+    private void requireMin(BigDecimal value, BigDecimal min, String field) {
+        if (value == null || value.compareTo(min) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " invalido");
+        }
+    }
+
+    private void requireOptionalMin(BigDecimal value, BigDecimal min, String field) {
+        if (value != null && value.compareTo(min) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " invalido");
+        }
+    }
+
+    private String normalizePlanCode(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
+    }
+
+    private String normalizeFeatures(Object features) {
+        if (features == null) {
+            return "{}";
+        }
+        if (features instanceof String text) {
+            String trimmed = text.trim();
+            if (trimmed.isEmpty()) {
+                return "{}";
+            }
+            try {
+                objectMapper.readTree(trimmed);
+                return trimmed;
+            } catch (JsonProcessingException ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "features debe ser JSON valido");
+            }
+        }
+        try {
+            return objectMapper.writeValueAsString(features);
+        } catch (JsonProcessingException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "features debe ser JSON valido");
+        }
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
@@ -459,7 +568,30 @@ public class AdminSaasController {
             String nombre,
             String descripcion,
             boolean activo,
-            Integer orden
+            Integer orden,
+            Integer maxSucursales,
+            Integer maxUsuarios,
+            Integer maxOrdenesMes,
+            BigDecimal precioMensual,
+            BigDecimal precioAnual,
+            Integer trialDias,
+            String features
+    ) {
+    }
+
+    public record AdminCrearPlanRequest(
+            String codigo,
+            String nombre,
+            String descripcion,
+            Integer orden,
+            Boolean activo,
+            Integer maxSucursales,
+            Integer maxUsuarios,
+            Integer maxOrdenesMes,
+            BigDecimal precioMensual,
+            BigDecimal precioAnual,
+            Integer trialDias,
+            Object features
     ) {
     }
 

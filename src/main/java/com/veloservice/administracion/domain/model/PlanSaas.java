@@ -13,6 +13,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -51,4 +54,26 @@ public class PlanSaas {
 
     @Column(name = "activo", nullable = false)
     private Boolean activo;
+
+    @Column(name = "max_sucursales", nullable = false)
+    private Integer maxSucursales;
+
+    @Column(name = "max_usuarios", nullable = false)
+    private Integer maxUsuarios;
+
+    @Column(name = "max_ordenes_mes")
+    private Integer maxOrdenesMes;
+
+    @Column(name = "precio_mensual", nullable = false, precision = 10, scale = 2)
+    private BigDecimal precioMensual;
+
+    @Column(name = "precio_anual", precision = 10, scale = 2)
+    private BigDecimal precioAnual;
+
+    @Column(name = "trial_dias", nullable = false)
+    private Integer trialDias;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "features", nullable = false, columnDefinition = "jsonb")
+    private String features;
 }
