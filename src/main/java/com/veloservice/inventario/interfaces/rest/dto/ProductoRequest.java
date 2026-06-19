@@ -31,4 +31,5 @@ public class ProductoRequest {
     private Integer stockMinimo = 0;
     private UUID categoriaId;
     private Boolean activo;
+    private UUID sucursalId;
 }

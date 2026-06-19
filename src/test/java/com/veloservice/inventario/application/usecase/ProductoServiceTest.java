@@ -4,6 +4,7 @@ import com.veloservice.administracion.domain.model.Sucursal;
 import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
 import com.veloservice.config.tenant.SucursalContext;
 import com.veloservice.config.tenant.TallerContext;
+import com.veloservice.shared.application.exception.ConflictException;
 import com.veloservice.inventario.domain.model.CategoriaProducto;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.inventario.infraestructure.persistence.repository.CategoriaProductoRepository;
@@ -115,6 +116,7 @@ class ProductoServiceTest {
                 new BigDecimal("27900"),
                 6,
                 2,
+                null,
                 null
         ));
 
@@ -191,6 +193,35 @@ class ProductoServiceTest {
                 .containsExactly("Cadena Shimano HG601 11v");
         verify(query).setParameter(1, sucursalId.toString());
         verify(productoRepository).searchBySucursalId(sucursalId, "cadena");
+    }
+
+    @Test
+    void crearThrowsConflictWhenSkuAlreadyExists() {
+        UUID sucursalId = UUID.fromString("11000000-0000-4000-8000-000000000001");
+        SucursalContext.setCurrentSucursal(sucursalId);
+        given(productoRepository.existsBySkuAndSucursalId("SKU-001", sucursalId)).willReturn(true);
+
+        assertThrows(ConflictException.class, () -> productoService.crear(new com.veloservice.inventario.application.dto.ProductoCreateCommand(
+                "Producto X", "SKU-001", "Marca", "unidad",
+                new BigDecimal("1000"), new BigDecimal("1500"), 5, 1, null, null
+        )));
+    }
+
+    @Test
+    void actualizarThrowsConflictWhenNewSkuBelongsToAnotherProduct() {
+        UUID sucursalId = UUID.fromString("11000000-0000-4000-8000-000000000001");
+        UUID productoId = UUID.randomUUID();
+        SucursalContext.setCurrentSucursal(sucursalId);
+        Producto existente = producto(sucursalId, null, "Cadena X", "SKU-OLD", "Marca");
+        existente.setId(productoId);
+        given(productoRepository.findByIdAndSucursalId(productoId, sucursalId)).willReturn(Optional.of(existente));
+        given(productoRepository.existsBySkuAndSucursalId("SKU-TAKEN", sucursalId)).willReturn(true);
+
+        assertThrows(ConflictException.class, () -> productoService.actualizar(productoId,
+                new com.veloservice.inventario.application.dto.ProductoCreateCommand(
+                        "Cadena X", "SKU-TAKEN", "Marca", "unidad",
+                        new BigDecimal("1000"), new BigDecimal("1500"), 5, 1, null, null
+                )));
     }
 
     private Producto producto(UUID sucursalId, UUID categoriaId, String nombre, String sku, String marca) {

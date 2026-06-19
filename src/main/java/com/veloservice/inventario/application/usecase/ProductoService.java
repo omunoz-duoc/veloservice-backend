@@ -7,6 +7,7 @@ import com.veloservice.inventario.application.dto.ProductoCreateCommand;
 import com.veloservice.inventario.application.dto.ProductoResult;
 import com.veloservice.inventario.application.exception.ProductoErrorCode;
 import com.veloservice.inventario.application.exception.ProductoException;
+import com.veloservice.shared.application.exception.ConflictException;
 import com.veloservice.inventario.domain.model.Producto;
 import com.veloservice.inventario.infraestructure.persistence.repository.CategoriaProductoRepository;
 import com.veloservice.inventario.domain.TipoMovimientoEnum;
@@ -41,7 +42,7 @@ public class ProductoService {
     @Transactional
     @SuppressWarnings("null")
     public ProductoResult crear(ProductoCreateCommand command) {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
+        UUID sucursalId = resolveSucursalId(command.getSucursalId());
         validateSucursal(sucursalId);
 
         int stock = command.getStock() == null ? 0 : command.getStock();
@@ -89,8 +90,13 @@ public class ProductoService {
 
         int stockAnterior = producto.getStock() == null ? 0 : producto.getStock();
 
+        String nuevoSku = command.getSku();
+        if (nuevoSku != null && !nuevoSku.isBlank() && !nuevoSku.equals(producto.getSku())) {
+            validateSkuUnico(nuevoSku, sucursalId);
+        }
+
         producto.setNombre(command.getNombre());
-        producto.setSku(command.getSku());
+        producto.setSku(nuevoSku);
         producto.setMarca(command.getMarca());
         producto.setUnidadMedida(command.getUnidadMedida() == null || command.getUnidadMedida().isBlank()
                 ? producto.getUnidadMedida()
@@ -300,6 +306,8 @@ public class ProductoService {
 
     private void validateSkuUnico(String sku, UUID sucursalId) {
         if (sku == null || sku.isBlank()) return;
-        // TODO: validar unicidad real contra repositorio
+        if (productoRepository.existsBySkuAndSucursalId(sku, sucursalId)) {
+            throw new ConflictException("SKU '" + sku + "' ya existe en esta sucursal");
+        }
     }
 }

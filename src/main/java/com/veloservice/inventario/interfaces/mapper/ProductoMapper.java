@@ -37,7 +37,8 @@ public final class ProductoMapper {
                 request.getPrecioVenta(),
                 request.getStock(),
                 request.getStockMinimo(),
-                request.getCategoriaId()
+                request.getCategoriaId(),
+                request.getSucursalId()
         );
     }
 
