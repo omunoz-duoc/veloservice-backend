@@ -34,6 +34,7 @@ import com.veloservice.ordenes.domain.model.OrdenEstado;
 import com.veloservice.ordenes.domain.model.OrdenProducto;
 import com.veloservice.ordenes.domain.model.OrdenServicio;
 import com.veloservice.ordenes.domain.model.Multimedia;
+import com.veloservice.ordenes.application.port.MediaStoragePort;
 import com.veloservice.ordenes.application.port.R2StoragePort;
 import com.veloservice.ordenes.domain.model.TipoOrden;
 import com.veloservice.ordenes.infraestructure.persistence.repository.ComentarioRepository;
@@ -100,6 +101,7 @@ class OrdenServiceCreateScopeTest {
     @Mock private SucursalRepository sucursalRepository;
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private UsuarioSucursalRepository usuarioSucursalRepository;
+    @Mock private MediaStoragePort mediaStorage;
     @Mock private R2StoragePort r2Storage;
     @Mock private OrdenHistorialService ordenHistorialService;
     @Mock private StockMovimientoService stockMovimientoService;
@@ -128,7 +130,7 @@ class OrdenServiceCreateScopeTest {
                 sucursalRepository,
                 usuarioRepository,
                 usuarioSucursalRepository,
-                null,
+                mediaStorage,
                 r2Storage,
                 new R2Properties(
                         "test-account",
@@ -1092,6 +1094,72 @@ class OrdenServiceCreateScopeTest {
                 .hasMessage("Producto no encontrado: " + productoId);
 
         verifyNoInteractions(ordenProductoRepository);
+    }
+
+    @Test
+    void agregarMultimediaStoresFileAndPersistsRecord() throws Exception {
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        UUID ordenId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        UUID mediaId = UUID.randomUUID();
+        byte[] jpeg = new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff, 0x00};
+        SucursalContext.setCurrentSucursal(sucursalId);
+        UsuarioContext.setCurrentUser(usuarioId);
+        given(ordenRepository.findByIdAndSucursalId(ordenId, sucursalId))
+                .willReturn(Optional.of(Orden.builder()
+                        .id(ordenId)
+                        .tallerId(tallerId)
+                        .sucursalId(sucursalId)
+                        .build()));
+        given(mediaStorage.store(tallerId, ordenId, "image/jpeg", jpeg))
+                .willReturn(new MediaStoragePort.StoredMedia(
+                        "ordenes/" + ordenId + "/evidencia.jpg",
+                        "https://media.example/ordenes/" + ordenId + "/evidencia.jpg"
+                ));
+        given(multimediaRepository.save(any(Multimedia.class))).willAnswer(invocation -> {
+            Multimedia multimedia = invocation.getArgument(0);
+            multimedia.setId(mediaId);
+            return multimedia;
+        });
+        MultimediaResult persisted = new MultimediaResult(
+                mediaId,
+                usuarioId,
+                "Rodrigo Soto",
+                "image/jpeg",
+                "imagen",
+                "https://media.example/ordenes/" + ordenId + "/evidencia.jpg",
+                "diagnostico",
+                "Foto inicial",
+                OffsetDateTime.now()
+        );
+        given(multimediaRepository.findResultById(mediaId)).willReturn(Optional.of(persisted));
+
+        MultimediaResult result = ordenService.agregarMultimedia(
+                ordenId.toString(),
+                jpeg,
+                "image/jpeg",
+                " Foto inicial ",
+                "diagnostico"
+        );
+
+        assertThat(result).isEqualTo(persisted);
+        verify(mediaStorage).store(tallerId, ordenId, "image/jpeg", jpeg);
+        ArgumentCaptor<Multimedia> captor = ArgumentCaptor.forClass(Multimedia.class);
+        verify(multimediaRepository).save(captor.capture());
+        assertThat(captor.getValue().getOrdenId()).isEqualTo(ordenId);
+        assertThat(captor.getValue().getUsuarioId()).isEqualTo(usuarioId);
+        assertThat(captor.getValue().getUrl()).isEqualTo(persisted.url());
+        assertThat(captor.getValue().getTipoArchivo()).isEqualTo("image/jpeg");
+        assertThat(captor.getValue().getEtapa()).hasToString("diagnostico");
+        assertThat(captor.getValue().getDescripcion()).isEqualTo("Foto inicial");
+        verify(ordenHistorialService).registrar(
+                eq(ordenId),
+                eq(AccionHistorialEnum.MULTIMEDIA_AGREGADA),
+                eq("multimedia"),
+                eq(mediaId),
+                any()
+        );
     }
 
     @Test
