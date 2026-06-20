@@ -127,7 +127,19 @@ public class SecurityConfig {
         body.put("timestamp", OffsetDateTime.now());
         body.put("status", status.value());
         body.put("error", status.getReasonPhrase());
+        body.put("code", securityErrorCode(status, message));
         body.put("message", message);
         objectMapper.writeValue(response.getOutputStream(), body);
+    }
+
+    private String securityErrorCode(HttpStatus status, String message) {
+        if (status == HttpStatus.FORBIDDEN) {
+            return "ACCESS_DENIED";
+        }
+        return switch (message) {
+            case "JWT expirado" -> "JWT_EXPIRED";
+            case "JWT inválido" -> "JWT_INVALID";
+            default -> "AUTHENTICATION_REQUIRED";
+        };
     }
 }

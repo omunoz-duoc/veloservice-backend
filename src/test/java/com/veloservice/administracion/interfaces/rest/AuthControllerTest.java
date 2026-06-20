@@ -9,6 +9,7 @@ import com.veloservice.auth.interfaces.rest.AuthController;
 import com.veloservice.auth.interfaces.rest.AuthRegisterRequest;
 import com.veloservice.auth.interfaces.rest.AuthRequest;
 import com.veloservice.config.security.JwtTokenProvider;
+import com.veloservice.shared.application.exception.ServiceUnavailableException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -137,6 +140,19 @@ class AuthControllerTest {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.message")
                     .value("JSON invalido. Verifica la sintaxis (comillas, comas y llaves)."));
+    }
+
+    @Test
+    void resetPasswordWhenResendIsNotConfiguredReturnsServiceUnavailable() throws Exception {
+        when(authService.resetPassword(eq("ana@veloservice.com"), anyString()))
+                .thenThrow(new ServiceUnavailableException("Servicio de correo no disponible"));
+
+        mockMvc.perform(post("/auth/reset-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"ana@veloservice.com\"}"))
+            .andExpect(status().isServiceUnavailable())
+            .andExpect(jsonPath("$.status").value(503))
+            .andExpect(jsonPath("$.message").value("Servicio temporalmente no disponible"));
     }
 
     @Test

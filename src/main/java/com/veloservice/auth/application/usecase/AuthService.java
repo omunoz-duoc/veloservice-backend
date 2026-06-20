@@ -21,6 +21,7 @@ import com.veloservice.auth.infraestructure.ratelimit.PasswordResetRateLimiter;
 import com.veloservice.config.security.JwtTokenProvider;
 import com.veloservice.config.tenant.UsuarioContext;
 import com.veloservice.shared.application.exception.ResourceNotFoundException;
+import com.veloservice.shared.application.exception.ServiceUnavailableException;
 import com.veloservice.shared.application.util.RutUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -264,7 +265,11 @@ public class AuthService {
                 .build();
         passwordResetTokenRepository.save(resetToken);
 
-        resendEmailService.sendPasswordResetEmail(usuario.getEmail(), usuario.getNombre(), rawToken);
+        try {
+            resendEmailService.sendPasswordResetEmail(usuario.getEmail(), usuario.getNombre(), rawToken);
+        } catch (IllegalStateException ex) {
+            throw new ServiceUnavailableException("Servicio de correo no disponible", ex);
+        }
         return true;
     }
 

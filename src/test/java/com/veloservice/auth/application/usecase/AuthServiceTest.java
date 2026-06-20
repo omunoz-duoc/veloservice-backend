@@ -19,6 +19,7 @@ import com.veloservice.auth.infraestructure.persistence.repository.UsuarioReposi
 import com.veloservice.auth.infraestructure.ratelimit.PasswordResetRateLimiter;
 import com.veloservice.config.security.JwtTokenProvider;
 import com.veloservice.config.tenant.UsuarioContext;
+import com.veloservice.shared.application.exception.ServiceUnavailableException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -301,6 +303,23 @@ class AuthServiceTest {
                 eq(usuario.getNombre()),
                 any(String.class)
         );
+    }
+
+    @Test
+    void resetPasswordWhenResendIsNotConfiguredThrowsServiceUnavailable() {
+        UUID userId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, UUID.randomUUID(), rol("admin_taller", "taller"));
+        String clientIp = "127.0.0.1";
+        given(passwordResetRateLimiter.allow(usuario.getEmail(), clientIp)).willReturn(true);
+        given(usuarioRepository.findByEmailAndActivoTrue(usuario.getEmail())).willReturn(Optional.of(usuario));
+        willThrow(new IllegalStateException("Resend API key no configurada"))
+                .given(resendEmailService)
+                .sendPasswordResetEmail(eq(usuario.getEmail()), eq(usuario.getNombre()), anyString());
+
+        assertThatThrownBy(() -> authService.resetPassword(usuario.getEmail(), clientIp))
+                .isInstanceOf(ServiceUnavailableException.class)
+                .hasMessage("Servicio de correo no disponible")
+                .hasCauseInstanceOf(IllegalStateException.class);
     }
 
     @Test
