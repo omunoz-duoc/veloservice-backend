@@ -54,6 +54,21 @@ public interface ClienteRepository extends JpaRepository<Cliente, UUID> {
      */
     Optional<Cliente> findByRut(String rut);
 
+    Optional<Cliente> findByTallerIdAndRut(UUID tallerId, String rut);
+
+    List<Cliente> findAllByTallerIdOrderByCreatedAtDesc(UUID tallerId);
+
+    long countByTallerId(UUID tallerId);
+
+    @Query("select c.codigoCliente from Cliente c where c.tallerId = :tallerId and c.codigoCliente is not null")
+    List<String> findCodigosClienteByTallerId(@Param("tallerId") UUID tallerId);
+
+    Optional<Cliente> findByIdAndTallerId(UUID id, UUID tallerId);
+
+    boolean existsByIdAndTallerId(UUID id, UUID tallerId);
+
+    boolean existsByTallerIdAndCodigoCliente(UUID tallerId, String codigoCliente);
+
     /**
      * Finds a customer by email.
      *
@@ -80,8 +95,7 @@ public interface ClienteRepository extends JpaRepository<Cliente, UUID> {
         @Query(value = """
                         SELECT c.*
                         FROM clientes c
-                        JOIN sucursal_clientes sc ON sc.cliente_id = c.id
-                        WHERE sc.sucursal_id = :sucursalId
+                        WHERE c.taller_id = :tallerId
                             AND (
                                 c.nombre ILIKE CONCAT('%', :texto, '%')
                                 OR c.apellido ILIKE CONCAT('%', :texto, '%')
@@ -93,5 +107,5 @@ public interface ClienteRepository extends JpaRepository<Cliente, UUID> {
                         ORDER BY c.nombre
                         LIMIT 10
                         """, nativeQuery = true)
-        List<Cliente> buscarPorSucursal(@Param("sucursalId") UUID sucursalId, @Param("texto") String texto);
+        List<Cliente> buscarPorTaller(@Param("tallerId") UUID tallerId, @Param("texto") String texto);
 }

@@ -1,5 +1,8 @@
 package com.veloservice.proveedores_compras.interfaces.rest;
 
+import com.veloservice.proveedores_compras.interfaces.rest.dto.CompraRequest;
+import com.veloservice.proveedores_compras.interfaces.rest.dto.CompraResponse;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

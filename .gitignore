@@ -33,7 +33,7 @@ build/
 .vscode/
 
 ### Schema ###
-schema.sql
+schema*.sql
 
 ### env ####
 .env

@@ -1,7 +1,7 @@
 package com.veloservice.config.security;
 
-import com.veloservice.administracion.domain.model.Usuario;
-import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
+import com.veloservice.auth.domain.model.Usuario;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

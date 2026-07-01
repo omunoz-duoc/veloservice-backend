@@ -1,6 +1,8 @@
 package com.veloservice.proveedores_compras.infraestructure.persistence.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.veloservice.proveedores_compras.domain.model.SucursalProveedor;
@@ -21,6 +23,9 @@ public interface SucursalProveedorRepository extends JpaRepository<SucursalProve
      * @return branch supplier links
      */
     List<SucursalProveedor> findBySucursalId(UUID sucursalId);
+
+    @Query("select count(sp) from SucursalProveedor sp join Sucursal s on s.id = sp.sucursalId where s.tallerId = :tallerId")
+    long countByTallerId(@Param("tallerId") UUID tallerId);
 
     /**
      * Finds a branch-supplier link.

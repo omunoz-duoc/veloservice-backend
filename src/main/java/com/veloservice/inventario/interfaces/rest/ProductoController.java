@@ -3,16 +3,29 @@ package com.veloservice.inventario.interfaces.rest;
 import com.veloservice.inventario.application.dto.ProductoResult;
 import com.veloservice.inventario.application.usecase.ProductoService;
 import com.veloservice.inventario.interfaces.mapper.ProductoMapper;
+import com.veloservice.inventario.interfaces.rest.dto.InventarioMetricasResponse;
+import com.veloservice.inventario.interfaces.rest.dto.MovimientoStockRequest;
+import com.veloservice.inventario.interfaces.rest.dto.MovimientoStockResponse;
+import com.veloservice.inventario.interfaces.rest.dto.ProductoRequest;
+import com.veloservice.inventario.interfaces.rest.dto.ProductoResponse;
+import com.veloservice.inventario.interfaces.rest.dto.ProductoStockMinimoResponse;
+import com.veloservice.inventario.interfaces.rest.dto.ProductosListResponse;
+import com.veloservice.administracion.infraestructure.persistence.repository.SucursalRepository;
+import com.veloservice.config.tenant.SucursalContext;
+import com.veloservice.config.tenant.TallerContext;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -27,6 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProductoController {
 
     private final ProductoService productoService;
+    private final SucursalRepository sucursalRepository;
 
     /**
      * Creates a product.
@@ -42,16 +56,48 @@ public class ProductoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ProductoResponse> actualizar(@PathVariable UUID id,
+                                                       @Valid @RequestBody ProductoRequest request) {
+        ProductoResponse response = ProductoMapper.toResponse(
+                productoService.actualizar(id, ProductoMapper.toCommand(request))
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/movimientos-stock")
+    public ResponseEntity<MovimientoStockResponse> ajustarStock(@PathVariable UUID id,
+                                                                @Valid @RequestBody MovimientoStockRequest request) {
+        var result = productoService.ajustarStock(
+                id,
+                request.getTipo(),
+                request.getCantidad(),
+                request.getMotivo(),
+                request.getSucursalId()
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(MovimientoStockResponse.builder()
+                .id(result.getId())
+                .productoId(result.getProductoId())
+                .tipo(result.getTipo())
+                .cantidad(result.getCantidad())
+                .stockAnterior(result.getStockAnterior())
+                .stockPosterior(result.getStockPosterior())
+                .motivo(result.getMotivo())
+                .createdAt(result.getCreatedAt())
+                .build());
+    }
+
     /**
      * Lists products for the current tenant.
      *
      * @return product list
      */
     @GetMapping
-    public ResponseEntity<Map<String, Object>> listar(@RequestParam(required = false) String search) {
+    public ResponseEntity<Map<String, Object>> listar(@RequestParam(required = false) String search,
+                                                      @RequestParam(required = false) UUID sucursalId) {
         List<ProductoResult> results = (search != null && search.length() >= 1)
-                ? productoService.buscar(search)
-                : productoService.listar();
+                ? productoService.buscar(search, sucursalId)
+                : productoService.listar(sucursalId);
         List<ProductoResponse> productos = ProductoMapper.toResponseList(results);
         return ResponseEntity.ok(Map.of(
                 "total", productos.size(),
@@ -96,6 +142,31 @@ public class ProductoController {
                 .body(csv.toString());
     }
 
+    @GetMapping("/lista-productos")
+    public ResponseEntity<ProductosListResponse> listaProductos(
+            @RequestParam(required = false) UUID sucursalId) {
+
+        UUID resolvedSucursalId;
+        if (sucursalId != null) {
+            if (!sucursalRepository.existsByIdAndTallerId(sucursalId, TallerContext.getCurrentTaller())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            resolvedSucursalId = sucursalId;
+        } else {
+            resolvedSucursalId = SucursalContext.getCurrentSucursal();
+        }
+
+        if (resolvedSucursalId == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        List<ProductosListResponse.ProductoListItem> items = productoService.listarBySucursal(resolvedSucursalId)
+                .stream()
+                .map(p -> new ProductosListResponse.ProductoListItem(p.getId(), p.getNombre(), p.getPrecioVenta(), p.getStock()))
+                .toList();
+        return ResponseEntity.ok(new ProductosListResponse(items));
+    }
+
     private String csvEscape(String value) {
         if (value == null) {
             return "";
@@ -106,4 +177,13 @@ public class ProductoController {
         }
         return escaped;
     }
+
+    @GetMapping("/stock-bajo")
+    public ResponseEntity<Map<String, Object>> stockBajo() {
+    List<ProductoResponse> productos = ProductoMapper.toResponseList(productoService.alertasStockBajo());
+    return ResponseEntity.ok(Map.of(
+            "total", productos.size(),
+            "productos", productos
+    ));
+}
 }

@@ -1,7 +1,7 @@
 package com.veloservice.finanzas.application.dto;
 
-import com.veloservice.config.enums.MetodoPagoEnum;
-import com.veloservice.config.enums.TipoDocumentoEnum;
+import com.veloservice.finanzas.domain.MetodoPagoEnum;
+import com.veloservice.finanzas.domain.TipoDocumentoEnum;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 

@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
@@ -12,19 +13,23 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /**
- * Represents the link between a sucursal (branch) and a supplier/provider.
- * Maps to sucursal_proveedores table.
+ * Condiciones comerciales de un proveedor para una sucursal concreta.
  */
 @Entity
-@Table(name = "sucursal_proveedores", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"sucursal_id", "proveedor_id"})
-})
+@Table(
+    name = "sucursal_proveedores",
+    indexes = {
+        @Index(name = "idx_sucursal_proveedores_sucursal", columnList = "sucursal_id"),
+        @Index(name = "idx_sucursal_proveedores_proveedor", columnList = "proveedor_id")
+},
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_sucursal_proveedores_sucursal_proveedor", columnNames = {"sucursal_id", "proveedor_id"})
+}
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -34,6 +39,7 @@ public class SucursalProveedor {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
     private UUID id;
 
     @Column(name = "sucursal_id", nullable = false)
@@ -51,11 +57,9 @@ public class SucursalProveedor {
     @Column(name = "contacto_asignado")
     private String contactoAsignado;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private Boolean activo = true;
+    @Column(name = "activo", nullable = false)
+    private Boolean activo;
 
-    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 }

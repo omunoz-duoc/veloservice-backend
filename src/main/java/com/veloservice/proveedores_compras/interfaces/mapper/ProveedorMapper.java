@@ -4,10 +4,10 @@ import com.veloservice.proveedores_compras.application.dto.ProveedorCreateComman
 import com.veloservice.proveedores_compras.application.dto.ProveedorResult;
 import com.veloservice.proveedores_compras.application.dto.SucursalProveedorCreateCommand;
 import com.veloservice.proveedores_compras.application.dto.SucursalProveedorResult;
-import com.veloservice.proveedores_compras.interfaces.rest.ProveedorRequest;
-import com.veloservice.proveedores_compras.interfaces.rest.ProveedorResponse;
-import com.veloservice.proveedores_compras.interfaces.rest.ProveedorSucursalRequest;
-import com.veloservice.proveedores_compras.interfaces.rest.SucursalProveedorResponse;
+import com.veloservice.proveedores_compras.interfaces.rest.dto.ProveedorRequest;
+import com.veloservice.proveedores_compras.interfaces.rest.dto.ProveedorResponse;
+import com.veloservice.proveedores_compras.interfaces.rest.dto.ProveedorSucursalRequest;
+import com.veloservice.proveedores_compras.interfaces.rest.dto.SucursalProveedorResponse;
 
 import java.util.List;
 import java.util.stream.Collectors;

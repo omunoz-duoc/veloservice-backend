@@ -3,8 +3,10 @@ package com.veloservice.clientes.interfaces.rest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,15 +14,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.veloservice.clientes.application.usecase.BicicletaService;
 import com.veloservice.clientes.interfaces.mapper.BicicletaMapper;
+import com.veloservice.clientes.interfaces.rest.dto.BicicletaRequest;
+import com.veloservice.clientes.interfaces.rest.dto.BicicletaResponse;
+import com.veloservice.clientes.interfaces.rest.dto.BicicletaListItem;
+import com.veloservice.clientes.interfaces.rest.dto.HojaVidaBicicletaResponse;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenProductoRepository;
 import com.veloservice.ordenes.infraestructure.persistence.repository.MultimediaRepository;
-import com.veloservice.ordenes.domain.model.Orden;
-import com.veloservice.ordenes.domain.model.OrdenProducto;
-import com.veloservice.ordenes.domain.model.Multimedia;
 import java.util.stream.Collectors;
-import java.util.Optional;
 
 import java.util.List;
 import java.util.UUID;
@@ -68,16 +71,32 @@ public class BicicletaController {
         ));
     }
 
-    /**
-     * Lists all bikes for the current tenant.
-     *
-     * @return tenant bikes
-     */
+    @PatchMapping("/{id}")
+    public ResponseEntity<BicicletaResponse> actualizar(
+            @PathVariable UUID id,
+            @Valid @RequestBody BicicletaRequest request) {
+        return ResponseEntity.ok(BicicletaMapper.toResponse(
+                bicicletaService.actualizar(id, BicicletaMapper.toCommand(request))));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(@PathVariable UUID id) {
+        bicicletaService.eliminar(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping
-    public ResponseEntity<List<BicicletaResponse>> listarTodas() {
-        return ResponseEntity.ok(BicicletaMapper.toResponseList(
-                bicicletaService.listarTodas()
-        ));
+    public ResponseEntity<List<BicicletaListItem>> listar(
+            @RequestParam(required = false) UUID clienteId) {
+        List<BicicletaListItem> items = (clienteId != null
+                ? bicicletaService.listarPorCliente(clienteId)
+                : bicicletaService.listarTodas())
+                .stream()
+                .map(b -> new BicicletaListItem(
+                        b.getId(), b.getMarca(), b.getModelo(), b.getTipo(),
+                        b.getColor(), b.getNumeroSerie(), b.getAnio()))
+                .toList();
+        return ResponseEntity.ok(items);
     }
 
         /**
@@ -122,7 +141,7 @@ public class BicicletaController {
             .map(m -> HojaVidaBicicletaResponse.MultimediaDTO.builder()
                 .id(m.getId())
                 .url(m.getUrl())
-                .tipoArchivo(m.getTipoArchivo() != null ? m.getTipoArchivo().name() : null)
+                    .tipoArchivo(m.getTipoArchivo())
                 .descripcion(m.getDescripcion())
                 .createdAt(m.getCreatedAt())
                 .build())

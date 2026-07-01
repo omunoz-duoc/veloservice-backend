@@ -1,27 +1,27 @@
 package com.veloservice.ordenes.application.dto;
 
-import com.veloservice.config.enums.EtapaMultimediaEnum;
-import com.veloservice.config.enums.TipoArchivoEnum;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-/**
- * Application result for multimedia queries.
- */
-@Data
-@Builder
-@AllArgsConstructor
-public class MultimediaResult {
-    private UUID id;
-    private UUID ordenId;
-    private UUID usuarioId;
-    private String url;
-    private TipoArchivoEnum tipoArchivo;
-    private EtapaMultimediaEnum etapa;
-    private String descripcion;
-    private OffsetDateTime createdAt;
+public record MultimediaResult(
+    UUID id,
+    UUID usuarioId,
+    String usuario,
+    String tipoArchivo,
+    String categoria,
+    String url,
+    String etapa,
+    String descripcion,
+    OffsetDateTime createdAt
+) {
+    public MultimediaResult(
+            String usuario,
+            String tipoArchivo,
+            String url,
+            String etapa,
+            String descripcion,
+            OffsetDateTime createdAt
+    ) {
+        this(null, null, usuario, tipoArchivo, null, url, etapa, descripcion, createdAt);
+    }
 }

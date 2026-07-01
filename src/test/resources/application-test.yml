@@ -1,4 +1,7 @@
 spring:
+  test:
+    database:
+      replace: none
   datasource:
     url: jdbc:h2:mem:veloservice;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
@@ -9,6 +12,7 @@ spring:
       ddl-auto: create-drop
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
         type:
           preferred_instant_jdbc_type: TIMESTAMP
   flyway:
@@ -24,3 +28,11 @@ jwt:
 
 app:
   url: http://localhost:8080
+cloudflare:
+  r2:
+    account-id: test-account
+    access-key-id: test-access-key
+    secret-access-key: test-secret-key
+    bucket-name: test-bucket
+    public-base-url: https://media.example.test
+    presign-expiry: 15m

@@ -1,66 +1,253 @@
-INSERT INTO talleres (id, nombre, rut, telefono, email, plan_saas, logo_url, activo, created_at, updated_at)
-VALUES ('550e8400-e29b-41d4-a716-446655440000', 'Taller Demo', '76.123.456-7', '+56912345678', 'taller@veloservice.cl', 'basico', NULL, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO usuarios_plataforma (id, nombre, apellido, email, telefono, password_hash, activo, created_at, updated_at)
+VALUES
+('00000000-0000-4000-8000-000000000001', 'Andrés', 'Muñoz', 'plataforma@veloservice.cl', '+56912345678', '$2y$12$.8UlSYt0Lr9YOdcWnNK.1uCZuOZAfxbAw9eyhBj/mu/FVpdOoCqAK', TRUE, DATEADD('DAY', -90, CURRENT_TIMESTAMP), DATEADD('DAY', -3, CURRENT_TIMESTAMP));
+
+INSERT INTO planes_saas (id, codigo, nombre, descripcion, orden, activo)
+VALUES
+('00000000-0000-4000-8000-000000000101', 'basico', 'Basico', 'Plan para talleres pequenos con una sucursal y operacion esencial.', 1, TRUE),
+('00000000-0000-4000-8000-000000000102', 'profesional', 'Profesional', 'Plan para talleres con varias sucursales, inventario y reportes.', 2, TRUE),
+('00000000-0000-4000-8000-000000000103', 'enterprise', 'Enterprise', 'Plan avanzado para cadenas con soporte prioritario.', 3, TRUE);
+
+INSERT INTO talleres (id, plan_id, nombre, rut, telefono, email, logo_url, activo, created_at, updated_at)
+VALUES
+('10000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000102', 'VeloService', '76.845.210-3', '+56223211220', 'contacto@andespedal.cl', 'https://cdn.veloservice.cl/logos/andes-pedal.png', TRUE, DATEADD('DAY', -75, CURRENT_TIMESTAMP), DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
+('10000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000101', 'Ruta Sur Bicicletas', '77.112.980-5', '+56452204510', 'hola@rutasur.cl', NULL, TRUE, DATEADD('DAY', -55, CURRENT_TIMESTAMP), DATEADD('DAY', -10, CURRENT_TIMESTAMP));
 
 INSERT INTO sucursales (id, taller_id, nombre, direccion, telefono, email, activo, created_at, updated_at)
-VALUES ('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440000', 'Sucursal Centro', 'Av. Principal 123', '+56912345678', 'centro@veloservice.cl', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+VALUES
+('11000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'Providencia', 'Av. Ricardo Lyon 1240, Providencia, Santiago', '+56223211221', 'providencia@andespedal.cl', TRUE, DATEADD('DAY', -74, CURRENT_TIMESTAMP), DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
+('11000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', 'La Florida', 'Av. Vicuna Mackenna 7350, La Florida, Santiago', '+56223211222', 'laflorida@andespedal.cl', TRUE, DATEADD('DAY', -60, CURRENT_TIMESTAMP), DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
+('11000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000002', 'Casa Matriz Temuco', 'Av. Alemania 0789, Temuco', '+56452204511', 'temuco@rutasur.cl', TRUE, DATEADD('DAY', -54, CURRENT_TIMESTAMP), DATEADD('DAY', -10, CURRENT_TIMESTAMP));
 
-INSERT INTO roles (id, nombre, descripcion, activo)
-VALUES ('770e8400-e29b-41d4-a716-446655440002', 'ADMIN_SUCURSAL', 'Administrador de sucursal', TRUE);
+INSERT INTO roles (id, nombre, descripcion, ambito, activo)
+VALUES
+('12000000-0000-4000-8000-000000000001', 'admin_taller', 'Administrador del taller con acceso a todas las sucursales.', 'taller', TRUE),
+('12000000-0000-4000-8000-000000000002', 'jefe_taller', 'Responsable operativo de una o mas sucursales.', 'sucursal', TRUE),
+('12000000-0000-4000-8000-000000000003', 'mecanico', 'Tecnico que ejecuta diagnosticos y reparaciones.', 'sucursal', TRUE),
+('12000000-0000-4000-8000-000000000004', 'recepcionista', 'Usuario de recepcion, clientes, ordenes y cobros.', 'sucursal', TRUE);
 
-INSERT INTO usuarios (id, sucursal_id, rol_id, nombre, apellido, rut, email, telefono, password_hash, activo, last_login, created_at)
-VALUES ('880e8400-e29b-41d4-a716-446655440003', '660e8400-e29b-41d4-a716-446655440001', '770e8400-e29b-41d4-a716-446655440002', 'Oscar', 'Munoz', '12.345.678-9', 'admin@veloservice.cl', '+56998765432', '$2b$10$instik2q6t5EwB075oyTT.VP99/SaUbdTsAp.xJjpKsyBWUX8Q1hm', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO modulos (id, nombre, descripcion, ruta, activo)
+VALUES
+('13000000-0000-4000-8000-000000000001', 'Dashboard', 'Resumen diario de operacion y alertas.', '/dashboard', TRUE),
+('13000000-0000-4000-8000-000000000002', 'Ordenes', 'Gestion de ordenes de trabajo.', '/ordenes', TRUE),
+('13000000-0000-4000-8000-000000000003', 'Clientes', 'Clientes y bicicletas.', '/clientes', TRUE),
+('13000000-0000-4000-8000-000000000004', 'Inventario', 'Productos, stock y traslados.', '/inventario', TRUE),
+('13000000-0000-4000-8000-000000000005', 'Compras', 'Proveedores y compras.', '/compras', TRUE),
+('13000000-0000-4000-8000-000000000006', 'Finanzas', 'Cobros y documentos de venta.', '/finanzas', TRUE),
+('13000000-0000-4000-8000-000000000007', 'Administracion', 'Usuarios, sucursales y configuracion.', '/administracion', TRUE);
 
--- Insertar cliente de prueba
-INSERT INTO clientes (id, external_id, nombre, apellido, rut, email, telefono, created_at, updated_at)
-VALUES ('aa0e8400-e29b-41d4-a716-446655440005', 'CLI-0001', 'Matias', 'Diaz', '13.456.789-0', 'matias@email.com', '+56912345678', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO rol_permisos (id, rol_id, modulo_id, puede_ver, puede_crear, puede_editar, puede_eliminar)
+VALUES
+('14000000-0000-4000-8000-000000000001', '12000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000001', TRUE, TRUE, TRUE, TRUE),
+('14000000-0000-4000-8000-000000000002', '12000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000002', TRUE, TRUE, TRUE, TRUE),
+('14000000-0000-4000-8000-000000000003', '12000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000003', TRUE, TRUE, TRUE, TRUE),
+('14000000-0000-4000-8000-000000000004', '12000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000004', TRUE, TRUE, TRUE, TRUE),
+('14000000-0000-4000-8000-000000000005', '12000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000005', TRUE, TRUE, TRUE, TRUE),
+('14000000-0000-4000-8000-000000000006', '12000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000006', TRUE, TRUE, TRUE, TRUE),
+('14000000-0000-4000-8000-000000000007', '12000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000007', TRUE, TRUE, TRUE, TRUE),
+('14000000-0000-4000-8000-000000000008', '12000000-0000-4000-8000-000000000002', '13000000-0000-4000-8000-000000000001', TRUE, FALSE, FALSE, FALSE),
+('14000000-0000-4000-8000-000000000009', '12000000-0000-4000-8000-000000000002', '13000000-0000-4000-8000-000000000002', TRUE, TRUE, TRUE, FALSE),
+('14000000-0000-4000-8000-000000000010', '12000000-0000-4000-8000-000000000002', '13000000-0000-4000-8000-000000000004', TRUE, TRUE, TRUE, FALSE),
+('14000000-0000-4000-8000-000000000011', '12000000-0000-4000-8000-000000000003', '13000000-0000-4000-8000-000000000001', TRUE, FALSE, FALSE, FALSE),
+('14000000-0000-4000-8000-000000000012', '12000000-0000-4000-8000-000000000003', '13000000-0000-4000-8000-000000000002', TRUE, TRUE, TRUE, FALSE),
+('14000000-0000-4000-8000-000000000013', '12000000-0000-4000-8000-000000000004', '13000000-0000-4000-8000-000000000002', TRUE, TRUE, TRUE, FALSE),
+('14000000-0000-4000-8000-000000000014', '12000000-0000-4000-8000-000000000004', '13000000-0000-4000-8000-000000000003', TRUE, TRUE, TRUE, FALSE),
+('14000000-0000-4000-8000-000000000015', '12000000-0000-4000-8000-000000000004', '13000000-0000-4000-8000-000000000006', TRUE, TRUE, FALSE, FALSE);
 
--- Cliente adicional
-INSERT INTO clientes (id, external_id, nombre, apellido, rut, email, telefono, created_at, updated_at)
-VALUES ('aa0e8400-e29b-41d4-a716-446655440099', 'CLI-0002', 'Juan', 'Pérez', '15.222.333-4', 'juan@email.com', '+56911112222', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO usuarios (id, taller_id, rol_id, nombre, apellido, rut, email, telefono, password_hash, activo, last_login, created_at, updated_at)
+VALUES
+('15000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '12000000-0000-4000-8000-000000000001', 'Valentina', 'Rojas', '15.482.330-8', 'admin@andespedal.cl', '+56961234501', '$2y$12$ZwGbqaGZfnZVA.HTAx3TvuRVRUVgUQUYVBBCYwlDO3U4qz7gP0wte', TRUE, DATEADD('HOUR', -24, CURRENT_TIMESTAMP), DATEADD('DAY', -70, CURRENT_TIMESTAMP), DATEADD('HOUR', -24, CURRENT_TIMESTAMP)),
+('15000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', '12000000-0000-4000-8000-000000000002', 'Matias', 'Fuentes', '16.334.901-2', 'jefe@andespedal.cl', '+56961234502', '$2y$12$GlYFOznvekJnbF7zdALkVeR5QN66GQeV0z5Yqg1h9STqg76gevx/u', TRUE, DATEADD('HOUR', -6, CURRENT_TIMESTAMP), DATEADD('DAY', -64, CURRENT_TIMESTAMP), DATEADD('HOUR', -6, CURRENT_TIMESTAMP)),
+('15000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', '12000000-0000-4000-8000-000000000003', 'Diego', 'Pizarro', '18.125.774-6', 'mecanico@andespedal.cl', '+56961234503', '$2y$12$2YRTL7H4Pnh9Ydo/Em8s6OB7KCMp9KBCf7Jh6Jbsc6Rh9Fi77Rtai', TRUE, DATEADD('HOUR', -2, CURRENT_TIMESTAMP), DATEADD('DAY', -60, CURRENT_TIMESTAMP), DATEADD('HOUR', -2, CURRENT_TIMESTAMP)),
+('15000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', '12000000-0000-4000-8000-000000000004', 'Camila', 'Silva', '19.882.410-9', 'recepcion@andespedal.cl', '+56961234504', '$2y$12$RecPaFY0eMGmFg2MsN7cP.VRRBcNZGwkTp1RGxqRz.MyiXUA7HO.G', TRUE, DATEADD('HOUR', -4, CURRENT_TIMESTAMP), DATEADD('DAY', -58, CURRENT_TIMESTAMP), DATEADD('HOUR', -4, CURRENT_TIMESTAMP)),
+('15000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000002', '12000000-0000-4000-8000-000000000001', 'Andres', 'Mellado', '14.009.226-1', 'admin@rutasur.cl', '+56972001000', '$2y$12$ZwGbqaGZfnZVA.HTAx3TvuRVRUVgUQUYVBBCWlDO3U4qz7gP0wte', TRUE, DATEADD('DAY', -7, CURRENT_TIMESTAMP), DATEADD('DAY', -50, CURRENT_TIMESTAMP), DATEADD('DAY', -7, CURRENT_TIMESTAMP));
 
--- Insertar bicicleta de prueba
-INSERT INTO bicicletas (id, cliente_id, marca, modelo, numero_serie, color, tipo, created_at)
-VALUES ('990e8400-e29b-41d4-a716-446655440004', 'aa0e8400-e29b-41d4-a716-446655440005', 'Trek', 'Domane SL', 'SN123456', 'Rojo', 'Ruta', CURRENT_TIMESTAMP);
+INSERT INTO usuario_sucursales (id, usuario_id, sucursal_id, es_principal, created_at)
+VALUES
+('16000000-0000-4000-8000-000000000001', '15000000-0000-4000-8000-000000000002', '11000000-0000-4000-8000-000000000001', TRUE, DATEADD('DAY', -64, CURRENT_TIMESTAMP)),
+('16000000-0000-4000-8000-000000000002', '15000000-0000-4000-8000-000000000002', '11000000-0000-4000-8000-000000000002', FALSE, DATEADD('DAY', -64, CURRENT_TIMESTAMP)),
+('16000000-0000-4000-8000-000000000003', '15000000-0000-4000-8000-000000000003', '11000000-0000-4000-8000-000000000001', TRUE, DATEADD('DAY', -60, CURRENT_TIMESTAMP)),
+('16000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000004', '11000000-0000-4000-8000-000000000001', TRUE, DATEADD('DAY', -58, CURRENT_TIMESTAMP));
 
--- Bicicleta adicional
-INSERT INTO bicicletas (id, cliente_id, marca, modelo, numero_serie, color, tipo, created_at)
-VALUES ('990e8400-e29b-41d4-a716-446655440099', 'aa0e8400-e29b-41d4-a716-446655440099', 'Specialized', 'Allez', 'SN654321', 'Azul', 'Ruta', CURRENT_TIMESTAMP);
+INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at, used, created_at)
+VALUES
+('17000000-0000-4000-8000-000000000001', '15000000-0000-4000-8000-000000000004', '4fa1c96e9e21f4bb6eddf558413b9a9e44509ff1288e3c3d61bb64ebf2e71d41', DATEADD('DAY', -20, CURRENT_TIMESTAMP), TRUE, DATEADD('DAY', -21, CURRENT_TIMESTAMP));
 
--- Insertar orden 1 (EN_PROCESO)
-INSERT INTO ordenes (id, external_id, numero_orden, sucursal_id, mecanico_id, bicicleta_id, estado, tipo, prioridad, descripcion_trabajo, diagnostico_inicial, fecha_ingreso, fecha_prometida, created_at, updated_at, descuento_manual, porcentaje_descuento_membresia)
-VALUES ('bb0e8400-e29b-41d4-a716-446655440006', 'OT-2026-001', 'OT-2026-001', '660e8400-e29b-41d4-a716-446655440001', '880e8400-e29b-41d4-a716-446655440003', '990e8400-e29b-41d4-a716-446655440004', 'recibida', 'mantencion', 'MEDIA', 'Cambio de cadena y ajuste de frenos', 'Cambio de cadena y ajuste de frenos', CURRENT_TIMESTAMP, DATEADD('DAY', 3, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 0);
+INSERT INTO membresias (id, taller_id, nombre, descripcion, porcentaje_descuento, prioridad_atencion, color_badge, activo)
+VALUES
+('18000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'Bronce', 'Cliente frecuente con descuento inicial en mantenciones.', 5.00, 1, '#A97142', TRUE),
+('18000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', 'Plata', 'Cliente con dos o mas bicicletas activas.', 10.00, 2, '#8A94A6', TRUE),
+('18000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', 'Oro', 'Cliente preferente con prioridad de taller.', 15.00, 3, '#D6A84F', TRUE);
 
--- Orden adicional
-INSERT INTO ordenes (id, external_id, numero_orden, sucursal_id, mecanico_id, bicicleta_id, estado, tipo, prioridad, descripcion_trabajo, diagnostico_inicial, fecha_ingreso, fecha_prometida, created_at, updated_at, descuento_manual, porcentaje_descuento_membresia)
-VALUES ('bb0e8400-e29b-41d4-a716-446655440099', 'OT-2026-099', 'OT-2026-099', '660e8400-e29b-41d4-a716-446655440001', '880e8400-e29b-41d4-a716-446655440003', '990e8400-e29b-41d4-a716-446655440099', 'recibida', 'mantencion', 'ALTA', 'Ajuste de cambios', 'Ajuste de cambios', CURRENT_TIMESTAMP, DATEADD('DAY', 2, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 0);
+INSERT INTO clientes (id, taller_id, codigo_cliente, membresia_id, nombre, apellido, rut, telefono, email, direccion, notas, membresia_desde, created_at, updated_at)
+VALUES
+('19000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'CL-0001', '18000000-0000-4000-8000-000000000003', 'Francisca', 'Contreras', '17.345.201-9', '+56981110001', 'francisca.contreras@mail.cl', 'Los Leones 940, Providencia', 'Compite en gran fondo; prefiere retiro despues de las 18:00.', DATEADD('DAY', -210, CURRENT_TIMESTAMP), DATEADD('DAY', -200, CURRENT_TIMESTAMP), DATEADD('DAY', -5, CURRENT_TIMESTAMP)),
+('19000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', 'CL-0002', '18000000-0000-4000-8000-000000000002', 'Rodrigo', 'Ahumada', '13.774.890-5', '+56981110002', 'rodrigo.ahumada@mail.cl', 'Brown Norte 188, Nunoa', 'Usa la bicicleta para ir al trabajo todo el ano.', DATEADD('DAY', -140, CURRENT_TIMESTAMP), DATEADD('DAY', -140, CURRENT_TIMESTAMP), DATEADD('DAY', -8, CURRENT_TIMESTAMP)),
+('19000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', 'CL-0003', NULL, 'Daniela', 'Vega', '20.112.430-1', '+56981110003', 'daniela.vega@mail.cl', 'Av. La Florida 9820, La Florida', 'Solicita cotizacion antes de cambiar repuestos caros.', NULL, DATEADD('DAY', -35, CURRENT_TIMESTAMP), DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
+('19000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', 'CL-0004', '18000000-0000-4000-8000-000000000001', 'Hector', 'Tapia', '12.934.220-K', '+56981110004', 'hector.tapia@mail.cl', 'Santa Isabel 320, Santiago', 'Repartidor, requiere entregas rapidas cuando es posible.', DATEADD('DAY', -65, CURRENT_TIMESTAMP), DATEADD('DAY', -65, CURRENT_TIMESTAMP), DATEADD('DAY', -3, CURRENT_TIMESTAMP));
 
--- Insertar orden 2 (RECIBIDA)
-INSERT INTO ordenes (id, external_id, numero_orden, sucursal_id, mecanico_id, bicicleta_id, estado, tipo, prioridad, descripcion_trabajo, diagnostico_inicial, fecha_ingreso, fecha_prometida, created_at, updated_at, descuento_manual, porcentaje_descuento_membresia)
-VALUES ('cc0e8400-e29b-41d4-a716-446655440007', 'OT-2026-002', 'OT-2026-002', '660e8400-e29b-41d4-a716-446655440001', '880e8400-e29b-41d4-a716-446655440003', '990e8400-e29b-41d4-a716-446655440004', 'recibida', 'reparacion', 'MEDIA', 'Revisión de transmisión', 'Ruido en transmisión al pedalear', CURRENT_TIMESTAMP, DATEADD('DAY', 2, CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 0);
+INSERT INTO bicicletas (id, cliente_id, marca, modelo, tipo, aro, color, numero_serie, anio, foto_url, notas, created_at, updated_at)
+VALUES
+('20000000-0000-4000-8000-000000000001', '19000000-0000-4000-8000-000000000001', 'Specialized', 'Tarmac SL6', 'Ruta', '700c', 'Rojo carbono', 'SPZ-TAR-2021-8831', 2021, 'https://cdn.veloservice.cl/bicis/tarmac-francisca.jpg', 'Transmision Shimano 105 11v.', DATEADD('DAY', -198, CURRENT_TIMESTAMP), DATEADD('DAY', -6, CURRENT_TIMESTAMP)),
+('20000000-0000-4000-8000-000000000002', '19000000-0000-4000-8000-000000000002', 'Trek', 'Marlin 7', 'MTB', '29', 'Negro mate', 'TRK-MAR-2022-1120', 2022, NULL, 'Uso urbano con parrilla trasera.', DATEADD('DAY', -130, CURRENT_TIMESTAMP), DATEADD('DAY', -8, CURRENT_TIMESTAMP)),
+('20000000-0000-4000-8000-000000000003', '19000000-0000-4000-8000-000000000003', 'Giant', 'Escape 2', 'Urbana', '700c', 'Azul', 'GNT-ESC-2020-4502', 2020, NULL, 'Frenos hidraulicos, punos gastados.', DATEADD('DAY', -34, CURRENT_TIMESTAMP), DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
+('20000000-0000-4000-8000-000000000004', '19000000-0000-4000-8000-000000000004', 'Oxford', 'Merak', 'Cargo', '26', 'Gris', 'OXF-MER-2019-3200', 2019, NULL, 'Bicicleta de reparto con canasto delantero.', DATEADD('DAY', -64, CURRENT_TIMESTAMP), DATEADD('DAY', -3, CURRENT_TIMESTAMP));
 
-INSERT INTO comentarios (id, orden_id, usuario_id, texto, created_at)
-VALUES ('d10e8400-e29b-41d4-a716-446655440010', 'bb0e8400-e29b-41d4-a716-446655440006', '880e8400-e29b-41d4-a716-446655440003', 'Se detectó desgaste', CURRENT_TIMESTAMP);
+INSERT INTO servicios (id, taller_id, nombre, descripcion, precio_base, es_garantia, activo, created_at)
+VALUES
+('21000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'Mantencion general', 'Ajuste completo de frenos, cambios, ruedas y limpieza tecnica.', 38900, FALSE, TRUE, DATEADD('DAY', -70, CURRENT_TIMESTAMP)),
+('21000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', 'Sangrado de frenos hidraulicos', 'Cambio de aceite mineral o DOT segun sistema.', 24900, FALSE, TRUE, DATEADD('DAY', -70, CURRENT_TIMESTAMP)),
+('21000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', 'Ajuste de transmision', 'Regulacion de cambios, tension de piolas y revision de desgaste.', 15900, FALSE, TRUE, DATEADD('DAY', -70, CURRENT_TIMESTAMP)),
+('21000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', 'Revision por garantia', 'Diagnostico sin costo para trabajos con garantia vigente.', 0, TRUE, TRUE, DATEADD('DAY', -70, CURRENT_TIMESTAMP));
 
--- Comentario adicional para orden nueva
-INSERT INTO comentarios (id, orden_id, usuario_id, texto, created_at)
-VALUES ('d10e8400-e29b-41d4-a716-446655440099', 'bb0e8400-e29b-41d4-a716-446655440099', '880e8400-e29b-41d4-a716-446655440003', 'Cambio de piñón realizado', CURRENT_TIMESTAMP);
+INSERT INTO sucursal_servicios (id, sucursal_id, servicio_id, precio_personalizado, activo, created_at)
+VALUES
+('22000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', '21000000-0000-4000-8000-000000000001', 40900, TRUE, DATEADD('DAY', -69, CURRENT_TIMESTAMP)),
+('22000000-0000-4000-8000-000000000002', '11000000-0000-4000-8000-000000000001', '21000000-0000-4000-8000-000000000002', 25900, TRUE, DATEADD('DAY', -69, CURRENT_TIMESTAMP)),
+('22000000-0000-4000-8000-000000000003', '11000000-0000-4000-8000-000000000001', '21000000-0000-4000-8000-000000000003', 15900, TRUE, DATEADD('DAY', -69, CURRENT_TIMESTAMP)),
+('22000000-0000-4000-8000-000000000004', '11000000-0000-4000-8000-000000000002', '21000000-0000-4000-8000-000000000001', 37900, TRUE, DATEADD('DAY', -58, CURRENT_TIMESTAMP));
 
--- Insertar multimedia de prueba para orden 1
+INSERT INTO categorias_producto (id, taller_id, nombre, descripcion, activo)
+VALUES
+('23000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'Transmision', 'Cadenas, piolas, cassettes, platos y pata de cambio.', TRUE),
+('23000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', 'Frenos', 'Pastillas, discos, aceite y accesorios de freno.', TRUE),
+('23000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', 'Ruedas y neumaticos', 'Camaras, neumaticos, rayos y sellante.', TRUE);
+
+INSERT INTO productos (id, sucursal_id, categoria_id, nombre, sku, marca, unidad_medida, precio_costo, precio_venta, stock, stock_minimo, activo, created_at, updated_at)
+VALUES
+('24000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', '23000000-0000-4000-8000-000000000001', 'Cadena Shimano HG601 11v', 'SH-HG601-11', 'Shimano', 'unidad', 14500, 22900, 8, 3, TRUE, DATEADD('DAY', -68, CURRENT_TIMESTAMP), DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
+('24000000-0000-4000-8000-000000000002', '11000000-0000-4000-8000-000000000001', '23000000-0000-4000-8000-000000000002', 'Pastillas Shimano B05S resina', 'SH-B05S-RES', 'Shimano', 'par', 5200, 9900, 14, 5, TRUE, DATEADD('DAY', -68, CURRENT_TIMESTAMP), DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
+('24000000-0000-4000-8000-000000000003', '11000000-0000-4000-8000-000000000001', '23000000-0000-4000-8000-000000000003', 'Camara 700x25/32 valvula presta', 'KND-CAM-700P', 'Kenda', 'unidad', 2800, 5900, 22, 8, TRUE, DATEADD('DAY', -68, CURRENT_TIMESTAMP), DATEADD('DAY', -1, CURRENT_TIMESTAMP)),
+('24000000-0000-4000-8000-000000000004', '11000000-0000-4000-8000-000000000002', '23000000-0000-4000-8000-000000000001', 'Piola cambio inox universal', 'JAG-PIOLA-CAMBIO', 'Jagwire', 'unidad', 1200, 3500, 18, 6, TRUE, DATEADD('DAY', -55, CURRENT_TIMESTAMP), DATEADD('DAY', -3, CURRENT_TIMESTAMP)),
+('24000000-0000-4000-8000-000000000005', '11000000-0000-4000-8000-000000000002', '23000000-0000-4000-8000-000000000003', 'Sellante tubeless 250 ml', 'STANS-250', 'Stans', 'botella', 4800, 8900, 6, 4, TRUE, DATEADD('DAY', -55, CURRENT_TIMESTAMP), DATEADD('DAY', -3, CURRENT_TIMESTAMP));
+
+INSERT INTO proveedores (id, taller_id, nombre, rut, telefono, email, direccion, activo, created_at)
+VALUES
+('25000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'Distribuidora Ciclo Norte SpA', '76.330.441-2', '+56224110000', 'ventas@ciclonorte.cl', 'San Pablo 4800, Quinta Normal', TRUE, DATEADD('DAY', -66, CURRENT_TIMESTAMP)),
+('25000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', 'Importadora Andes Bike', '77.920.118-8', '+56225559000', 'pedidos@andesbike.cl', 'Av. Departamental 1550, San Miguel', TRUE, DATEADD('DAY', -62, CURRENT_TIMESTAMP));
+
+INSERT INTO sucursal_proveedores (id, sucursal_id, proveedor_id, codigo_cliente, condicion_pago, contacto_asignado, activo, created_at)
+VALUES
+('26000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', '25000000-0000-4000-8000-000000000001', 'AP-PROV-001', '30 dias contra factura', 'Paula Herrera', TRUE, DATEADD('DAY', -65, CURRENT_TIMESTAMP)),
+('26000000-0000-4000-8000-000000000002', '11000000-0000-4000-8000-000000000001', '25000000-0000-4000-8000-000000000002', 'AP-PROV-014', 'Transferencia al recibir', 'Nicolas Ibarra', TRUE, DATEADD('DAY', -61, CURRENT_TIMESTAMP)),
+('26000000-0000-4000-8000-000000000003', '11000000-0000-4000-8000-000000000002', '25000000-0000-4000-8000-000000000001', 'AP-LF-002', '30 dias contra factura', 'Paula Herrera', TRUE, DATEADD('DAY', -55, CURRENT_TIMESTAMP));
+
+INSERT INTO estados_compra (id, codigo, nombre, orden)
+VALUES
+('27000000-0000-4000-8000-000000000001', 'borrador', 'Borrador', 1),
+('27000000-0000-4000-8000-000000000002', 'confirmada', 'Confirmada', 2),
+('27000000-0000-4000-8000-000000000003', 'recibida_parcial', 'Recibida parcial', 3),
+('27000000-0000-4000-8000-000000000004', 'recibida', 'Recibida', 4),
+('27000000-0000-4000-8000-000000000005', 'anulada', 'Anulada', 5);
+
+INSERT INTO compras (id, sucursal_proveedor_id, usuario_id, estado_id, numero_factura, neto, iva, total, fecha_compra, fecha_recepcion, notas, created_at)
+VALUES
+('28000000-0000-4000-8000-000000000001', '26000000-0000-4000-8000-000000000001', '15000000-0000-4000-8000-000000000002', '27000000-0000-4000-8000-000000000004', 'F-87421', 165000, 31350, 196350, DATEADD('DAY', -18, CURRENT_DATE), DATEADD('DAY', -16, CURRENT_DATE), 'Reposicion mensual de cadenas, pastillas y camaras.', DATEADD('DAY', -18, CURRENT_TIMESTAMP)),
+('28000000-0000-4000-8000-000000000002', '26000000-0000-4000-8000-000000000002', '15000000-0000-4000-8000-000000000002', '27000000-0000-4000-8000-000000000002', 'F-12007', 72000, 13680, 85680, DATEADD('DAY', -3, CURRENT_DATE), NULL, 'Pedido de sellante y accesorios para temporada de lluvia.', DATEADD('DAY', -3, CURRENT_TIMESTAMP));
+
+INSERT INTO compra_productos (id, compra_id, producto_id, cantidad, precio_unitario, subtotal)
+VALUES
+('29000000-0000-4000-8000-000000000001', '28000000-0000-4000-8000-000000000001', '24000000-0000-4000-8000-000000000001', 6, 14500, 87000),
+('29000000-0000-4000-8000-000000000002', '28000000-0000-4000-8000-000000000001', '24000000-0000-4000-8000-000000000002', 10, 5200, 52000),
+('29000000-0000-4000-8000-000000000003', '28000000-0000-4000-8000-000000000001', '24000000-0000-4000-8000-000000000003', 9, 2800, 25200),
+('29000000-0000-4000-8000-000000000004', '28000000-0000-4000-8000-000000000002', '24000000-0000-4000-8000-000000000005', 15, 4800, 72000);
+
+INSERT INTO estados_orden (id, codigo, nombre, orden, es_final)
+VALUES
+('30000000-0000-4000-8000-000000000001', 'recibida', 'Recibida', 1, FALSE),
+('30000000-0000-4000-8000-000000000002', 'en_diagnostico', 'En diagnostico', 2, FALSE),
+('30000000-0000-4000-8000-000000000003', 'esperando_repuestos', 'Esperando repuestos', 3, FALSE),
+('30000000-0000-4000-8000-000000000004', 'en_reparacion', 'En reparacion', 4, FALSE),
+('30000000-0000-4000-8000-000000000005', 'control_calidad', 'Control de calidad', 5, FALSE),
+('30000000-0000-4000-8000-000000000006', 'lista_para_entrega', 'Lista para entrega', 6, FALSE),
+('30000000-0000-4000-8000-000000000007', 'entregada', 'Entregada', 7, TRUE),
+('30000000-0000-4000-8000-000000000008', 'cancelada', 'Cancelada', 8, TRUE);
+
+INSERT INTO tipos_orden (id, codigo, nombre, activo)
+VALUES
+('31000000-0000-4000-8000-000000000001', 'mantencion', 'Mantencion', TRUE),
+('31000000-0000-4000-8000-000000000002', 'reparacion', 'Reparacion', TRUE),
+('31000000-0000-4000-8000-000000000003', 'revision', 'Revision', TRUE),
+('31000000-0000-4000-8000-000000000004', 'armado', 'Armado', TRUE),
+('31000000-0000-4000-8000-000000000005', 'garantia', 'Garantia', TRUE),
+('31000000-0000-4000-8000-000000000006', 'personalizacion', 'Personalizacion', TRUE);
+
+INSERT INTO ordenes (id, taller_id, sucursal_id, bicicleta_id, mecanico_id, estado_id, tipo_id, numero_orden, diagnostico_inicial, diagnostico_final, observaciones_cliente, descuento_manual, porcentaje_descuento_membresia, fecha_ingreso, fecha_prometida, fecha_entrega, created_at, updated_at)
+VALUES
+('32000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '15000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000007', '31000000-0000-4000-8000-000000000001', 'AP-2026-0001', 'Cadena con elongacion sobre 0,75 y freno trasero descentrado.', 'Se reemplazo cadena, se regularon cambios y frenos. Prueba de ruta conforme.', 'Cliente solicita revisar presion para gran fondo del fin de semana.', 0, 15.00, DATEADD('DAY', -12, CURRENT_DATE), DATEADD('DAY', -9, CURRENT_DATE), DATEADD('DAY', -8, CURRENT_DATE), DATEADD('DAY', -12, CURRENT_TIMESTAMP), DATEADD('DAY', -8, CURRENT_TIMESTAMP)),
+('32000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000002', '15000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000004', '31000000-0000-4000-8000-000000000002', 'AP-2026-0002', 'Freno delantero esponjoso y pastillas contaminadas.', NULL, 'Necesita bicicleta para uso diario desde el lunes.', 3000, 10.00, DATEADD('DAY', -2, CURRENT_DATE), DATEADD('DAY', 1, CURRENT_DATE), NULL, DATEADD('DAY', -2, CURRENT_TIMESTAMP), DATEADD('HOUR', -4, CURRENT_TIMESTAMP)),
+('32000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003', '15000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000001', '31000000-0000-4000-8000-000000000003', 'AP-2026-0003', 'Cliente reporta ruido al pedalear en subida.', NULL, 'Avisar por WhatsApp antes de aprobar repuestos.', 0, 0.00, DATEADD('HOUR', -5, CURRENT_TIMESTAMP), DATEADD('DAY', 3, CURRENT_DATE), NULL, DATEADD('HOUR', -5, CURRENT_TIMESTAMP), DATEADD('HOUR', -5, CURRENT_TIMESTAMP)),
+('32000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000006', '31000000-0000-4000-8000-000000000002', 'AP-2026-0004', 'Pinchazo recurrente en rueda trasera y piola de cambio oxidada.', 'Se instalo camara nueva, fondo de llanta y piola de cambio. Falta entrega.', 'Cliente pasa a retirar al cierre.', 0, 5.00, DATEADD('DAY', -4, CURRENT_TIMESTAMP), CURRENT_DATE, NULL, DATEADD('DAY', -4, CURRENT_TIMESTAMP), DATEADD('HOUR', -1, CURRENT_TIMESTAMP));
+
+INSERT INTO orden_estados (id, orden_id, usuario_id, estado_anterior_id, estado_nuevo_id, observacion, created_at)
+VALUES
+('33000000-0000-4000-8000-000000000001', '32000000-0000-4000-8000-000000000001', '15000000-0000-4000-8000-000000000004', NULL, '30000000-0000-4000-8000-000000000001', 'Orden ingresada en recepcion.', DATEADD('DAY', -12, CURRENT_TIMESTAMP)),
+('33000000-0000-4000-8000-000000000002', '32000000-0000-4000-8000-000000000001', '15000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000004', 'Repuestos disponibles, se inicia trabajo.', DATEADD('DAY', -11, CURRENT_TIMESTAMP)),
+('33000000-0000-4000-8000-000000000003', '32000000-0000-4000-8000-000000000001', '15000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000004', '30000000-0000-4000-8000-000000000007', 'Trabajo entregado y probado.', DATEADD('DAY', -8, CURRENT_TIMESTAMP)),
+('33000000-0000-4000-8000-000000000004', '32000000-0000-4000-8000-000000000002', '15000000-0000-4000-8000-000000000004', NULL, '30000000-0000-4000-8000-000000000001', 'Orden ingresada por freno delantero.', DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
+('33000000-0000-4000-8000-000000000005', '32000000-0000-4000-8000-000000000002', '15000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000004', 'Sangrado iniciado; pastillas listas para cambio.', DATEADD('HOUR', -4, CURRENT_TIMESTAMP)),
+('33000000-0000-4000-8000-000000000006', '32000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000005', '30000000-0000-4000-8000-000000000006', 'Control de calidad aprobado.', DATEADD('HOUR', -1, CURRENT_TIMESTAMP));
+
+INSERT INTO orden_comentarios (id, orden_id, usuario_id, texto, created_at)
+VALUES
+('34000000-0000-4000-8000-000000000001', '32000000-0000-4000-8000-000000000002', '15000000-0000-4000-8000-000000000003', 'Las pastillas venian contaminadas con aceite; se recomienda limpiar disco antes de entregar.', DATEADD('HOUR', -3, CURRENT_TIMESTAMP)),
+('34000000-0000-4000-8000-000000000002', '32000000-0000-4000-8000-000000000003', '15000000-0000-4000-8000-000000000004', 'Cliente autoriza diagnostico, pero pide aprobar presupuesto por mensaje.', DATEADD('HOUR', -4, CURRENT_TIMESTAMP)),
+('34000000-0000-4000-8000-000000000003', '32000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 'Se dejo neumatico trasero con 55 PSI por carga de reparto.', DATEADD('MINUTE', -50, CURRENT_TIMESTAMP));
+
+INSERT INTO orden_servicios (id, orden_id, servicio_id, precio_base_snapshot, precio_aplicado, descuento_aplicado, notas, created_at)
+VALUES
+('35000000-0000-4000-8000-000000000001', '32000000-0000-4000-8000-000000000001', '21000000-0000-4000-8000-000000000001', 40900, 34765, 6135, 'Descuento membresia Oro aplicado.', DATEADD('DAY', -12, CURRENT_TIMESTAMP)),
+('35000000-0000-4000-8000-000000000002', '32000000-0000-4000-8000-000000000002', '21000000-0000-4000-8000-000000000002', 25900, 23310, 2590, 'Descuento membresia Plata antes de descuento manual.', DATEADD('DAY', -2, CURRENT_TIMESTAMP)),
+('35000000-0000-4000-8000-000000000003', '32000000-0000-4000-8000-000000000003', '21000000-0000-4000-8000-000000000003', 15900, 15900, 0, 'Revision de transmision pendiente de presupuesto.', DATEADD('HOUR', -5, CURRENT_TIMESTAMP)),
+('35000000-0000-4000-8000-000000000004', '32000000-0000-4000-8000-000000000004', '21000000-0000-4000-8000-000000000003', 15900, 15105, 795, 'Descuento membresia Bronce.', DATEADD('DAY', -4, CURRENT_TIMESTAMP));
+
+INSERT INTO orden_productos (id, orden_id, producto_id, cantidad, precio_costo_snapshot, precio_venta_snapshot, precio_aplicado, proporcionado_por_cliente, notas, created_at)
+VALUES
+('36000000-0000-4000-8000-000000000001', '32000000-0000-4000-8000-000000000001', '24000000-0000-4000-8000-000000000001', 1, 14500, 22900, 19465, FALSE, 'Cadena reemplazada por desgaste.', DATEADD('DAY', -11, CURRENT_TIMESTAMP)),
+('36000000-0000-4000-8000-000000000002', '32000000-0000-4000-8000-000000000002', '24000000-0000-4000-8000-000000000002', 1, 5200, 9900, 8910, FALSE, 'Pastillas nuevas para freno delantero.', DATEADD('HOUR', -3, CURRENT_TIMESTAMP)),
+('36000000-0000-4000-8000-000000000003', '32000000-0000-4000-8000-000000000004', '24000000-0000-4000-8000-000000000003', 1, 2800, 5900, 5605, FALSE, 'Camara trasera nueva.', DATEADD('DAY', -3, CURRENT_TIMESTAMP)),
+('36000000-0000-4000-8000-000000000004', '32000000-0000-4000-8000-000000000004', '24000000-0000-4000-8000-000000000004', 1, 1200, 3500, 3325, FALSE, 'Piola de cambio oxidada.', DATEADD('DAY', -3, CURRENT_TIMESTAMP));
+
+INSERT INTO traslados (id, taller_id, sucursal_origen, sucursal_destino, usuario_id, estado, notas, created_at, updated_at)
+VALUES
+('37000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000002', '11000000-0000-4000-8000-000000000001', '15000000-0000-4000-8000-000000000002', 'recibido', 'Traslado para cubrir demanda de reparaciones en Providencia.', DATEADD('DAY', -6, CURRENT_TIMESTAMP), DATEADD('DAY', -5, CURRENT_TIMESTAMP));
+
+INSERT INTO traslado_productos (id, traslado_id, producto_id, cantidad)
+VALUES
+('38000000-0000-4000-8000-000000000001', '37000000-0000-4000-8000-000000000001', '24000000-0000-4000-8000-000000000004', 4),
+('38000000-0000-4000-8000-000000000002', '37000000-0000-4000-8000-000000000001', '24000000-0000-4000-8000-000000000005', 2);
+
+INSERT INTO movimientos_stock (id, producto_id, orden_id, compra_id, usuario_id, traslado_id, tipo, cantidad, stock_anterior, stock_posterior, motivo, created_at)
+VALUES
+('39000000-0000-4000-8000-000000000001', '24000000-0000-4000-8000-000000000001', NULL, '28000000-0000-4000-8000-000000000001', '15000000-0000-4000-8000-000000000002', NULL, 'entrada', 6, 3, 9, 'Recepcion de compra F-87421.', DATEADD('DAY', -16, CURRENT_TIMESTAMP)),
+('39000000-0000-4000-8000-000000000002', '24000000-0000-4000-8000-000000000001', '32000000-0000-4000-8000-000000000001', NULL, '15000000-0000-4000-8000-000000000003', NULL, 'salida', -1, 9, 8, 'Uso en orden AP-2026-0001.', DATEADD('DAY', -11, CURRENT_TIMESTAMP)),
+('39000000-0000-4000-8000-000000000003', '24000000-0000-4000-8000-000000000002', '32000000-0000-4000-8000-000000000002', NULL, '15000000-0000-4000-8000-000000000003', NULL, 'salida', -1, 15, 14, 'Uso en orden AP-2026-0002.', DATEADD('HOUR', -3, CURRENT_TIMESTAMP)),
+('39000000-0000-4000-8000-000000000004', '24000000-0000-4000-8000-000000000004', NULL, NULL, '15000000-0000-4000-8000-000000000002', '37000000-0000-4000-8000-000000000001', 'salida', -4, 22, 18, 'Salida por traslado a Providencia.', DATEADD('DAY', -6, CURRENT_TIMESTAMP));
+
+INSERT INTO estados_garantia (id, codigo, nombre, orden, es_final)
+VALUES
+('40000000-0000-4000-8000-000000000001', 'abierta', 'Abierta', 1, FALSE),
+('40000000-0000-4000-8000-000000000002', 'en_revision', 'En revision', 2, FALSE),
+('40000000-0000-4000-8000-000000000003', 'aprobada', 'Aprobada', 3, FALSE),
+('40000000-0000-4000-8000-000000000004', 'rechazada', 'Rechazada', 4, TRUE),
+('40000000-0000-4000-8000-000000000005', 'resuelta', 'Resuelta', 5, TRUE);
+
+INSERT INTO garantias (id, taller_id, orden_id, estado_id, numero_garantia, marca_bicicleta, componente_afectado, descripcion_falla, fecha_inicio, fecha_vencimiento, condiciones, resolucion, created_at, updated_at)
+VALUES
+('41000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', '32000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000002', 'GAR-2026-0001', 'Specialized', 'Cambio trasero', 'Cliente reporta salto de cadena en pinones medios despues de la mantencion.', DATEADD('DAY', -2, CURRENT_DATE), DATEADD('DAY', 28, CURRENT_DATE), 'Garantia valida solo sobre ajuste realizado y repuesto instalado por el taller.', NULL, DATEADD('DAY', -2, CURRENT_TIMESTAMP), DATEADD('DAY', -2, CURRENT_TIMESTAMP));
+
 INSERT INTO multimedia (id, orden_id, usuario_id, url, tipo_archivo, etapa, descripcion, created_at)
-VALUES ('e10e8400-e29b-41d4-a716-446655440011', 'bb0e8400-e29b-41d4-a716-446655440006', '880e8400-e29b-41d4-a716-446655440003', 'https://storage.example.com/foto1.jpg', 'imagen', 'diagnostico', 'Foto de daño', CURRENT_TIMESTAMP);
+VALUES
+('42000000-0000-4000-8000-000000000001', '32000000-0000-4000-8000-000000000001', '15000000-0000-4000-8000-000000000003', 'https://cdn.veloservice.cl/ordenes/AP-2026-0001/cadena-desgastada.jpg', 'imagen', 'diagnostico', 'Medicion de elongacion de cadena al ingreso.', DATEADD('DAY', -12, CURRENT_TIMESTAMP)),
+('42000000-0000-4000-8000-000000000002', '32000000-0000-4000-8000-000000000002', '15000000-0000-4000-8000-000000000003', 'https://cdn.veloservice.cl/ordenes/AP-2026-0002/freno-delantero.jpg', 'imagen', 'reparacion', 'Caliper delantero antes de limpieza.', DATEADD('HOUR', -3, CURRENT_TIMESTAMP)),
+('42000000-0000-4000-8000-000000000003', '32000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 'https://cdn.veloservice.cl/ordenes/AP-2026-0004/entrega.pdf', 'documento', 'entrega', 'Pauta de control de calidad lista para firma.', DATEADD('HOUR', -1, CURRENT_TIMESTAMP));
 
--- Multimedia adicional para orden nueva
-INSERT INTO multimedia (id, orden_id, usuario_id, url, tipo_archivo, etapa, descripcion, created_at)
-VALUES ('e10e8400-e29b-41d4-a716-446655440099', 'bb0e8400-e29b-41d4-a716-446655440099', '880e8400-e29b-41d4-a716-446655440003', 'https://storage.example.com/foto2.jpg', 'imagen', 'reparacion', 'Foto de reparación', CURRENT_TIMESTAMP);
+INSERT INTO notificaciones (id, orden_id, canal, tipo, mensaje, estado, intentos, programada_para, enviada_at, created_at)
+VALUES
+('43000000-0000-4000-8000-000000000001', '32000000-0000-4000-8000-000000000001', 'email', 'factura', 'Francisca, tu boleta de la orden AP-2026-0001 ya fue emitida.', 'enviada', 1, DATEADD('DAY', -8, CURRENT_TIMESTAMP), DATEADD('DAY', -8, CURRENT_TIMESTAMP), DATEADD('DAY', -8, CURRENT_TIMESTAMP)),
+('43000000-0000-4000-8000-000000000002', '32000000-0000-4000-8000-000000000002', 'whatsapp', 'actualizacion_estado', 'Rodrigo, tu bicicleta esta en reparacion. Te avisaremos cuando pase a control de calidad.', 'enviada', 1, DATEADD('HOUR', -4, CURRENT_TIMESTAMP), DATEADD('HOUR', -4, CURRENT_TIMESTAMP), DATEADD('HOUR', -4, CURRENT_TIMESTAMP)),
+('43000000-0000-4000-8000-000000000003', '32000000-0000-4000-8000-000000000004', 'whatsapp', 'listo_para_entrega', 'Hector, tu bicicleta esta lista para retiro hoy en Andes Pedal Providencia.', 'pendiente', 0, DATEADD('MINUTE', 15, CURRENT_TIMESTAMP), NULL, DATEADD('HOUR', -1, CURRENT_TIMESTAMP));
 
--- Insertar producto de prueba para orden 1
-INSERT INTO orden_productos (id, orden_id, producto_id, cantidad, precio_aplicado, precio_costo_snapshot, precio_venta_snapshot, proporcionado_por_cliente, created_at, notas)
-VALUES ('f10e8400-e29b-41d4-a716-446655440012', 'bb0e8400-e29b-41d4-a716-446655440006', 'a10e8400-e29b-41d4-a716-446655440013', 1, 18900, 15000, 18900, FALSE, CURRENT_TIMESTAMP, 'Cadena Shimano HG601');
-
--- Producto adicional para orden nueva
-INSERT INTO orden_productos (id, orden_id, producto_id, cantidad, precio_aplicado, precio_costo_snapshot, precio_venta_snapshot, proporcionado_por_cliente, created_at, notas)
-VALUES ('f10e8400-e29b-41d4-a716-446655440099', 'bb0e8400-e29b-41d4-a716-446655440099', 'a10e8400-e29b-41d4-a716-446655440013', 2, 18900, 15000, 18900, FALSE, CURRENT_TIMESTAMP, 'Cadena Shimano HG601 (adicional)');
-
--- Insertar producto en tabla productos para referencia
-INSERT INTO productos (id, sucursal_id, nombre, sku, precio_costo, precio_venta, stock, stock_minimo, unidad_medida, activo, created_at, updated_at)
-VALUES ('a10e8400-e29b-41d4-a716-446655440013', '660e8400-e29b-41d4-a716-446655440001', 'Cadena Shimano HG601', 'SHM-HG601-11', 15000, 18900, 10, 2, 'unidad', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO cobros (id, orden_id, usuario_id, tipo_documento, numero_documento, subtotal_servicios, subtotal_productos, descuento_membresia, descuento_manual, neto, iva, total, metodo_pago, estado, folio_sii, estado_sii, fecha_pago, anulada_at, motivo_anulacion, created_at)
+VALUES
+('44000000-0000-4000-8000-000000000001', '32000000-0000-4000-8000-000000000001', '15000000-0000-4000-8000-000000000004', 'boleta', 'B-000145', 40900, 22900, 9570, 0, 54230, 10303.70, 64533.70, 'debito', 'pagado', '756421', 'aceptado', DATEADD('DAY', -8, CURRENT_TIMESTAMP), NULL, NULL, DATEADD('DAY', -8, CURRENT_TIMESTAMP));

@@ -2,9 +2,9 @@ package com.veloservice.clientes.interfaces.mapper;
 
 import com.veloservice.clientes.application.dto.BicicletaCreateCommand;
 import com.veloservice.clientes.application.dto.BicicletaResult;
-import com.veloservice.clientes.interfaces.rest.BicicletaClienteResponse;
-import com.veloservice.clientes.interfaces.rest.BicicletaRequest;
-import com.veloservice.clientes.interfaces.rest.BicicletaResponse;
+import com.veloservice.clientes.interfaces.rest.dto.BicicletaClienteResponse;
+import com.veloservice.clientes.interfaces.rest.dto.BicicletaRequest;
+import com.veloservice.clientes.interfaces.rest.dto.BicicletaResponse;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,6 +37,7 @@ public final class BicicletaMapper {
                 .color(result.getColor())
                 .numeroSerie(result.getNumeroSerie())
                 .anio(result.getAnio())
+                .notas(result.getNotas())
                 .build();
     }
 

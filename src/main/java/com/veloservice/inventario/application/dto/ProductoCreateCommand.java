@@ -21,4 +21,5 @@ public class ProductoCreateCommand {
     private Integer stock;
     private Integer stockMinimo;
     private UUID categoriaId;
+    private UUID sucursalId;
 }

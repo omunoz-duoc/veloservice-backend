@@ -1,0 +1,371 @@
+package com.veloservice.auth.application.usecase;
+
+import com.veloservice.administracion.domain.model.UsuarioSucursal;
+import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioSucursalRepository;
+import com.veloservice.auth.application.dto.AuthLoginCommand;
+import com.veloservice.auth.application.dto.AuthLoginResult;
+import com.veloservice.auth.application.exception.AuthErrorCode;
+import com.veloservice.auth.application.exception.AuthException;
+import com.veloservice.auth.application.port.SucursalPort;
+import com.veloservice.auth.application.security.LoginAttemptService;
+import com.veloservice.auth.domain.model.PasswordResetToken;
+import com.veloservice.auth.domain.model.Rol;
+import com.veloservice.auth.domain.model.Usuario;
+import com.veloservice.auth.infraestructure.email.ResendEmailService;
+import com.veloservice.auth.infraestructure.persistence.repository.PasswordResetTokenRepository;
+import com.veloservice.auth.infraestructure.persistence.repository.RolRepository;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioPlataformaRepository;
+import com.veloservice.auth.infraestructure.persistence.repository.UsuarioRepository;
+import com.veloservice.auth.infraestructure.ratelimit.PasswordResetRateLimiter;
+import com.veloservice.config.security.JwtTokenProvider;
+import com.veloservice.config.tenant.UsuarioContext;
+import com.veloservice.shared.application.exception.ServiceUnavailableException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.Optional;
+import java.util.UUID;
+import java.time.OffsetDateTime;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
+@ExtendWith(MockitoExtension.class)
+class AuthServiceTest {
+
+    @Mock private UsuarioRepository usuarioRepository;
+    @Mock private UsuarioPlataformaRepository usuarioPlataformaRepository;
+    @Mock private UsuarioSucursalRepository usuarioSucursalRepository;
+    @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
+    @Mock private PasswordResetRateLimiter passwordResetRateLimiter;
+    @Mock private RolRepository rolRepository;
+    @Mock private SucursalPort sucursalPort;
+    @Mock private JwtTokenProvider jwtProvider;
+    @Mock private PasswordEncoder passwordEncoder;
+    @Mock private LoginAttemptService loginAttemptService;
+    @Mock private ResendEmailService resendEmailService;
+
+    @InjectMocks
+    private AuthService authService;
+
+    @Test
+    void cp001_loginConCredencialesValidas_debeRetornarToken() {
+        UUID userId = UUID.randomUUID();
+        UUID tallerId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, tallerId, rol("admin_taller", "taller"));
+        givenSuccessfulCredentialCheck(usuario);
+        given(usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(userId)).willReturn(Optional.empty());
+        given(jwtProvider.generateToken(userId, usuario.getEmail(), "admin_taller", null, tallerId))
+                .willReturn("jwt-valido");
+
+        AuthLoginResult result = authService.login(new AuthLoginCommand(usuario.getEmail(), "Password1!"));
+
+        assertThat(result.getToken()).isEqualTo("jwt-valido");
+        verify(loginAttemptService).resetAttempts(usuario.getEmail());
+        verify(usuarioRepository).save(usuario);
+    }
+
+    @Test
+    void cp002_loginConCredencialesInvalidas_debeLanzarUnauthorized() {
+        Usuario usuario = usuario(UUID.randomUUID(), UUID.randomUUID(), rol("mecanico", "sucursal"));
+        given(loginAttemptService.isBlocked(usuario.getEmail())).willReturn(false);
+        given(usuarioRepository.findByEmail(usuario.getEmail())).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches("incorrecta", usuario.getPasswordHash())).willReturn(false);
+
+        assertThatThrownBy(() -> authService.login(new AuthLoginCommand(usuario.getEmail(), "incorrecta")))
+                .isInstanceOfSatisfying(AuthException.class,
+                        ex -> assertThat(ex.getCode()).isEqualTo(AuthErrorCode.INVALID_PASSWORD));
+        verify(loginAttemptService).recordFailedAttempt(usuario.getEmail());
+        verify(usuarioRepository, never()).save(any());
+        verify(jwtProvider, never()).generateToken(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void cp004_recuperarPasswordConTokenValido_debeActualizarPasswordYConsumirToken() {
+        Usuario usuario = usuario(UUID.randomUUID(), UUID.randomUUID(), rol("admin_taller", "taller"));
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .usuario(usuario)
+                .used(false)
+                .expiresAt(OffsetDateTime.now().plusMinutes(10))
+                .build();
+        given(passwordResetTokenRepository.findByTokenHashAndUsedFalseAndExpiresAtAfter(
+                anyString(), any(OffsetDateTime.class))).willReturn(Optional.of(resetToken));
+        given(passwordEncoder.encode("NuevaClave1!")).willReturn("nuevo-hash");
+
+        authService.changePassword("token-valido", "NuevaClave1!");
+
+        assertThat(usuario.getPasswordHash()).isEqualTo("nuevo-hash");
+        assertThat(resetToken.getUsed()).isTrue();
+        verify(usuarioRepository).save(usuario);
+        verify(passwordResetTokenRepository).save(resetToken);
+    }
+
+    @Test
+    void cp005_recuperarPasswordConTokenExpirado_debeRechazarSinPersistir() {
+        given(passwordResetTokenRepository.findByTokenHashAndUsedFalseAndExpiresAtAfter(
+                anyString(), any(OffsetDateTime.class))).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.changePassword("token-expirado", "NuevaClave1!"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("expirado");
+        verify(usuarioRepository, never()).save(any());
+        verify(passwordResetTokenRepository, never()).save(any());
+    }
+
+    @AfterEach
+    void clearContext() {
+        UsuarioContext.clear();
+    }
+
+    @Test
+    void adminTallerWithoutSucursalAssignmentLogsInWithTallerOnlyToken() {
+        UUID userId = UUID.randomUUID();
+        UUID tallerId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, tallerId, rol("admin_taller", "taller"));
+        givenSuccessfulCredentialCheck(usuario);
+        given(usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(userId)).willReturn(Optional.empty());
+        given(jwtProvider.generateToken(userId, usuario.getEmail(), "admin_taller", null, tallerId))
+                .willReturn("jwt");
+
+        AuthLoginResult result = authService.login(new AuthLoginCommand(usuario.getEmail(), "Password1!"));
+
+        assertThat(result.getToken()).isEqualTo("jwt");
+        assertThat(result.getRol()).isEqualTo("admin_taller");
+        assertThat(result.getAmbito()).isEqualTo("taller");
+        assertThat(result.getTallerId()).isEqualTo(tallerId);
+        assertThat(result.getSucursalId()).isNull();
+        verify(usuarioSucursalRepository).findByUsuarioIdAndEsPrincipalTrue(userId);
+        verify(jwtProvider).generateToken(userId, usuario.getEmail(), "admin_taller", null, tallerId);
+    }
+
+    @Test
+    void adminTallerWithPrincipalSucursalIncludesSucursalInLoginAndToken() {
+        UUID userId = UUID.randomUUID();
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, tallerId, rol("admin_taller", "taller"));
+        givenSuccessfulCredentialCheck(usuario);
+        given(usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(userId))
+                .willReturn(Optional.of(UsuarioSucursal.builder()
+                        .usuarioId(userId)
+                        .sucursalId(sucursalId)
+                        .esPrincipal(true)
+                        .build()));
+        given(sucursalPort.findTallerIdBySucursalId(sucursalId)).willReturn(Optional.of(tallerId));
+        given(jwtProvider.generateToken(userId, usuario.getEmail(), "admin_taller", sucursalId, tallerId))
+                .willReturn("jwt");
+
+        AuthLoginResult result = authService.login(new AuthLoginCommand(usuario.getEmail(), "Password1!"));
+
+        assertThat(result.getToken()).isEqualTo("jwt");
+        assertThat(result.getRol()).isEqualTo("admin_taller");
+        assertThat(result.getAmbito()).isEqualTo("taller");
+        assertThat(result.getTallerId()).isEqualTo(tallerId);
+        assertThat(result.getSucursalId()).isEqualTo(sucursalId);
+        verify(jwtProvider).generateToken(userId, usuario.getEmail(), "admin_taller", sucursalId, tallerId);
+    }
+
+    @Test
+    void sucursalScopedUserUsesPrincipalSucursalAndIncludesBothScopes() {
+        UUID userId = UUID.randomUUID();
+        UUID tallerId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, tallerId, rol("mecanico", "sucursal"));
+        givenSuccessfulCredentialCheck(usuario);
+        given(usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(userId))
+                .willReturn(Optional.of(UsuarioSucursal.builder()
+                        .usuarioId(userId)
+                        .sucursalId(sucursalId)
+                        .esPrincipal(true)
+                        .build()));
+        given(sucursalPort.findTallerIdBySucursalId(sucursalId)).willReturn(Optional.of(tallerId));
+        given(jwtProvider.generateToken(userId, usuario.getEmail(), "mecanico", sucursalId, tallerId))
+                .willReturn("jwt");
+
+        AuthLoginResult result = authService.login(new AuthLoginCommand(usuario.getEmail(), "Password1!"));
+
+        assertThat(result.getRol()).isEqualTo("mecanico");
+        assertThat(result.getAmbito()).isEqualTo("sucursal");
+        assertThat(result.getTallerId()).isEqualTo(tallerId);
+        assertThat(result.getSucursalId()).isEqualTo(sucursalId);
+        verify(jwtProvider).generateToken(userId, usuario.getEmail(), "mecanico", sucursalId, tallerId);
+    }
+
+    @Test
+    void sucursalScopedUserWithoutPrincipalAssignmentReturnsControlledAuthError() {
+        UUID userId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, UUID.randomUUID(), rol("recepcionista", "sucursal"));
+        givenSuccessfulCredentialCheck(usuario);
+        given(usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(userId)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.login(new AuthLoginCommand(usuario.getEmail(), "Password1!")))
+                .isInstanceOfSatisfying(AuthException.class, ex ->
+                        assertThat(ex.getCode()).isEqualTo(AuthErrorCode.USUARIO_SIN_SUCURSAL_PRINCIPAL));
+        verify(jwtProvider, never()).generateToken(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void roleScopeComparisonHandlesLowercaseSchemaV3Names() {
+        UUID userId = UUID.randomUUID();
+        UUID tallerId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, tallerId, rol("admin_taller", "taller"));
+        givenSuccessfulCredentialCheck(usuario);
+        given(usuarioSucursalRepository.findByUsuarioIdAndEsPrincipalTrue(userId)).willReturn(Optional.empty());
+        given(jwtProvider.generateToken(userId, usuario.getEmail(), "admin_taller", null, tallerId))
+                .willReturn("jwt");
+
+        AuthLoginResult result = authService.login(new AuthLoginCommand(usuario.getEmail(), "Password1!"));
+
+        assertThat(result.getRol()).isEqualTo("admin_taller");
+        assertThat(result.getAmbito()).isEqualTo("taller");
+    }
+
+    @Test
+    void changeCurrentUserPasswordUpdatesPasswordHashWhenActualPasswordMatches() {
+        UUID userId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, UUID.randomUUID(), rol("admin_taller", "taller"));
+        UsuarioContext.setCurrentUser(userId);
+        given(usuarioRepository.findById(userId)).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches("Password1!", "hash")).willReturn(true);
+        given(passwordEncoder.encode("Newpass1!")).willReturn("new-hash");
+
+        authService.changeCurrentUserPassword("Password1!", "Newpass1!");
+
+        assertThat(usuario.getPasswordHash()).isEqualTo("new-hash");
+        assertThat(usuario.getUpdatedAt()).isNotNull();
+        verify(usuarioRepository).save(usuario);
+    }
+
+    @Test
+    void changeCurrentUserPasswordRejectsIncorrectActualPassword() {
+        UUID userId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, UUID.randomUUID(), rol("admin_taller", "taller"));
+        UsuarioContext.setCurrentUser(userId);
+        given(usuarioRepository.findById(userId)).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches("wrong", "hash")).willReturn(false);
+
+        assertThatThrownBy(() -> authService.changeCurrentUserPassword("wrong", "Newpass1!"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Contrasena actual incorrecta");
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    void changeCurrentUserPasswordRejectsInvalidNewPassword() {
+        UUID userId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, UUID.randomUUID(), rol("admin_taller", "taller"));
+        UsuarioContext.setCurrentUser(userId);
+        given(usuarioRepository.findById(userId)).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches("Password1!", "hash")).willReturn(true);
+
+        assertThatThrownBy(() -> authService.changeCurrentUserPassword("Password1!", "sinreglas"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("INVALID_PASSWORD");
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    void resetPasswordPersistsTokenWithRequiredColumns() {
+        UUID userId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, UUID.randomUUID(), rol("admin_taller", "taller"));
+        String clientIp = "127.0.0.1";
+        given(passwordResetRateLimiter.allow(usuario.getEmail(), clientIp)).willReturn(true);
+        given(usuarioRepository.findByEmailAndActivoTrue(usuario.getEmail())).willReturn(Optional.of(usuario));
+        ArgumentCaptor<PasswordResetToken> tokenCaptor = ArgumentCaptor.forClass(PasswordResetToken.class);
+
+        boolean allowed = authService.resetPassword(usuario.getEmail(), clientIp);
+
+        assertThat(allowed).isTrue();
+        verify(passwordResetTokenRepository).deleteByUsuarioId(userId);
+        verify(passwordResetTokenRepository).save(tokenCaptor.capture());
+        PasswordResetToken resetToken = tokenCaptor.getValue();
+        assertThat(resetToken.getUserId()).isEqualTo(userId);
+        assertThat(resetToken.getUsuario()).isSameAs(usuario);
+        assertThat(resetToken.getTokenHash()).hasSize(64);
+        assertThat(resetToken.getExpiresAt()).isNotNull();
+        assertThat(resetToken.getUsed()).isFalse();
+        assertThat(resetToken.getCreatedAt()).isNotNull();
+        verify(resendEmailService).sendPasswordResetEmail(
+                eq(usuario.getEmail()),
+                eq(usuario.getNombre()),
+                any(String.class)
+        );
+    }
+
+    @Test
+    void resetPasswordWhenResendIsNotConfiguredThrowsServiceUnavailable() {
+        UUID userId = UUID.randomUUID();
+        Usuario usuario = usuario(userId, UUID.randomUUID(), rol("admin_taller", "taller"));
+        String clientIp = "127.0.0.1";
+        given(passwordResetRateLimiter.allow(usuario.getEmail(), clientIp)).willReturn(true);
+        given(usuarioRepository.findByEmailAndActivoTrue(usuario.getEmail())).willReturn(Optional.of(usuario));
+        willThrow(new IllegalStateException("Resend API key no configurada"))
+                .given(resendEmailService)
+                .sendPasswordResetEmail(eq(usuario.getEmail()), eq(usuario.getNombre()), anyString());
+
+        assertThatThrownBy(() -> authService.resetPassword(usuario.getEmail(), clientIp))
+                .isInstanceOf(ServiceUnavailableException.class)
+                .hasMessage("Servicio de correo no disponible")
+                .hasCauseInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void rutExistsNormalizesRutBeforeLookup() {
+        given(usuarioRepository.existsByNormalizedRut("123456785")).willReturn(true);
+
+        boolean exists = authService.rutExists("12.345.678-5");
+
+        assertThat(exists).isTrue();
+        verify(usuarioRepository).existsByNormalizedRut("123456785");
+    }
+
+    @Test
+    void rutExistsReturnsFalseForBlankRut() {
+        assertThat(authService.rutExists(" ")).isFalse();
+
+        verify(usuarioRepository, never()).existsByNormalizedRut(any());
+    }
+
+    private void givenSuccessfulCredentialCheck(Usuario usuario) {
+        given(loginAttemptService.isBlocked(usuario.getEmail())).willReturn(false);
+        given(usuarioRepository.findByEmail(usuario.getEmail())).willReturn(Optional.of(usuario));
+        given(passwordEncoder.matches("Password1!", usuario.getPasswordHash())).willReturn(true);
+        given(usuarioRepository.save(usuario)).willReturn(usuario);
+    }
+
+    private Usuario usuario(UUID id, UUID tallerId, Rol rol) {
+        return Usuario.builder()
+                .id(id)
+                .tallerId(tallerId)
+                .rolId(rol.getId())
+                .rol(rol)
+                .nombre("Ana")
+                .apellido("Perez")
+                .email("ana@veloservice.cl")
+                .passwordHash("hash")
+                .activo(true)
+                .build();
+    }
+
+    private Rol rol(String nombre, String ambito) {
+        return Rol.builder()
+                .id(UUID.randomUUID())
+                .nombre(nombre)
+                .ambito(ambito)
+                .activo(true)
+                .build();
+    }
+}

@@ -1,13 +1,20 @@
 package com.veloservice.config.storage;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
-@ConfigurationProperties(prefix = "r2")
+import java.time.Duration;
+
+@ConfigurationProperties(prefix = "cloudflare.r2")
+@Validated
 public record R2Properties(
-        String accountId,
-        String accessKey,
-        String secretKey,
-        String bucket,
-        String publicDomain,
-        int presignExpiryMinutes
-) {}
+        @NotBlank String accountId,
+        @NotBlank String accessKeyId,
+        @NotBlank String secretAccessKey,
+        @NotBlank String bucketName,
+        @NotBlank String publicBaseUrl,
+        @NotNull Duration presignExpiry
+) {
+}

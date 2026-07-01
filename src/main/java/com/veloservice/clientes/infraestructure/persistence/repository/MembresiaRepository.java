@@ -14,4 +14,5 @@ import java.util.UUID;
  */
 @Repository
 public interface MembresiaRepository extends JpaRepository<Membresia, UUID> {
+    long countByTallerId(UUID tallerId);
 }

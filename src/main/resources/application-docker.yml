@@ -1,0 +1,66 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:veloservice_db}?sslmode=disable
+    username: ${DB_USERNAME:velo_user}
+    password: ${DB_PASSWORD:velo_pass}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 600000
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:veloservice_db}?sslmode=disable
+    user: ${DB_USERNAME:velo_user}
+    password: ${DB_PASSWORD:velo_pass}
+    schemas: public
+    baseline-on-migrate: true
+    baseline-version: 2
+    locations: classpath:db/migration
+    validate-on-migrate: false
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+jwt:
+  secret: ${JWT_SECRET:dev-docker-secret-not-for-production-use-min32chars!!}
+  expiration: 86400000
+security:
+  login:
+    max-attempts: 5
+    window-minutes: 10
+    lock-minutes: 15
+  reset-expiration: 900000
+app:
+  reset-password-url: ${RESET_PASSWORD_URL:http://localhost:3000/reset-password}
+  media:
+    storage-root: ${MEDIA_STORAGE_ROOT:/tmp/veloservice-media}
+    public-base-url: ${MEDIA_PUBLIC_BASE_URL:https://media.veloservice.cl}
+cloudflare:
+  r2:
+    account-id: ${CF_R2_ACCOUNT_ID}
+    access-key-id: ${CF_R2_ACCESS_KEY_ID}
+    secret-access-key: ${CF_R2_SECRET_ACCESS_KEY}
+    bucket-name: ${CF_R2_BUCKET_NAME}
+    public-base-url: ${CF_R2_PUBLIC_BASE_URL}
+    presign-expiry: 15m
+resend:
+  api-key: ${RESEND_API_KEY:}
+  from: ${RESEND_FROM:}
+  base-url: https://api.resend.com
+logging:
+  level:
+    org.springframework.security: DEBUG
+    com.veloservice: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

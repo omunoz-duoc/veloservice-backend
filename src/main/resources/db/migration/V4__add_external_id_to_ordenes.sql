@@ -1,2 +1,0 @@
-ALTER TABLE ordenes
-    ADD COLUMN IF NOT EXISTS external_id VARCHAR(255) UNIQUE;

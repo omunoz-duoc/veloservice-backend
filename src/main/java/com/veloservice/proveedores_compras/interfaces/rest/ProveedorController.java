@@ -1,5 +1,10 @@
 package com.veloservice.proveedores_compras.interfaces.rest;
 
+import com.veloservice.proveedores_compras.interfaces.rest.dto.ProveedorRequest;
+import com.veloservice.proveedores_compras.interfaces.rest.dto.ProveedorResponse;
+import com.veloservice.proveedores_compras.interfaces.rest.dto.ProveedorSucursalRequest;
+import com.veloservice.proveedores_compras.interfaces.rest.dto.SucursalProveedorResponse;
+
 import com.veloservice.proveedores_compras.application.usecase.ProveedorService;
 import com.veloservice.proveedores_compras.interfaces.mapper.ProveedorMapper;
 

@@ -1,5 +1,6 @@
 package com.veloservice.config.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.veloservice.config.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -22,8 +23,14 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Configures Spring Security, JWT authentication, and password encoding.
@@ -35,6 +42,7 @@ import java.util.List;
 public class SecurityConfig {
     private final JwtAuthenticationFilter jwtFilter;
     private final UserDetailsService userDetailsService;
+    private final ObjectMapper objectMapper;
 
     /**
      * Builds the security filter chain.
@@ -51,8 +59,14 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Permitir preflight CORS
-                .requestMatchers("/auth/**", "/health", "/productos").permitAll()
+                .requestMatchers("/auth/login", "/auth/login_admin", "/auth/rut-exists", "/auth/reset-password", "/auth/change-password", "/health", "/productos").permitAll()
                 .anyRequest().authenticated()
+            )
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, exception) ->
+                        writeSecurityError(response, HttpStatus.UNAUTHORIZED, authenticationErrorMessage(request)))
+                .accessDeniedHandler((request, response, exception) ->
+                        writeSecurityError(response, HttpStatus.FORBIDDEN, "Acceso denegado"))
             )
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
@@ -92,5 +106,40 @@ public class SecurityConfig {
         provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return new ProviderManager(provider);
+    }
+
+    private String authenticationErrorMessage(HttpServletRequest request) {
+        Object message = request.getAttribute(JwtAuthenticationFilter.AUTH_ERROR_MESSAGE_ATTRIBUTE);
+        if (message instanceof String tokenMessage && !tokenMessage.isBlank()) {
+            return tokenMessage;
+        }
+        return "Autenticacion requerida";
+    }
+
+    private void writeSecurityError(
+            jakarta.servlet.http.HttpServletResponse response,
+            HttpStatus status,
+            String message
+    ) throws java.io.IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", OffsetDateTime.now());
+        body.put("status", status.value());
+        body.put("error", status.getReasonPhrase());
+        body.put("code", securityErrorCode(status, message));
+        body.put("message", message);
+        objectMapper.writeValue(response.getOutputStream(), body);
+    }
+
+    private String securityErrorCode(HttpStatus status, String message) {
+        if (status == HttpStatus.FORBIDDEN) {
+            return "ACCESS_DENIED";
+        }
+        return switch (message) {
+            case "JWT expirado" -> "JWT_EXPIRED";
+            case "JWT inválido" -> "JWT_INVALID";
+            default -> "AUTHENTICATION_REQUIRED";
+        };
     }
 }

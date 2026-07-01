@@ -1,16 +1,11 @@
 package com.veloservice.finanzas.domain.model;
 
-import com.veloservice.config.enums.EstadoCobroEnum;
-import com.veloservice.config.enums.EstadoSIIEnum;
-import com.veloservice.config.enums.MetodoPagoEnum;
-import com.veloservice.config.enums.TipoDocumentoEnum;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
@@ -18,27 +13,39 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import com.veloservice.finanzas.domain.TipoDocumentoEnum;
+import com.veloservice.finanzas.domain.MetodoPagoEnum;
+import com.veloservice.finanzas.domain.EstadoCobroEnum;
+import com.veloservice.finanzas.domain.EstadoSIIEnum;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 /**
- * Represents a payment settlement for a work order.
+ * Cobro y datos tributarios asociados a una orden de trabajo.
  */
 @Entity
-@Table(name = "cobros", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"orden_id"})
-})
+@Table(
+    name = "cobros",
+    indexes = {
+        @Index(name = "idx_cobros_orden", columnList = "orden_id")
+},
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_cobros_orden", columnNames = {"orden_id"})
+}
+)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Cobro {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
     private UUID id;
 
     @Column(name = "orden_id", nullable = false)
@@ -49,8 +56,7 @@ public class Cobro {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_documento", nullable = false)
-    @Builder.Default
-    private TipoDocumentoEnum tipoDocumento = TipoDocumentoEnum.boleta;
+    private TipoDocumentoEnum tipoDocumento;
 
     @Column(name = "numero_documento")
     private String numeroDocumento;
@@ -62,39 +68,34 @@ public class Cobro {
     private BigDecimal subtotalProductos;
 
     @Column(name = "descuento_membresia", nullable = false, precision = 12, scale = 2)
-    @Builder.Default
-    private BigDecimal descuentoMembresia = BigDecimal.ZERO;
+    private BigDecimal descuentoMembresia;
 
     @Column(name = "descuento_manual", nullable = false, precision = 12, scale = 2)
-    @Builder.Default
-    private BigDecimal descuentoManual = BigDecimal.ZERO;
+    private BigDecimal descuentoManual;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(name = "neto", nullable = false, precision = 12, scale = 2)
     private BigDecimal neto;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(name = "iva", nullable = false, precision = 12, scale = 2)
     private BigDecimal iva;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(name = "total", nullable = false, precision = 12, scale = 2)
     private BigDecimal total;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "metodo_pago", nullable = false)
-    @Builder.Default
-    private MetodoPagoEnum metodoPago = MetodoPagoEnum.efectivo;
+    private MetodoPagoEnum metodoPago;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    @Builder.Default
-    private EstadoCobroEnum estado = EstadoCobroEnum.pendiente;
+    @Column(name = "estado", nullable = false)
+    private EstadoCobroEnum estado;
 
     @Column(name = "folio_sii")
     private String folioSii;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado_sii", nullable = false)
-    @Builder.Default
-    private EstadoSIIEnum estadoSii = EstadoSIIEnum.no_aplica;
+    private EstadoSIIEnum estadoSii;
 
     @Column(name = "fecha_pago")
     private OffsetDateTime fechaPago;
@@ -105,7 +106,6 @@ public class Cobro {
     @Column(name = "motivo_anulacion", columnDefinition = "TEXT")
     private String motivoAnulacion;
 
-    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 }

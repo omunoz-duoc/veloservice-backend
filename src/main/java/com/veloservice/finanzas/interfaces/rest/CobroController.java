@@ -3,6 +3,9 @@ package com.veloservice.finanzas.interfaces.rest;
 import com.veloservice.finanzas.application.dto.CobroResult;
 import com.veloservice.finanzas.application.usecase.CobroService;
 import com.veloservice.finanzas.interfaces.mapper.CobroMapper;
+import com.veloservice.finanzas.interfaces.rest.dto.CobroRequest;
+import com.veloservice.finanzas.interfaces.rest.dto.CobroResponse;
+import com.veloservice.finanzas.interfaces.rest.dto.FinanzasHoyResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

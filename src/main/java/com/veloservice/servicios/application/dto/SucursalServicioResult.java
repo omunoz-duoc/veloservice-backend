@@ -18,7 +18,11 @@ public class SucursalServicioResult {
     private UUID id;
     private UUID sucursalId;
     private UUID servicioId;
+    private String nombre;
+    private String descripcion;
+    private BigDecimal precioBase;
     private BigDecimal precioPersonalizado;
+    private BigDecimal precioVigente;
     private Boolean activo;
     private OffsetDateTime createdAt;
 }

@@ -24,6 +24,11 @@ public interface ProductoRepository extends JpaRepository<Producto, UUID> {
      */
     List<Producto> findBySucursalId(UUID sucursalId);
 
+    List<Producto> findBySucursalIdAndActivoTrueOrderByNombreAsc(UUID sucursalId);
+
+    @Query("select count(p) from Producto p join Sucursal s on s.id = p.sucursalId where s.tallerId = :tallerId")
+    long countByTallerId(@Param("tallerId") UUID tallerId);
+
     /**
      * Finds a product by identifier.
      *
@@ -85,8 +90,17 @@ public interface ProductoRepository extends JpaRepository<Producto, UUID> {
     @Query("select p from Producto p where p.sucursalId = :sucursalId and p.stock <= p.stockMinimo")
     List<Producto> findBySucursalIdAndStockLessThanEqualStockMinimo(UUID sucursalId);
 
-    @Query("SELECT p FROM Producto p WHERE p.sucursalId = :sucursalId AND " +
-           "(LOWER(p.nombre) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
-           " LOWER(p.sku)    LIKE LOWER(CONCAT('%', :q, '%')))")
+    @Query("""
+            SELECT p
+            FROM Producto p
+            WHERE p.sucursalId = :sucursalId
+              AND p.activo = true
+              AND (
+                    LOWER(p.nombre) LIKE LOWER(CONCAT('%', :q, '%'))
+                 OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :q, '%'))
+                 OR LOWER(p.marca) LIKE LOWER(CONCAT('%', :q, '%'))
+              )
+            ORDER BY p.nombre ASC
+            """)
     List<Producto> searchBySucursalId(@Param("sucursalId") UUID sucursalId, @Param("q") String q);
 }

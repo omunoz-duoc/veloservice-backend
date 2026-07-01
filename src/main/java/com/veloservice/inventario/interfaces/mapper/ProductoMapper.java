@@ -3,8 +3,8 @@ package com.veloservice.inventario.interfaces.mapper;
 import com.veloservice.inventario.application.dto.ProductoCreateCommand;
 import com.veloservice.inventario.application.dto.ProductoResult;
 import com.veloservice.inventario.domain.model.Producto;
-import com.veloservice.inventario.interfaces.rest.ProductoRequest;
-import com.veloservice.inventario.interfaces.rest.ProductoResponse;
+import com.veloservice.inventario.interfaces.rest.dto.ProductoRequest;
+import com.veloservice.inventario.interfaces.rest.dto.ProductoResponse;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,7 +37,8 @@ public final class ProductoMapper {
                 request.getPrecioVenta(),
                 request.getStock(),
                 request.getStockMinimo(),
-                request.getCategoriaId()
+                request.getCategoriaId(),
+                request.getSucursalId()
         );
     }
 
@@ -46,10 +47,12 @@ public final class ProductoMapper {
                 .id(result.getId())
                 .nombre(result.getNombre())
                 .sku(result.getSku())
+                .marca(result.getMarca())
                 .categoria(result.getCategoriaNombre())
                 .precioCosto(result.getPrecioCosto())
                 .precioVenta(result.getPrecioVenta())
                 .stock(result.getStock())
+                .stockMinimo(result.getStockMinimo())
                 .build();
     }
 

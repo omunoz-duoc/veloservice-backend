@@ -1,5 +1,9 @@
 package com.veloservice.config.security;
 
+import com.veloservice.config.tenant.SucursalContext;
+import com.veloservice.config.tenant.TallerContext;
+import com.veloservice.config.tenant.UsuarioContext;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,6 +30,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    public static final String AUTH_ERROR_MESSAGE_ATTRIBUTE =
+            JwtAuthenticationFilter.class.getName() + ".AUTH_ERROR_MESSAGE";
+
     private final JwtTokenProvider tokenProvider;
 
     /**
@@ -35,12 +42,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        String jwt = null;
         try {
-            String jwt = getJwtFromRequest(request);
-            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
+            jwt = getJwtFromRequest(request);
+            if (StringUtils.hasText(jwt)) {
+                JwtTokenProvider.TokenValidationStatus validationStatus = tokenProvider.validateTokenStatus(jwt);
+                if (!validationStatus.isValid()) {
+                    request.setAttribute(AUTH_ERROR_MESSAGE_ATTRIBUTE, validationStatus.getResponseMessage());
+                    return;
+                }
+
                 UUID userId = tokenProvider.getUserId(jwt);
                 String rol = tokenProvider.getRol(jwt);
                 UUID sucursalId = tokenProvider.getSucursalId(jwt);
+                UUID tallerId = tokenProvider.getTallerId(jwt);
 
                 UserDetails userDetails = User.builder()
                         .username(userId.toString())
@@ -54,13 +69,41 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(auth);
-                SucursalContext.setCurrentSucursal(sucursalId);
-                UsuarioContext.setCurrentUser(userId);
+                if (!"plataforma".equals(tokenProvider.getUserType(jwt))) {
+                    UsuarioContext.setCurrentUser(userId);
+                }
+                if (tallerId != null) {
+                    TallerContext.setCurrentTaller(tallerId);
+                }
+                if (sucursalId != null) {
+                    SucursalContext.setCurrentSucursal(sucursalId);
+                }
             }
-        } catch (Exception e) {
+        } catch (ExpiredJwtException e) {
+            if (StringUtils.hasText(jwt)) {
+                request.setAttribute(
+                        AUTH_ERROR_MESSAGE_ATTRIBUTE,
+                        JwtTokenProvider.TokenValidationStatus.EXPIRED.getResponseMessage()
+                );
+            }
             log.error("Error procesando JWT", e);
+        } catch (Exception e) {
+            if (StringUtils.hasText(jwt)) {
+                request.setAttribute(
+                        AUTH_ERROR_MESSAGE_ATTRIBUTE,
+                        JwtTokenProvider.TokenValidationStatus.INVALID.getResponseMessage()
+                );
+            }
+            log.error("Error procesando JWT", e);
+        } finally {
+            try {
+                filterChain.doFilter(request, response);
+            } finally {
+                TallerContext.clear();
+                SucursalContext.clear();
+                UsuarioContext.clear();
+            }
         }
-        filterChain.doFilter(request, response);
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

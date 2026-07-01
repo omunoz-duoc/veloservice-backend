@@ -1,16 +1,16 @@
 package com.veloservice.ordenes.application.dto;
 
-import lombok.Builder;
-import lombok.Data;
-
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-@Data
-@Builder
-public class ComentarioResult {
-    private UUID id;
-    private String autor;
-    private String texto;
-    private OffsetDateTime creadoEn;
+public record ComentarioResult(
+    UUID id,
+    UUID usuarioId,
+    String usuario, 
+    String texto, 
+    OffsetDateTime createdAt
+) {
+    public ComentarioResult(String usuario, String texto, OffsetDateTime createdAt) {
+        this(null, null, usuario, texto, createdAt);
+    }
 }

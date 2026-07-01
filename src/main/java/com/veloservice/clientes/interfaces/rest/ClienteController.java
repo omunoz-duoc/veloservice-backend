@@ -3,12 +3,19 @@ package com.veloservice.clientes.interfaces.rest;
 import com.veloservice.clientes.application.usecase.ClienteService;
 import com.veloservice.clientes.application.usecase.BicicletaService;
 import com.veloservice.clientes.interfaces.mapper.ClienteMapper;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteBusquedaResponse;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteDetalleResponse;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteRequest;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteResponse;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteResumenResponse;
+import com.veloservice.clientes.interfaces.rest.dto.ClienteListItem;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,6 +43,15 @@ public class ClienteController {
     public ResponseEntity<ClienteResponse> crear(@Valid @RequestBody ClienteRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ClienteMapper.toResponse(clienteService.crear(ClienteMapper.toCommand(request)))
+        );
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<ClienteResponse> actualizar(
+            @PathVariable UUID id,
+            @Valid @RequestBody ClienteRequest request) {
+        return ResponseEntity.ok(
+                ClienteMapper.toResponse(clienteService.actualizar(id, ClienteMapper.toCommand(request)))
         );
     }
 
@@ -72,12 +88,23 @@ public class ClienteController {
         return ResponseEntity.ok(List.of()); // TODO: implementar listarResumen en ClienteService
     }
 
+    @GetMapping("/lista-clientes")
+    public ResponseEntity<List<ClienteListItem>> listaClientes() {
+        List<ClienteListItem> items = clienteService.listar().stream()
+                .map(c -> new ClienteListItem(
+                        c.getId(),
+                        (c.getNombre() + " " + (c.getApellido() != null ? c.getApellido() : "")).trim(),
+                        c.getRut()))
+                .toList();
+        return ResponseEntity.ok(items);
+    }
+
     /**
      * Retrieves a customer by identifier.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ClienteResponse> obtener(@PathVariable UUID id) {
-        return ResponseEntity.ok(ClienteMapper.toResponse(clienteService.obtener(id)));
+    public ResponseEntity<ClienteDetalleResponse> obtener(@PathVariable UUID id) {
+        return ResponseEntity.ok(ClienteMapper.toDetalleResponse(clienteService.obtenerDetalle(id)));
     }
 
     /**

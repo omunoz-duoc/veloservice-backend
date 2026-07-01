@@ -1,6 +1,6 @@
 package com.veloservice.proveedores_compras.application.dto;
 
-import com.veloservice.config.enums.EstadoCompraEnum;
+import com.veloservice.proveedores_compras.domain.EstadoCompraEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

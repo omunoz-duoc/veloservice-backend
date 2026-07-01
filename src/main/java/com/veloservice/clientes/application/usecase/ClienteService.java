@@ -1,28 +1,31 @@
 package com.veloservice.clientes.application.usecase;
 
 import com.veloservice.config.tenant.TenantOperation;
+import com.veloservice.clientes.application.dto.BicicletaDetalleResult;
 import com.veloservice.clientes.application.dto.ClienteCreateCommand;
+import com.veloservice.clientes.application.dto.ClienteDetalleResult;
 import com.veloservice.clientes.application.dto.ClienteResult;
-import com.veloservice.clientes.application.dto.ClienteResumenResult;
 import com.veloservice.clientes.application.dto.MembresiaActualResult;
+import com.veloservice.clientes.application.dto.OrdenResumenResult;
 import com.veloservice.clientes.domain.model.Cliente;
 import com.veloservice.clientes.domain.model.Membresia;
-import com.veloservice.clientes.domain.model.SucursalCliente;
 import com.veloservice.clientes.infraestructure.persistence.repository.ClienteRepository;
 import com.veloservice.clientes.infraestructure.persistence.repository.MembresiaRepository;
-import com.veloservice.clientes.infraestructure.persistence.repository.SucursalClienteRepository;
-import com.veloservice.clientes.interfaces.mapper.ClienteMapper;
-import com.veloservice.config.security.SucursalContext;
-import com.veloservice.finanzas.infraestructure.persistence.repository.CobroRepository;
+import com.veloservice.config.tenant.TallerContext;
 import com.veloservice.ordenes.infraestructure.persistence.repository.OrdenRepository;
+import com.veloservice.shared.application.exception.ConflictException;
+import com.veloservice.shared.application.util.RutUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -32,74 +35,148 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ClienteService {
 
+    private static final Pattern CODIGO_CLIENTE_PATTERN = Pattern.compile("^CL-(\\d+)$");
+
     private final ClienteRepository clienteRepository;
-    private final SucursalClienteRepository sucursalClienteRepository;
     private final MembresiaRepository membresiaRepository;
     private final OrdenRepository ordenRepository;
-    private final CobroRepository cobroRepository;
 
     @TenantOperation
     @Transactional
     public ClienteResult crear(ClienteCreateCommand command) {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null) {
-            throw new IllegalStateException("Operacion requiere contexto de sucursal");
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            throw new IllegalStateException("Operacion requiere contexto de taller");
         }
 
-        Cliente cliente = clienteRepository.findByRut(command.getRut()).orElseGet(() -> Cliente.builder()
-                .nombre(command.getNombre())
-                .apellido(command.getApellido())
-                .rut(command.getRut())
-                .telefono(command.getTelefono())
-                .email(command.getEmail())
-                .direccion(command.getDireccion())
-                .build());
-
-        if (cliente.getId() == null) {
-            cliente = clienteRepository.save(cliente);
+        String rut = RutUtils.normalize(command.getRut());
+        if (StringUtils.hasText(rut)
+                && clienteRepository.findByTallerIdAndRut(tallerId, rut).isPresent()) {
+            throw new ConflictException("Ya existe un cliente con el RUT " + rut);
         }
 
-        if (!sucursalClienteRepository.existsBySucursalIdAndClienteId(sucursalId, cliente.getId())) {
-            SucursalCliente vinculo = SucursalCliente.builder()
-                    .sucursalId(sucursalId)
-                    .clienteId(cliente.getId())
-                    .build();
-            sucursalClienteRepository.save(vinculo);
-        }
-
-        return toResult(cliente, sucursalId);
+        Cliente cliente = clienteRepository.save(nuevoCliente(command, tallerId));
+        return toResult(cliente);
     }
 
     @TenantOperation
     @Transactional(readOnly = true)
     public List<ClienteResult> listar() {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null) {
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
             return List.of();
         }
-        return sucursalClienteRepository.findAllBySucursalId(sucursalId).stream()
-                .map(vinculo -> clienteRepository.findById(vinculo.getClienteId())
-                        .orElseThrow(() -> new IllegalStateException("Cliente vinculado no encontrado")))
-                .map(cliente -> toResult(cliente, sucursalId))
+        return clienteRepository.findAllByTallerIdOrderByCreatedAtDesc(tallerId).stream()
+                .map(this::toResult)
                 .collect(Collectors.toList());
     }
 
     @TenantOperation
     @Transactional(readOnly = true)
     public ClienteResult obtener(UUID id) {
-        UUID sucursalId = SucursalContext.getCurrentSucursal();
-        if (sucursalId == null) {
-            throw new IllegalStateException("Operacion requiere contexto de sucursal");
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            throw new IllegalStateException("Operacion requiere contexto de taller");
         }
-        sucursalClienteRepository.findBySucursalIdAndClienteId(sucursalId, id)
+        Cliente cliente = clienteRepository.findByIdAndTallerId(id, tallerId)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
-        Cliente cliente = clienteRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
-        return toResult(cliente, sucursalId);
+        return toResult(cliente);
     }
 
-    private ClienteResult toResult(Cliente cliente, UUID sucursalId) {
-        MembresiaActualResult membresiaActual = getMembresiaActual(cliente.getId(), sucursalId);
+    @TenantOperation
+    @Transactional(readOnly = true)
+    public ClienteDetalleResult obtenerDetalle(UUID id) {
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            throw new IllegalStateException("Operacion requiere contexto de taller");
+        }
+        Cliente cliente = clienteRepository.findByIdAndTallerId(id, tallerId)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+
+        int bicicletasCount = cliente.getBicicletas() != null ? cliente.getBicicletas().size() : 0;
+        List<BicicletaDetalleResult> bicicletas = cliente.getBicicletas() != null
+                ? cliente.getBicicletas().stream()
+                        .map(b -> new BicicletaDetalleResult(
+                                b.getId(), b.getMarca(), b.getModelo(), b.getTipo(), b.getAro(),
+                                b.getColor(), b.getNumeroSerie(), b.getAnio(), b.getNotas()))
+                        .toList()
+                : List.of();
+
+        long otsCount = ordenRepository.countByClienteIdAndTallerId(id, tallerId);
+        List<OrdenResumenResult> lastOts = ordenRepository.findResumenByClienteIdAndTallerId(
+                        id, tallerId, Pageable.ofSize(5)).stream()
+                .map(o -> new OrdenResumenResult(o.numeroOrden(), o.tipoOrden(), o.estadoOrden(), o.fechaIngreso()))
+                .toList();
+
+        return ClienteDetalleResult.builder()
+                .id(cliente.getId())
+                .nombre(cliente.getNombre())
+                .apellido(cliente.getApellido())
+                .email(cliente.getEmail())
+                .telefono(cliente.getTelefono())
+                .direccion(cliente.getDireccion())
+                .rut(cliente.getRut())
+                .clienteDesde(cliente.getCreatedAt())
+                .bicicletasCount(bicicletasCount)
+                .bicicletas(bicicletas)
+                .otsCount(otsCount)
+                .lastOts(lastOts)
+                .build();
+    }
+
+    @TenantOperation
+    @Transactional
+    public ClienteResult actualizar(UUID id, ClienteCreateCommand command) {
+        UUID tallerId = TallerContext.getCurrentTaller();
+        if (tallerId == null) {
+            throw new IllegalStateException("Operacion requiere contexto de taller");
+        }
+        Cliente cliente = clienteRepository.findByIdAndTallerId(id, tallerId)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
+        cliente.setNombre(command.getNombre());
+        cliente.setApellido(command.getApellido());
+        cliente.setRut(RutUtils.normalize(command.getRut()));
+        cliente.setTelefono(command.getTelefono());
+        cliente.setEmail(command.getEmail());
+        cliente.setDireccion(command.getDireccion());
+        cliente.setUpdatedAt(OffsetDateTime.now());
+        return toResult(clienteRepository.save(cliente));
+    }
+
+    private Cliente nuevoCliente(ClienteCreateCommand command, UUID tallerId) {
+        OffsetDateTime now = OffsetDateTime.now();
+        return Cliente.builder()
+                .tallerId(tallerId)
+                .codigoCliente(generarCodigoCliente(tallerId))
+                .nombre(command.getNombre())
+                .apellido(command.getApellido())
+                .rut(RutUtils.normalize(command.getRut()))
+                .telefono(command.getTelefono())
+                .email(command.getEmail())
+                .direccion(command.getDireccion())
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+    }
+
+    private synchronized String generarCodigoCliente(UUID tallerId) {
+        int siguiente = clienteRepository.findCodigosClienteByTallerId(tallerId).stream()
+                .map(CODIGO_CLIENTE_PATTERN::matcher)
+                .filter(java.util.regex.Matcher::matches)
+                .mapToInt(matcher -> Integer.parseInt(matcher.group(1)))
+                .max()
+                .orElse(0) + 1;
+
+        String codigoCliente;
+        do {
+            codigoCliente = String.format("CL-%04d", siguiente++);
+        } while (clienteRepository.existsByTallerIdAndCodigoCliente(tallerId, codigoCliente));
+
+        return codigoCliente;
+    }
+
+    private ClienteResult toResult(Cliente cliente) {
+        MembresiaActualResult membresiaActual = getMembresiaActual(cliente);
 
         int bicicletasCount = cliente.getBicicletas() != null ? cliente.getBicicletas().size() : 0;
 
@@ -121,6 +198,7 @@ public class ClienteService {
 
         return ClienteResult.builder()
                 .id(cliente.getId())
+                .codigoCliente(cliente.getCodigoCliente())
                 .nombre(cliente.getNombre())
                 .apellido(cliente.getApellido())
                 .rut(cliente.getRut())
@@ -138,6 +216,7 @@ public class ClienteService {
     private ClienteResult toBusquedaResult(Cliente cliente) {
         return ClienteResult.builder()
                 .id(cliente.getId())
+                .codigoCliente(cliente.getCodigoCliente())
                 .nombre(cliente.getNombre())
                 .apellido(cliente.getApellido())
                 .rut(cliente.getRut())
@@ -147,11 +226,12 @@ public class ClienteService {
                 .build();
     }
 
-    private MembresiaActualResult getMembresiaActual(UUID clienteId, UUID sucursalId) {
-        return sucursalClienteRepository.findBySucursalIdAndClienteId(sucursalId, clienteId)
-                .filter(vinculo -> vinculo.getMembresiaId() != null)
-                .flatMap(vinculo -> membresiaRepository.findById(vinculo.getMembresiaId())
-                        .map(this::toMembresiaActual))
+    private MembresiaActualResult getMembresiaActual(Cliente cliente) {
+        if (cliente.getMembresiaId() == null) {
+            return null;
+        }
+        return membresiaRepository.findById(cliente.getMembresiaId())
+                .map(this::toMembresiaActual)
                 .orElse(null);
     }
 

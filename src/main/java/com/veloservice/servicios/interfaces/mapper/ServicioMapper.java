@@ -4,10 +4,10 @@ import com.veloservice.servicios.application.dto.ServicioCreateCommand;
 import com.veloservice.servicios.application.dto.ServicioResult;
 import com.veloservice.servicios.application.dto.SucursalServicioPrecioCommand;
 import com.veloservice.servicios.application.dto.SucursalServicioResult;
-import com.veloservice.servicios.interfaces.rest.ServicioRequest;
-import com.veloservice.servicios.interfaces.rest.ServicioResponse;
-import com.veloservice.servicios.interfaces.rest.SucursalServicioRequest;
-import com.veloservice.servicios.interfaces.rest.SucursalServicioResponse;
+import com.veloservice.servicios.interfaces.rest.dto.ServicioRequest;
+import com.veloservice.servicios.interfaces.rest.dto.ServicioResponse;
+import com.veloservice.servicios.interfaces.rest.dto.SucursalServicioRequest;
+import com.veloservice.servicios.interfaces.rest.dto.SucursalServicioResponse;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -53,7 +53,11 @@ public final class ServicioMapper {
                 .id(result.getId())
                 .sucursalId(result.getSucursalId())
                 .servicioId(result.getServicioId())
+                .nombre(result.getNombre())
+                .descripcion(result.getDescripcion())
+                .precioBase(result.getPrecioBase())
                 .precioPersonalizado(result.getPrecioPersonalizado())
+                .precioVigente(result.getPrecioVigente())
                 .activo(result.getActivo())
                 .createdAt(result.getCreatedAt())
                 .build();

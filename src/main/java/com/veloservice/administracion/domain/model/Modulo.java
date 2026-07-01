@@ -5,32 +5,47 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
 import java.util.UUID;
 
+/**
+ * Módulo funcional del sistema sobre el cual se asignan permisos a roles.
+ */
 @Entity
-@Table(name = "modulos")
+@Table(
+    name = "modulos",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_modulos_nombre", columnNames = {"nombre"})
+}
+)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Modulo {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
     private UUID id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "nombre", nullable = false)
     private String nombre;
 
+    @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
 
-    @Column(nullable = false)
+    @Column(name = "ruta", nullable = false)
     private String ruta;
+
+    @Column(name = "activo", nullable = false)
+    private Boolean activo;
 }

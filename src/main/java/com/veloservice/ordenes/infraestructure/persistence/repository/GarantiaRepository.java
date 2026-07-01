@@ -22,6 +22,8 @@ public interface GarantiaRepository extends JpaRepository<Garantia, UUID> {
      */
     List<Garantia> findByOrdenId(UUID ordenId);
 
+    long countByTallerId(UUID tallerId);
+
     /**
      * Finds a warranty by its number.
      *

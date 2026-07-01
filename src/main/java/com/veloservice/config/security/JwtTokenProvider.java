@@ -1,6 +1,7 @@
 package com.veloservice.config.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -24,6 +25,26 @@ public class JwtTokenProvider {
     private final long jwtExpirationMs;
     private final long resetExpirationMs;
 
+    public enum TokenValidationStatus {
+        VALID(null),
+        EXPIRED("JWT expirado"),
+        INVALID("JWT inválido");
+
+        private final String responseMessage;
+
+        TokenValidationStatus(String responseMessage) {
+            this.responseMessage = responseMessage;
+        }
+
+        public boolean isValid() {
+            return this == VALID;
+        }
+
+        public String getResponseMessage() {
+            return responseMessage;
+        }
+    }
+
     /**
      * Creates a provider using configuration properties.
      *
@@ -44,20 +65,40 @@ public class JwtTokenProvider {
      * @param userId user identifier
      * @param email user email
      * @param rol role name
-     * @param sucursalId branch identifier
+     * @param sucursalId optional branch identifier; when non-null, embedded as "sucursalId" claim
+     * @param tallerId optional tenant identifier; when non-null, embedded as "tallerId" claim
      * @return signed JWT
      */
-    public String generateToken(UUID userId, String email, String rol, UUID sucursalId) {
+    public String generatePlatformToken(UUID userId, String email) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + jwtExpirationMs);
+        return Jwts.builder()
+                .subject(email)
+                .claim("userId", userId.toString())
+                .claim("rol", "plataforma")
+                .claim("userType", "plataforma")
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(jwtSecret, Jwts.SIG.HS256)
+                .compact();
+    }
+
+    public String generateToken(UUID userId, String email, String rol, UUID sucursalId, UUID tallerId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtExpirationMs);
         JwtBuilder builder = Jwts.builder()
                 .subject(email)
                 .claim("userId", userId.toString())
                 .claim("rol", rol)
-                .claim("sucursalId", sucursalId.toString())
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(jwtSecret, Jwts.SIG.HS256);
+        if (sucursalId != null) {
+            builder.claim("sucursalId", sucursalId.toString());
+        }
+        if (tallerId != null) {
+            builder.claim("tallerId", tallerId.toString());
+        }
         return builder.compact();
     }
 
@@ -89,7 +130,7 @@ public class JwtTokenProvider {
      * @return token claims
      */
     public Claims getClaims(String token) {
-        return Jwts.parser().verifyWith(jwtSecret).build().parseSignedClaims(token).getPayload();
+        return parseClaims(token);
     }
 
     /**
@@ -99,12 +140,19 @@ public class JwtTokenProvider {
      * @return true if the token is valid
      */
     public boolean validateToken(String token) {
+        return validateTokenStatus(token).isValid();
+    }
+
+    public TokenValidationStatus validateTokenStatus(String token) {
         try {
-            Jwts.parser().verifyWith(jwtSecret).build().parseSignedClaims(token);
-            return true;
+            parseClaims(token);
+            return TokenValidationStatus.VALID;
+        } catch (ExpiredJwtException e) {
+            log.error("JWT expirado: {}", e.getMessage());
+            return TokenValidationStatus.EXPIRED;
         } catch (JwtException | IllegalArgumentException e) {
             log.error("JWT invalido: {}", e.getMessage());
-            return false;
+            return TokenValidationStatus.INVALID;
         }
     }
 
@@ -128,6 +176,10 @@ public class JwtTokenProvider {
         return getClaims(token).get("rol", String.class);
     }
 
+    public String getUserType(String token) {
+        return getClaims(token).get("userType", String.class);
+    }
+
     /**
      * Gets the branch identifier from the JWT.
      *
@@ -135,7 +187,8 @@ public class JwtTokenProvider {
      * @return branch identifier
      */
     public UUID getSucursalId(String token) {
-        return UUID.fromString(getClaims(token).get("sucursalId", String.class));
+        String sid = getClaims(token).get("sucursalId", String.class);
+        return sid != null ? UUID.fromString(sid) : null;
     }
 
     /**
@@ -147,5 +200,9 @@ public class JwtTokenProvider {
     public UUID getTallerId(String token) {
         String tid = getClaims(token).get("tallerId", String.class);
         return tid != null ? UUID.fromString(tid) : null;
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser().verifyWith(jwtSecret).build().parseSignedClaims(token).getPayload();
     }
 }
