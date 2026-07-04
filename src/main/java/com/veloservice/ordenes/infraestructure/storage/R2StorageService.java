@@ -22,7 +22,7 @@ public class R2StorageService implements StorageService {
     @Override
     public String presign(String fileKey, String contentType, int expiryMinutes) {
         PutObjectRequest putRequest = PutObjectRequest.builder()
-                .bucket(r2Properties.bucket())
+                .bucket(r2Properties.bucketName())
                 .key(fileKey)
                 .contentType(contentType)
                 .build();
@@ -37,6 +37,6 @@ public class R2StorageService implements StorageService {
 
     @Override
     public String publicUrl(String fileKey) {
-        return "https://" + r2Properties.publicDomain() + "/" + fileKey;
+        return r2Properties.publicBaseUrl().replaceAll("/+$", "") + "/" + fileKey;
     }
 }

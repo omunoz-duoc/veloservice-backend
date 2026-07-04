@@ -5,8 +5,8 @@ COPY pom.xml .
 # Download deps first for layer caching
 RUN mvn dependency:go-offline -B -q
 COPY src ./src
-# Skip tests here; CI already ran them
-RUN mvn package -DskipTests -B -q
+# Skip compiling and running tests here; CI already ran them
+RUN mvn package -Dmaven.test.skip=true -B -q
 
 # Stage 2 — runtime
 FROM eclipse-temurin:21-jre-alpine

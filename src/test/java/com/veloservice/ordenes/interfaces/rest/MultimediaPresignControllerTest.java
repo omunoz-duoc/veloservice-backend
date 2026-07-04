@@ -2,8 +2,8 @@ package com.veloservice.ordenes.interfaces.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.veloservice.administracion.infraestructure.persistence.repository.UsuarioRepository;
-import com.veloservice.config.enums.EtapaMultimediaEnum;
-import com.veloservice.config.enums.TipoArchivoEnum;
+import com.veloservice.ordenes.domain.EtapaMultimediaEnum;
+import com.veloservice.ordenes.domain.TipoArchivoEnum;
 import com.veloservice.config.security.JwtTokenProvider;
 import com.veloservice.ordenes.application.dto.MultimediaResult;
 import com.veloservice.ordenes.application.dto.PresignResult;

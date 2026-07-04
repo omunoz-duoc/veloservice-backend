@@ -86,8 +86,8 @@ class MultimediaServicePresignTest {
                         .ordenId(ordenId)
                         .usuarioId(userId)
                         .url(publicUrl)
-                        .tipoArchivo(com.veloservice.config.enums.TipoArchivoEnum.imagen)
-                        .etapa(com.veloservice.config.enums.EtapaMultimediaEnum.ingreso)
+                        .tipoArchivo(com.veloservice.ordenes.domain.TipoArchivoEnum.imagen)
+                        .etapa(com.veloservice.ordenes.domain.EtapaMultimediaEnum.ingreso)
                         .createdAt(java.time.OffsetDateTime.now())
                         .build();
 
@@ -100,7 +100,7 @@ class MultimediaServicePresignTest {
 
             com.veloservice.ordenes.application.dto.MultimediaResult result =
                     service.confirmar(ordenId, "ingreso", fileKey,
-                            com.veloservice.config.enums.TipoArchivoEnum.imagen, null);
+                            com.veloservice.ordenes.domain.TipoArchivoEnum.imagen, null);
 
             assertThat(result.getUrl()).isEqualTo(publicUrl);
         }

@@ -13,6 +13,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,7 +33,7 @@ class R2StorageServiceTest {
     void setUp() {
         R2Properties props = new R2Properties(
                 "account123", "accessKey", "secretKey",
-                "my-bucket", "media.example.com", 10);
+                "my-bucket", "https://media.example.com", Duration.ofMinutes(10));
         storageService = new R2StorageService(s3Presigner, props);
     }
 
