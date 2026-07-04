@@ -210,6 +210,123 @@ En Linux puede ser necesario agregar:
 --add-host=host.docker.internal:host-gateway
 ```
 
+## Ejecutar backend y frontend juntos con Docker Compose
+
+Para levantar este backend junto con el frontend, PostgreSQL y pgAdmin usando Docker Compose, los repositorios deben estar dentro de una carpeta contenedora con la misma estructura actual. El archivo `docker-compose.yml` debe quedar en la carpeta padre, al mismo nivel que `veloservice-backend` y `veloservice-frontend`:
+
+```text
+carpeta-contenedora/
+├── docker-compose.yml
+├── pgadmin/
+│   └── servers.json
+├── veloservice-backend/
+│   ├── Dockerfile
+│   ├── .env
+│   └── script.sql
+└── veloservice-frontend/
+    └── veloservice-web/
+        ├── Dockerfile
+        └── .env.development
+```
+
+Desde la carpeta contenedora, levanta todos los servicios con:
+
+```bash
+docker compose up --build
+```
+
+Para detener y eliminar los contenedores de este entorno:
+
+```bash
+docker compose down
+```
+
+Contenido requerido de `docker-compose.yml`:
+
+```yaml
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: veloservice-postgres
+    environment:
+      POSTGRES_DB: veloservice_db
+      POSTGRES_USER: velo_user
+      POSTGRES_PASSWORD: velo_pass
+
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./veloservice-backend/script.sql:/docker-entrypoint-initdb.d/01-script.sql:ro
+    networks:
+      - veloservice-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U velo_user -d veloservice_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: veloservice-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    networks:
+      - veloservice-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./veloservice-backend
+      dockerfile: Dockerfile
+    container_name: veloservice-backend
+    env_file:
+      - ./veloservice-backend/.env
+    environment:
+      DD_INSTRUMENT_SERVICE_WITH_APM: "false"
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8080:8080"
+    networks:
+      - veloservice-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/health || true"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  web:
+    build:
+      context: ./veloservice-frontend/veloservice-web
+      dockerfile: Dockerfile
+    container_name: veloservice-web
+    env_file:
+      - ./veloservice-frontend/veloservice-web/.env.development
+    ports:
+      - "3001:3000"
+    networks:
+      - veloservice-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+networks:
+  veloservice-network:
+    driver: bridge
+```
+
 ## Script de desarrollo
 
 El repositorio incluye `start-dev.sh`, que intenta iniciar un contenedor Docker llamado `postgres-local`, cargar datos demo con `psql` y luego ejecutar Spring Boot.
