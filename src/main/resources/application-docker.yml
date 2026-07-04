@@ -25,7 +25,7 @@ spring:
     password: ${DB_PASSWORD:velo_pass}
     schemas: public
     baseline-on-migrate: true
-    baseline-version: 2
+    baseline-version: 12
     locations: classpath:db/migration
     validate-on-migrate: false
 server:
